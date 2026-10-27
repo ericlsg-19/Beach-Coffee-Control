@@ -206,3 +206,18 @@ test("/start points customers to the Order button instead of chat buttons", asyn
   assert.match(calls.at(-1).body.text, /Order ☕/);
   assert.equal(calls.at(-1).body.reply_markup, undefined);
 });
+
+test("/start sends the how-to-order picture when the bot knows its URL", async () => {
+  const { env, calls, post } = setup();
+  env.WEBHOOK_URL = "https://bot.example";
+  await post(msg(ANA, "/start"));
+  const photo = calls.at(-1);
+  assert.equal(photo.method, "sendPhoto");
+  assert.match(photo.body.photo, /^https:\/\/bot\.example\/how-to-order\.jpg/);
+  assert.match(photo.body.caption, /tap <b>Order ☕<\/b>/);
+
+  const img = await worker.fetch(new Request("https://bot.example/how-to-order.jpg"), env);
+  assert.equal(img.headers.get("content-type"), "image/jpeg");
+  const bytes = new Uint8Array(await img.arrayBuffer());
+  assert.deepEqual([bytes[0], bytes[1]], [0xff, 0xd8]); // JPEG header
+});

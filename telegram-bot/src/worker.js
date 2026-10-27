@@ -12,6 +12,7 @@
 
 import { miniAppHtml } from "./miniapp.js";
 import { verifyInitData } from "./initdata.js";
+import { HOW_TO_ORDER_JPG } from "./howto.js";
 
 const DRINKS = [
   { id: "espresso",   name: "Espresso" },
@@ -91,7 +92,12 @@ async function showMenu(env, chatId, messageId) {
   const text = "☕ <b>Beach Coffee Co.</b> · Island DAO\n\n" +
     "To order, tap <b>Order ☕</b> at the bottom of the chat, next to the message box 👇\n" +
     "Pick your drink and we'll message you here when it's ready.";
-  return messageId ? edit(env, chatId, messageId, text) : send(env, chatId, text);
+  if (messageId) return edit(env, chatId, messageId, text);
+  if (env.WEBHOOK_URL) {
+    const res = await tg(env, "sendPhoto", { chat_id: chatId, photo: `${env.WEBHOOK_URL}/how-to-order.jpg?v=1`, caption: text, parse_mode: "HTML" });
+    if (res.ok) return res;
+  }
+  return send(env, chatId, text);
 }
 
 async function askConfirm(env, chatId, messageId, drink) {
@@ -319,6 +325,10 @@ export default {
       return new Response(miniAppHtml(DRINKS), { headers: { "content-type": "text/html; charset=utf-8" } });
     }
     if (path.startsWith("/api/")) return handleApi(request, env, path);
+    if (path === "/how-to-order.jpg") {
+      const bytes = Uint8Array.from(atob(HOW_TO_ORDER_JPG), c => c.charCodeAt(0));
+      return new Response(bytes, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" } });
+    }
     if (request.method !== "POST") return new Response("Beach Coffee Co. bot is running ☕");
     if (request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.WEBHOOK_SECRET) {
       return new Response("forbidden", { status: 403 });
