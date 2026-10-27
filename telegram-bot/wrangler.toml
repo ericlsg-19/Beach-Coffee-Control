@@ -10,3 +10,7 @@ SOLANA_ADDRESS = "WTxV6GDprgz2vHT4gX4ULCexqqaXYKQ8zWpZoYJHz2u"
 binding = "DB"
 database_name = "beach-coffee-bot"
 database_id = "27fa6662-7253-4d3b-b9b2-ca84f776ae0f"
+
+# Keep request logs in the Cloudflare dashboard (Workers → beach-coffee-bot → Logs).
+[observability]
+enabled = true
