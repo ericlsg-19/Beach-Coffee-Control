@@ -66,14 +66,6 @@ const edit = (env, chat_id, message_id, text, reply_markup) =>
 
 const appUrl = env => `${env.WEBHOOK_URL}/app`;
 
-function menuKeyboard(env) {
-  const rows = env.WEBHOOK_URL ? [[{ text: "☕ Open the menu", web_app: { url: appUrl(env) } }]] : [];
-  for (let i = 0; i < DRINKS.length; i += 2) {
-    rows.push(DRINKS.slice(i, i + 2).map(d => ({ text: d.name, callback_data: `d:${d.id}` })));
-  }
-  return { inline_keyboard: rows };
-}
-
 // ---------- Settings ----------
 
 async function getSetting(env, key) {
@@ -95,8 +87,11 @@ async function showMenu(env, chatId, messageId) {
     const text = "The bar is closed right now 🌙 Come back soon!";
     return messageId ? edit(env, chatId, messageId, text) : send(env, chatId, text);
   }
-  const text = "☕ <b>Beach Coffee Co.</b> · Island DAO\nWhat can we make for you?";
-  return messageId ? edit(env, chatId, messageId, text, menuKeyboard(env)) : send(env, chatId, text, menuKeyboard(env));
+  // Ordering happens in the Mini App, opened from the "Order ☕" button next to the message box.
+  const text = "☕ <b>Beach Coffee Co.</b> · Island DAO\n\n" +
+    "To order, tap <b>Order ☕</b> at the bottom of the chat, next to the message box 👇\n" +
+    "Pick your drink and we'll message you here when it's ready.";
+  return messageId ? edit(env, chatId, messageId, text) : send(env, chatId, text);
 }
 
 async function askConfirm(env, chatId, messageId, drink) {

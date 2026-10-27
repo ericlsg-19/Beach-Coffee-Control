@@ -64,7 +64,8 @@ test("full order: menu, confirm, barista notified, ready message to customer", a
 
   await post(msg(ANA, "/start"));
   assert.equal(calls.at(-1).method, "sendMessage");
-  assert.equal(calls.at(-1).body.reply_markup.inline_keyboard.flat().length, 12);
+  assert.match(calls.at(-1).body.text, /tap <b>Order ☕<\/b> at the bottom/);
+  assert.equal(calls.at(-1).body.reply_markup, undefined);
 
   await post(tap(ANA, "d:flatwhite"));
   assert.match(calls.at(-1).body.text, /Flat White/);
@@ -199,10 +200,9 @@ test("Mini App order: saved, receipt to customer, barista notified, listed in se
   assert.equal(bad.ok, false);
 });
 
-test("chat menu offers the Mini App when WEBHOOK_URL is set", async () => {
-  const { env, calls, post } = setup();
-  env.WEBHOOK_URL = "https://bot.example";
+test("/start points customers to the Order button instead of chat buttons", async () => {
+  const { calls, post } = setup();
   await post(msg(ANA, "/start"));
-  const first = calls.at(-1).body.reply_markup.inline_keyboard[0][0];
-  assert.equal(first.web_app.url, "https://bot.example/app");
+  assert.match(calls.at(-1).body.text, /Order ☕/);
+  assert.equal(calls.at(-1).body.reply_markup, undefined);
 });

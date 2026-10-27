@@ -7,9 +7,11 @@ Roda de graça no **Cloudflare Workers**, com os pedidos guardados num banco **D
 ## Como funciona
 
 **Cliente**
-1. Abre o bot e toca numa bebida do menu (12 bebidas, as mesmas do Âncora).
-2. Confirma com **✅ Order it** e recebe o número do pedido (ex.: *Order #14 · Flat White*) e o endereço Solana para pagar.
-3. Quando a barista toca **Ready**, recebe: *Your Flat White is ready! Pick it up at the bar.*
+1. Abre o bot e toca em **Order ☕**, ao lado do campo de mensagem. Abre o mini app (`/app`), com o visual do Âncora e as 12 bebidas.
+2. Escolhe a bebida, toca no botão dourado **Order …** e recebe no chat o número do pedido (ex.: *Order #14 · Flat White*).
+3. Quando a barista toca **Ready**, recebe: *Your Flat White is ready! Pick it up at the bar.* No mini app, o pedido aparece como **Ready**.
+
+Quem manda `/start` ou qualquer mensagem recebe a explicação de que o pedido é feito pelo botão **Order ☕**.
 
 Cada cliente pode ter no máximo 3 bebidas esperando ao mesmo tempo.
 
