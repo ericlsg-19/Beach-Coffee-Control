@@ -1,0 +1,22 @@
+name = "beach-coffee-bot"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"
+
+# Shown in order confirmations. Leave empty to hide the payment line.
+[vars]
+SOLANA_ADDRESS = ""
+# Where Telegram delivers updates; the scheduled check re-registers it if lost.
+WEBHOOK_URL = "https://beach-coffee-bot.beachcoffeeco.workers.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "beach-coffee-bot"
+database_id = "27fa6662-7253-4d3b-b9b2-ca84f776ae0f"
+
+# Keep request logs in the Cloudflare dashboard (Workers → beach-coffee-bot → Logs).
+[observability]
+enabled = true
+
+# Check the Telegram webhook every minute.
+[triggers]
+crons = ["* * * * *"]
