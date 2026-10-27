@@ -231,3 +231,16 @@ test("/health reports database, barista and today's counts", async () => {
   h = await (await worker.fetch(new Request("https://bot/health"), env)).json();
   assert.deepEqual([h.barista_set, h.orders_today, h.waiting], [true, 1, 1]);
 });
+
+// The Âncora page (ancora/ancora.html) must offer the same menu and version as the bot.
+test("Âncora and the bot share the same menu and version", async () => {
+  const ancora = readFileSync(new URL("../../ancora/ancora.html", import.meta.url), "utf8");
+  const bot = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const menu = src => [...src.matchAll(/\{ id: "([a-z]+)",\s*name: "([^"]+)" \}/g)].map(m => `${m[1]}=${m[2]}`);
+  assert.deepEqual(menu(ancora), menu(bot));
+  assert.equal(menu(bot).length, 12);
+  const botVersion = bot.match(/const VERSION = "([^"]+)"/)[1];
+  assert.ok(ancora.includes(`Âncora v${botVersion}`), `Âncora should show v${botVersion}`);
+  const h = await (await worker.fetch(new Request("https://bot/health"), setup().env)).json();
+  assert.equal(h.version, botVersion);
+});
