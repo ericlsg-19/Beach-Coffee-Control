@@ -29,6 +29,9 @@ const DRINKS = [
   { id: "chocolate",  name: "Hot Chocolate" },
 ];
 
+// Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
+const VERSION = "1.0.0";
+
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
 
@@ -300,7 +303,7 @@ async function health(env) {
     const today = await env.DB.prepare(
       "SELECT COUNT(*) AS orders, SUM(status = 'pending') AS waiting FROM orders WHERE day = ?"
     ).bind(localDay()).first();
-    return json({ ok: true, day: localDay(), open: await isOpen(env), barista_set: !!(await getSetting(env, "barista_chat")),
+    return json({ ok: true, version: VERSION, day: localDay(), open: await isOpen(env), barista_set: !!(await getSetting(env, "barista_chat")),
       orders_today: today.orders, waiting: today.waiting || 0 });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message || e) }, 500);
