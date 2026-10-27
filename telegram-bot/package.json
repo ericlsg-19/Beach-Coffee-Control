@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/worker.test.mjs",
-    "deploy": "npx wrangler deploy"
+    "deploy": "npx -y wrangler@3.114.0 deploy",
+    "db:schema": "npx -y wrangler@3.114.0 d1 execute beach-coffee-bot --remote --file schema.sql",
+    "logs": "npx -y wrangler@3.114.0 tail beach-coffee-bot --format pretty"
   }
 }

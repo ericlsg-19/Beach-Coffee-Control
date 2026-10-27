@@ -141,6 +141,7 @@ async function createOrder(env, chatId, from, drink) {
   if (msg.ok) {
     await env.DB.prepare("UPDATE orders SET barista_message_id = ? WHERE id = ?").bind(msg.result.message_id, order.id).run();
   }
+  console.log("order created", JSON.stringify({ num: order.num, drink: drink.id, chat: chatId }));
   return { order };
 }
 
@@ -172,6 +173,7 @@ async function finishOrder(env, chatId, messageId, orderId, status) {
     return edit(env, chatId, messageId, `${order.status === "ready" ? "✅" : "❌"} <b>#${order.num} · ${drink.name}</b>\n👤 ${escapeHtml(order.customer_name)}`);
   }
   await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ? AND status = 'pending'").bind(status, orderId).run();
+  console.log(`order ${status}`, JSON.stringify({ num: order.num, drink: order.drink }));
 
   if (status === "ready") {
     await send(env, order.customer_chat, `🏝️ <b>Your ${drink.name} is ready!</b>\nOrder #${order.num}. Pick it up at the bar ☕`);
@@ -292,6 +294,19 @@ async function todaysOrders(env, chatId) {
   return results;
 }
 
+// GET /health: is the worker up, can it reach the database, are orders open?
+async function health(env) {
+  try {
+    const today = await env.DB.prepare(
+      "SELECT COUNT(*) AS orders, SUM(status = 'pending') AS waiting FROM orders WHERE day = ?"
+    ).bind(localDay()).first();
+    return json({ ok: true, day: localDay(), open: await isOpen(env), barista_set: !!(await getSetting(env, "barista_chat")),
+      orders_today: today.orders, waiting: today.waiting || 0 });
+  } catch (e) {
+    return json({ ok: false, error: String(e && e.message || e) }, 500);
+  }
+}
+
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
 async function handleApi(request, env, path) {
@@ -307,7 +322,10 @@ async function handleApi(request, env, path) {
     const drink = drinkById(body.drink);
     if (!drink) return json({ ok: false, error: "Pick a drink from the menu." }, 400);
     const { order, error } = await createOrder(env, user.id, user, drink);
-    if (error) return json({ ok: false, error });
+    if (error) {
+      console.log("order refused", JSON.stringify({ chat: user.id, drink: drink.id, error }));
+      return json({ ok: false, error });
+    }
     await send(env, user.id, receiptText(env, order, drink));
     return json({ ok: true, order: { num: order.num, drink: drink.id }, orders: await todaysOrders(env, user.id) });
   }
@@ -325,6 +343,7 @@ export default {
       return new Response(miniAppHtml(DRINKS), { headers: { "content-type": "text/html; charset=utf-8" } });
     }
     if (path.startsWith("/api/")) return handleApi(request, env, path);
+    if (path === "/health") return health(env);
     if (path === "/how-to-order.jpg") {
       const bytes = Uint8Array.from(atob(HOW_TO_ORDER_JPG), c => c.charCodeAt(0));
       return new Response(bytes, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" } });

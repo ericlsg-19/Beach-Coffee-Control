@@ -221,3 +221,13 @@ test("/start sends the how-to-order picture when the bot knows its URL", async (
   const bytes = new Uint8Array(await img.arrayBuffer());
   assert.deepEqual([bytes[0], bytes[1]], [0xff, 0xd8]); // JPEG header
 });
+
+test("/health reports database, barista and today's counts", async () => {
+  const { env, post } = setup();
+  let h = await (await worker.fetch(new Request("https://bot/health"), env)).json();
+  assert.deepEqual([h.ok, h.open, h.barista_set, h.orders_today, h.waiting], [true, true, false, 0, 0]);
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(tap(ANA, "c:latte"));
+  h = await (await worker.fetch(new Request("https://bot/health"), env)).json();
+  assert.deepEqual([h.barista_set, h.orders_today, h.waiting], [true, 1, 1]);
+});

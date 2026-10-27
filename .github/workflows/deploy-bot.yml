@@ -1,0 +1,45 @@
+name: Deploy Telegram bot
+
+# Runs the bot tests and deploys the Cloudflare Worker.
+# Needs repository secrets CLOUDFLARE_API_TOKEN (Workers Scripts + D1 edit)
+# and CLOUDFLARE_ACCOUNT_ID.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["telegram-bot/**", ".github/workflows/deploy-bot.yml"]
+
+concurrency:
+  group: deploy-bot
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: telegram-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply schema and deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: telegram-bot
+          wranglerVersion: "3.114.0"
+          command: |
+            d1 execute beach-coffee-bot --remote --file schema.sql
+            deploy
+      - name: Health check
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 5 https://beach-coffee-bot.beachcoffeeco.workers.dev/health

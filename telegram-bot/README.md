@@ -70,3 +70,7 @@ npm test
 ```
 
 Os testes rodam o bot com um banco em memória e um Telegram de mentira, sem precisar de internet.
+
+## Operação
+
+Saúde, logs, incidentes e como fazer deploy de novo: veja [OPERATIONS.md](OPERATIONS.md).
