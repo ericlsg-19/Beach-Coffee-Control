@@ -6,7 +6,7 @@
 // Bindings (see wrangler.toml): DB (D1 database).
 // Secrets: BOT_TOKEN, WEBHOOK_SECRET, BARISTA_CODE. Optional var: SOLANA_ADDRESS.
 
-export const DRINKS = [
+const DRINKS = [
   { id: "espresso",   name: "Espresso" },
   { id: "double",     name: "Double Espresso" },
   { id: "freddo",     name: "Freddo Espresso" },
@@ -26,7 +26,7 @@ const MAX_PENDING_PER_CUSTOMER = 3;
 
 const drinkById = id => DRINKS.find(d => d.id === id);
 
-export function localDay(date = new Date()) {
+function localDay(date = new Date()) {
   // en-CA formats as YYYY-MM-DD.
   return new Intl.DateTimeFormat("en-CA", { timeZone: TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
