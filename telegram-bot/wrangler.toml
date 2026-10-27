@@ -17,6 +17,6 @@ database_id = "27fa6662-7253-4d3b-b9b2-ca84f776ae0f"
 [observability]
 enabled = true
 
-# Check the Telegram webhook every minute.
+# Every minute: check the Telegram webhook. 02:00 UTC (23:00 Floripa): daily report.
 [triggers]
-crons = ["* * * * *"]
+crons = ["* * * * *", "0 2 * * *"]

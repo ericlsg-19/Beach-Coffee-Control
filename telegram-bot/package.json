@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test test/worker.test.mjs",
-    "deploy": "npx -y wrangler@3.114.0 deploy",
+    "deploy": "node scripts/sync-ancora.mjs && npx -y wrangler@3.114.0 deploy",
     "db:schema": "npx -y wrangler@3.114.0 d1 execute beach-coffee-bot --remote --file schema.sql",
-    "logs": "npx -y wrangler@3.114.0 tail beach-coffee-bot --format pretty"
+    "logs": "npx -y wrangler@3.114.0 tail beach-coffee-bot --format pretty",
+    "sync:ancora": "node scripts/sync-ancora.mjs"
   }
 }
