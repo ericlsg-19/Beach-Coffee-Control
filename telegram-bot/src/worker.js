@@ -13,6 +13,7 @@
 import { miniAppHtml } from "./miniapp.js";
 import { verifyInitData } from "./initdata.js";
 import { HOW_TO_ORDER_JPG } from "./howto.js";
+import { ANCORA_HTML } from "./ancora-html.js";
 
 const DRINKS = [
   { id: "espresso",   name: "Espresso" },
@@ -30,10 +31,12 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
+// 23:00 in Florianópolis (UTC−3). Must match the second cron in wrangler.toml.
+const DAILY_REPORT_CRON = "0 2 * * *";
 
 const drinkById = id => DRINKS.find(d => d.id === id);
 
@@ -187,16 +190,43 @@ async function finishOrder(env, chatId, messageId, orderId, status) {
   await edit(env, chatId, messageId, `${label} · <b>#${order.num} · ${drink.name}</b>\n👤 ${escapeHtml(order.customer_name)}`);
 }
 
-async function todayReport(env, chatId) {
-  const day = localDay();
+// Summary of one day (Telegram and bar orders together), sent by /today, /report and the nightly cron.
+async function dayReport(env, day) {
   const { results } = await env.DB.prepare(
-    "SELECT drink, COUNT(*) AS n FROM orders WHERE day = ? AND status != 'cancelled' GROUP BY drink ORDER BY n DESC"
+    "SELECT drink, customer_chat, status, created_at FROM orders WHERE day = ? AND status != 'cancelled'"
   ).bind(day).all();
-  const pending = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE day = ? AND status = 'pending'").bind(day).first();
-  const total = results.reduce((sum, r) => sum + r.n, 0);
-  if (!total) return send(env, chatId, `📊 <b>Today (${day})</b>\nNo orders through the bot yet.`);
-  const lines = results.map(r => `${(drinkById(r.drink) || { name: r.drink }).name}: <b>${r.n}</b>`);
-  return send(env, chatId, `📊 <b>Today (${day})</b>\n${lines.join("\n")}\n\nTotal: <b>${total}</b> · Waiting: <b>${pending.n}</b>`);
+  const label = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" })
+    .format(new Date(`${day}T12:00:00Z`));
+  if (!results.length) return `📊 <b>${label}</b>\nNo orders yet.`;
+
+  const count = (list, key) => list.reduce((m, o) => m.set(key(o), (m.get(key(o)) || 0) + 1), new Map());
+  const byDrink = [...count(results, o => o.drink)].sort((a, b) => b[1] - a[1]);
+  const byHour = [...count(results, o => localTime(o.created_at).slice(0, 2))].sort((a, b) => b[1] - a[1]);
+  const telegram = results.filter(o => o.customer_chat !== 0);
+  const customers = new Set(telegram.map(o => o.customer_chat)).size;
+  const waiting = results.filter(o => o.status === "pending").length;
+  const name = id => (drinkById(id) || { name: id }).name;
+  const [peakHour, peakCount] = byHour[0];
+
+  return [
+    `📊 <b>${label}</b>`,
+    `Total: <b>${results.length}</b> drinks · Telegram ${telegram.length} · Bar ${results.length - telegram.length}`,
+    "",
+    ...byDrink.map(([id, n]) => `${name(id)}: <b>${n}</b>`),
+    "",
+    `⭐ Top drink: ${name(byDrink[0][0])}`,
+    `⏰ Busiest hour: ${peakHour}:00–${String((Number(peakHour) + 1) % 24).padStart(2, "0")}:00 (${peakCount})`,
+    `👥 Telegram customers: ${customers}`,
+    `⏳ Still waiting: ${waiting}`,
+  ].join("\n");
+}
+
+async function sendDailyReport(env) {
+  const chat = await getSetting(env, "barista_chat");
+  if (!chat) return;
+  const text = await dayReport(env, localDay());
+  await send(env, chat, `🌙 <b>End of day</b>\n\n${text}`);
+  console.log("daily report sent", JSON.stringify({ day: localDay() }));
 }
 
 async function queue(env, chatId) {
@@ -209,7 +239,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's count\n/queue: drinks waiting\n/close: stop taking orders\n/open: start taking orders";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/panel: open Âncora, the barista panel\n/close: stop taking orders\n/open: start taking orders";
 
 // ---------- Update routing ----------
 
@@ -228,7 +258,15 @@ async function onMessage(env, message) {
   }
 
   if (await isBaristaChat(env, chatId)) {
-    if (cmd === "/today") return todayReport(env, chatId);
+    if (cmd === "/today") return send(env, chatId, await dayReport(env, localDay()));
+    if (cmd === "/report") {
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
+      return send(env, chatId, await dayReport(env, day));
+    }
+    if (cmd === "/panel") {
+      return send(env, chatId, "🧾 <b>Âncora</b>: the barista panel with every order (Telegram and bar) and the day-by-day summary.",
+        { inline_keyboard: [[{ text: "Open the panel", url: `${env.WEBHOOK_URL}/panel#key=${encodeURIComponent(env.BARISTA_CODE)}` }]] });
+    }
     if (cmd === "/queue") return queue(env, chatId);
     if (cmd === "/close") { await setSetting(env, "open", "0"); return send(env, chatId, "🌙 Closed. New orders are paused."); }
     if (cmd === "/open") { await setSetting(env, "open", "1"); return send(env, chatId, "☀️ Open. Taking orders."); }
@@ -312,6 +350,76 @@ async function health(env) {
 
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
 
+// ---------- Âncora panel API (barista only) ----------
+//
+// The Âncora page (ancora/ancora.html) is served at /panel and reads and writes orders
+// here, so Telegram orders and bar orders share one database. Bar orders have customer_chat 0.
+
+const isBarOrder = o => o.customer_chat === 0;
+
+function panelOrder(o) {
+  return {
+    id: String(o.id), drink: o.drink, day: o.day, time: o.created_at, done: o.status === "ready",
+    customer: isBarOrder(o) ? o.customer_name : `${o.customer_name} · Telegram`,
+    source: isBarOrder(o) ? "bar" : "telegram",
+  };
+}
+
+async function handlePanelApi(request, env, path) {
+  if (!env.BARISTA_CODE || request.headers.get("X-Barista-Code") !== env.BARISTA_CODE) {
+    return json({ ok: false, error: "Wrong barista code." }, 401);
+  }
+  const id = Number(path.split("/")[4]);
+
+  if (path === "/api/panel/orders" && request.method === "GET") {
+    const { results } = await env.DB.prepare("SELECT * FROM orders WHERE status != 'cancelled' ORDER BY id").all();
+    return json({ ok: true, orders: results.map(panelOrder) });
+  }
+  if (path === "/api/panel/orders" && request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const drink = drinkById(body.drink);
+    if (!drink) return json({ ok: false, error: "Unknown drink." }, 400);
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(body.day || "") ? body.day : localDay();
+    const order = await env.DB.prepare(
+      `INSERT INTO orders (day, num, created_at, drink, customer_chat, customer_name)
+       VALUES (?1, (SELECT COALESCE(MAX(num), 0) + 1 FROM orders WHERE day = ?1), ?2, ?3, 0, ?4)
+       RETURNING *`
+    ).bind(day, new Date().toISOString(), drink.id, String(body.customer || "").slice(0, 80)).first();
+    console.log("order created", JSON.stringify({ num: order.num, drink: drink.id, source: "bar" }));
+    return json({ ok: true, order: panelOrder(order) });
+  }
+
+  const order = id ? await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first() : null;
+  if (!order) return json({ ok: false, error: "Order not found." }, 404);
+  const baristaChat = await getSetting(env, "barista_chat");
+
+  if (request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    if (body.done && order.status === "pending" && !isBarOrder(order)) {
+      // Same as tapping Ready in Telegram: the customer gets the message.
+      await finishOrder(env, baristaChat, order.barista_message_id, order.id, "ready");
+    } else {
+      await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ?").bind(body.done ? "ready" : "pending", order.id).run();
+    }
+    return json({ ok: true });
+  }
+  if (request.method === "DELETE") {
+    if (isBarOrder(order)) {
+      await env.DB.prepare("DELETE FROM orders WHERE id = ?").bind(order.id).run();
+    } else if (order.status === "pending") {
+      await finishOrder(env, baristaChat, order.barista_message_id, order.id, "cancelled");
+    } else {
+      await env.DB.prepare("UPDATE orders SET status = 'cancelled' WHERE id = ?").bind(order.id).run();
+    }
+    return json({ ok: true });
+  }
+  return json({ ok: false, error: "Not found" }, 404);
+}
+
+function panelHtml() {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body>${ANCORA_HTML}</body></html>`;
+}
+
 async function handleApi(request, env, path) {
   if (request.method !== "POST") return json({ ok: false, error: "Use POST" }, 405);
   const body = await request.json().catch(() => ({}));
@@ -337,6 +445,7 @@ async function handleApi(request, env, path) {
 
 export default {
   async scheduled(event, env, ctx) {
+    if (event.cron === DAILY_REPORT_CRON) return ctx.waitUntil(sendDailyReport(env));
     ctx.waitUntil(ensureWebhook(env).then(() => ensureMenuButton(env)));
   },
 
@@ -345,6 +454,8 @@ export default {
     if (path === "/app") {
       return new Response(miniAppHtml(DRINKS), { headers: { "content-type": "text/html; charset=utf-8" } });
     }
+    if (path === "/panel") return new Response(panelHtml(), { headers: { "content-type": "text/html; charset=utf-8" } });
+    if (path.startsWith("/api/panel/")) return handlePanelApi(request, env, path);
     if (path.startsWith("/api/")) return handleApi(request, env, path);
     if (path === "/health") return health(env);
     if (path === "/how-to-order.jpg") {

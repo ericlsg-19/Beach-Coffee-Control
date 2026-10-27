@@ -47,6 +47,14 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 - Logs só existem a partir de ~17:20 UTC de 27/10 e ficam guardados por poucos dias no plano grátis.
 - Pedidos que o cliente não consegue fazer (bar fechado, 3 bebidas esperando) não são erro: aparecem como `order refused` nos logs.
 
+## Âncora no bot e relatórios (v1.1.0)
+
+- **Painel da barista:** `https://beach-coffee-bot.beachcoffeeco.workers.dev/panel`, ou mande `/panel` no chat da barista (o botão já leva o código). Pede o `BARISTA_CODE` uma vez por aparelho. Mostra os pedidos do Telegram e da barra juntos, atualiza a cada 5 segundos, e Ready/✕ num pedido do Telegram avisa o cliente.
+- **Pedidos da barra** ficam no mesmo banco, com `customer_chat = 0`.
+- **Relatórios:** `/today` (hoje), `/report AAAA-MM-DD` (outro dia) e, todo dia às 23:00 de Floripa (`0 2 * * *` UTC), o resumo automático no chat da barista: total, Telegram × barra, cada bebida, a mais pedida, horário de pico, clientes do Telegram e quantos ficaram esperando.
+- **CSV:** botão **Download CSV** no painel, com todos os pedidos.
+- **Histórico:** os 301 pedidos do Âncora no Claude (22, 23, 26 e 27/10, até 18:55 UTC) foram importados como pedidos da barra. A data do corte está em `settings.ancora_imported_until`.
+
 ## Verificar se está tudo bem
 
 1. Abra **`https://beach-coffee-bot.beachcoffeeco.workers.dev/health`**. Esperado:

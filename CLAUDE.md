@@ -4,7 +4,9 @@ Two front-ends share one menu and one version number:
 
 - **Telegram bot** (`telegram-bot/`): the source of truth. Live on Cloudflare
   (`beach-coffee-bot`), deployed with `cd telegram-bot && npm run deploy`.
-- **Âncora** (`ancora/ancora.html`): the barista page published as the claude.ai
+- **Âncora** (`ancora/ancora.html`): the barista page. Served live by the bot at `/panel`
+  (reads/writes the bot database; `npm run sync:ancora` copies it into `src/ancora-html.js`)
+  and also published as the claude.ai
   artifact https://claude.ai/artifact/RxccubnthgDDg1zBeMppKZ. It must follow the bot.
 
 When you change one, change the other in the same work:
@@ -16,6 +18,7 @@ When you change one, change the other in the same work:
    `ancora/ancora.html` together.
 3. Run `cd telegram-bot && npm test`. The test "Âncora and the bot share the same menu
    and version" fails if they drift.
-4. Deploy the worker and republish the Âncora artifact (same URL) from `ancora/ancora.html`.
+4. `cd telegram-bot && npm run deploy` (syncs Âncora into the worker first) and republish the
+   Âncora artifact (same URL) from `ancora/ancora.html`.
 
 Operations, incidents and redeploy steps: `telegram-bot/OPERATIONS.md`.

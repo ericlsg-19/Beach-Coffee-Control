@@ -103,7 +103,8 @@ test("daily numbers count up, /today and /queue report them", async () => {
   assert.match(calls.filter(c => c.body.chat_id === String(BARISTA)).at(-1).body.text, /#2 · Mocha/);
 
   await post(msg(BARISTA, "/today"));
-  assert.match(calls.at(-1).body.text, /Total: <b>2<\/b> · Waiting: <b>2<\/b>/);
+  assert.match(calls.at(-1).body.text, /Total: <b>2<\/b> drinks · Telegram 2 · Bar 0/);
+  assert.match(calls.at(-1).body.text, /Still waiting: 2/);
   await post(msg(BARISTA, "/queue"));
   assert.match(calls.at(-1).body.text, /Waiting \(2\)/);
 });
@@ -244,3 +245,76 @@ test("Âncora and the bot share the same menu and version", async () => {
   const h = await (await worker.fetch(new Request("https://bot/health"), setup().env)).json();
   assert.equal(h.version, botVersion);
 });
+
+// ---------- Âncora panel and reports ----------
+
+const panel = (env, method, path, body, code = "beach123") => worker.fetch(new Request(`https://bot${path}`, {
+  method, headers: { "content-type": "application/json", ...(code ? { "X-Barista-Code": code } : {}) },
+  body: body ? JSON.stringify(body) : undefined,
+}), env);
+
+test("serves Âncora at /panel from the generated copy of ancora/ancora.html", async () => {
+  const { env } = setup();
+  const html = await (await worker.fetch(new Request("https://bot/panel"), env)).text();
+  assert.match(html, /^<!doctype html>/);
+  assert.match(html, /<title>Âncora<\/title>/);
+  const source = readFileSync(new URL("../../ancora/ancora.html", import.meta.url), "utf8");
+  const { ANCORA_HTML } = await import("../src/ancora-html.js");
+  assert.equal(ANCORA_HTML, source, "run `npm run sync:ancora` after editing ancora/ancora.html");
+});
+
+test("panel API needs the barista code", async () => {
+  const { env } = setup();
+  assert.equal((await panel(env, "GET", "/api/panel/orders", null, null)).status, 401);
+  assert.equal((await panel(env, "GET", "/api/panel/orders", null, "wrong")).status, 401);
+});
+
+test("panel shows Telegram and bar orders together; Ready and remove notify Telegram customers", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(tap(ANA, "c:latte"));                                   // Telegram order #1
+  const bar = await (await panel(env, "POST", "/api/panel/orders", { drink: "mocha", customer: "Rita", day: localDayForTest() })).json();
+  assert.equal(bar.order.source, "bar");
+
+  let list = (await (await panel(env, "GET", "/api/panel/orders")).json()).orders;
+  assert.deepEqual(list.map(o => [o.drink, o.source, o.customer]), [["latte", "telegram", "Ana (@ana) · Telegram"], ["mocha", "bar", "Rita"]]);
+
+  calls.length = 0;
+  await panel(env, "POST", `/api/panel/orders/${list[0].id}`, { done: true });
+  assert.match(calls.find(c => c.method === "sendMessage" && c.body.chat_id === ANA).body.text, /Your Latte is ready/);
+  await panel(env, "POST", `/api/panel/orders/${list[1].id}`, { done: true });
+  list = (await (await panel(env, "GET", "/api/panel/orders")).json()).orders;
+  assert.deepEqual(list.map(o => o.done), [true, true]);
+
+  await panel(env, "DELETE", `/api/panel/orders/${list[1].id}`);          // bar order: removed
+  await post(tap(ANA, "c:matcha"));                                        // Telegram order #2 (bar #2 was removed)
+  list = (await (await panel(env, "GET", "/api/panel/orders")).json()).orders;
+  calls.length = 0;
+  await panel(env, "DELETE", `/api/panel/orders/${list.at(-1).id}`);       // Telegram pending: cancelled
+  assert.match(calls.find(c => c.body.chat_id === ANA).body.text, /couldn't make order #2 \(Matcha\)/);
+  list = (await (await panel(env, "GET", "/api/panel/orders")).json()).orders;
+  assert.deepEqual(list.map(o => o.drink), ["latte"]);
+});
+
+test("daily report at 23:00 Floripa covers Telegram and bar orders", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(tap(ANA, "c:espresso"));
+  await panel(env, "POST", "/api/panel/orders", { drink: "espresso", customer: "", day: localDayForTest() });
+  await panel(env, "POST", "/api/panel/orders", { drink: "matcha", customer: "", day: localDayForTest() });
+  calls.length = 0;
+  const jobs = [];
+  await worker.scheduled({ cron: "0 2 * * *" }, env, { waitUntil: p => jobs.push(p) });
+  await Promise.all(jobs);
+  const report = calls.find(c => c.method === "sendMessage" && c.body.chat_id === String(BARISTA)).body.text;
+  assert.match(report, /End of day/);
+  assert.match(report, /Total: <b>3<\/b> drinks · Telegram 1 · Bar 2/);
+  assert.match(report, /Espresso: <b>2<\/b>/);
+  assert.match(report, /Top drink: Espresso/);
+  assert.match(report, /Telegram customers: 1/);
+  assert.ok(!calls.some(c => c.method === "getWebhookInfo"), "the report cron doesn't run the webhook check");
+});
+
+function localDayForTest() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
