@@ -17,6 +17,6 @@ database_id = "27fa6662-7253-4d3b-b9b2-ca84f776ae0f"
 [observability]
 enabled = true
 
-# Check the Telegram webhook every 10 minutes.
+# Check the Telegram webhook every minute.
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["* * * * *"]

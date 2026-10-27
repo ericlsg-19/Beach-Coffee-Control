@@ -239,7 +239,7 @@ async function onCallback(env, cb) {
 
 // ---------- Webhook health ----------
 
-// Runs on a schedule: re-registers the webhook when Telegram lost it (e.g. after
+// Runs every minute: re-registers the webhook when Telegram lost it (e.g. after
 // /revoke in BotFather) or keeps rejecting deliveries.
 async function ensureWebhook(env) {
   const info = await tg(env, "getWebhookInfo", {});
