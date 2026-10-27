@@ -4,7 +4,14 @@
 // with Ready / Cancel buttons; tapping Ready messages the customer.
 //
 // Bindings (see wrangler.toml): DB (D1 database).
-// Secrets: BOT_TOKEN, WEBHOOK_SECRET, BARISTA_CODE. Optional var: SOLANA_ADDRESS.
+// Secrets: BOT_TOKEN, WEBHOOK_SECRET, BARISTA_CODE. Vars: WEBHOOK_URL, SOLANA_ADDRESS (optional).
+//
+// Routes: POST /         Telegram webhook (checked with WEBHOOK_SECRET)
+//         GET  /app      the Mini App menu
+//         POST /api/...  Mini App calls, authenticated with Telegram initData
+
+import { miniAppHtml } from "./miniapp.js";
+import { verifyInitData } from "./initdata.js";
 
 const DRINKS = [
   { id: "espresso",   name: "Espresso" },
@@ -57,8 +64,10 @@ const send = (env, chat_id, text, reply_markup) =>
 const edit = (env, chat_id, message_id, text, reply_markup) =>
   tg(env, "editMessageText", { chat_id, message_id, text, parse_mode: "HTML", reply_markup });
 
-function menuKeyboard() {
-  const rows = [];
+const appUrl = env => `${env.WEBHOOK_URL}/app`;
+
+function menuKeyboard(env) {
+  const rows = env.WEBHOOK_URL ? [[{ text: "☕ Open the menu", web_app: { url: appUrl(env) } }]] : [];
   for (let i = 0; i < DRINKS.length; i += 2) {
     rows.push(DRINKS.slice(i, i + 2).map(d => ({ text: d.name, callback_data: `d:${d.id}` })));
   }
@@ -87,7 +96,7 @@ async function showMenu(env, chatId, messageId) {
     return messageId ? edit(env, chatId, messageId, text) : send(env, chatId, text);
   }
   const text = "☕ <b>Beach Coffee Co.</b> · Island DAO\nWhat can we make for you?";
-  return messageId ? edit(env, chatId, messageId, text, menuKeyboard()) : send(env, chatId, text, menuKeyboard());
+  return messageId ? edit(env, chatId, messageId, text, menuKeyboard(env)) : send(env, chatId, text, menuKeyboard(env));
 }
 
 async function askConfirm(env, chatId, messageId, drink) {
@@ -99,16 +108,17 @@ async function askConfirm(env, chatId, messageId, drink) {
   });
 }
 
-async function placeOrder(env, chatId, messageId, from, drink) {
-  if (!(await isOpen(env))) return edit(env, chatId, messageId, "The bar is closed right now 🌙 Come back soon!");
+// Saves the order and notifies the barista. Returns { order } or { error } with a customer-facing message.
+async function createOrder(env, chatId, from, drink) {
+  if (!(await isOpen(env))) return { error: "The bar is closed right now 🌙 Come back soon!" };
 
   const baristaChat = await getSetting(env, "barista_chat");
-  if (!baristaChat) return edit(env, chatId, messageId, "Orders aren't open yet. Please order at the bar 🙏");
+  if (!baristaChat) return { error: "Orders aren't open yet. Please order at the bar 🙏" };
 
   const pending = await env.DB.prepare("SELECT COUNT(*) AS n FROM orders WHERE customer_chat = ? AND status = 'pending'")
     .bind(chatId).first();
   if (pending.n >= MAX_PENDING_PER_CUSTOMER) {
-    return edit(env, chatId, messageId, `You already have ${pending.n} drinks on the way. We'll message you as soon as they're ready ☕`);
+    return { error: `You already have ${pending.n} drinks on the way. We'll message you as soon as they're ready ☕` };
   }
 
   const day = localDay();
@@ -121,12 +131,6 @@ async function placeOrder(env, chatId, messageId, from, drink) {
      RETURNING id, num`
   ).bind(day, createdAt, drink.id, chatId, name).first();
 
-  const pay = env.SOLANA_ADDRESS
-    ? `\n\nPay at the bar, or send SOL / USDC (Solana) to:\n<code>${escapeHtml(env.SOLANA_ADDRESS)}</code>`
-    : "";
-  await edit(env, chatId, messageId,
-    `🧾 <b>Order #${order.num}</b> · ${drink.name}\nGot it! We'll message you here when it's ready.${pay}`);
-
   const msg = await send(env, baristaChat,
     `🆕 <b>#${order.num} · ${drink.name}</b>\n👤 ${escapeHtml(name)}\n🕐 ${localTime(createdAt)}`,
     { inline_keyboard: [[
@@ -136,6 +140,20 @@ async function placeOrder(env, chatId, messageId, from, drink) {
   if (msg.ok) {
     await env.DB.prepare("UPDATE orders SET barista_message_id = ? WHERE id = ?").bind(msg.result.message_id, order.id).run();
   }
+  return { order };
+}
+
+function receiptText(env, order, drink) {
+  const pay = env.SOLANA_ADDRESS
+    ? `\n\nPay at the bar, or send SOL / USDC (Solana) to:\n<code>${escapeHtml(env.SOLANA_ADDRESS)}</code>`
+    : "";
+  return `🧾 <b>Order #${order.num}</b> · ${drink.name}\nGot it! We'll message you here when it's ready.${pay}`;
+}
+
+// Order placed from the chat buttons: the menu message turns into the receipt.
+async function placeOrder(env, chatId, messageId, from, drink) {
+  const { order, error } = await createOrder(env, chatId, from, drink);
+  return edit(env, chatId, messageId, error || receiptText(env, order, drink));
 }
 
 // ---------- Barista flow ----------
@@ -256,12 +274,56 @@ async function ensureWebhook(env) {
   console.log("webhook reset", JSON.stringify(res));
 }
 
+// Puts the "Order ☕" button (opens the Mini App) next to the chat input.
+async function ensureMenuButton(env) {
+  const current = await tg(env, "getChatMenuButton", {});
+  if (current.ok && current.result.type === "web_app" && current.result.web_app?.url === appUrl(env)) return;
+  const res = await tg(env, "setChatMenuButton", { menu_button: { type: "web_app", text: "Order ☕", web_app: { url: appUrl(env) } } });
+  console.log("menu button set", JSON.stringify(res));
+}
+
+// ---------- Mini App API ----------
+
+async function todaysOrders(env, chatId) {
+  const { results } = await env.DB.prepare(
+    "SELECT num, drink, status FROM orders WHERE customer_chat = ? AND day = ? ORDER BY id DESC LIMIT 5"
+  ).bind(chatId, localDay()).all();
+  return results;
+}
+
+const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json" } });
+
+async function handleApi(request, env, path) {
+  if (request.method !== "POST") return json({ ok: false, error: "Use POST" }, 405);
+  const body = await request.json().catch(() => ({}));
+  const user = await verifyInitData(body.initData, env.BOT_TOKEN);
+  if (!user) return json({ ok: false, error: "Please open the menu from the bot in Telegram." }, 401);
+
+  if (path === "/api/session") {
+    return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id) });
+  }
+  if (path === "/api/order") {
+    const drink = drinkById(body.drink);
+    if (!drink) return json({ ok: false, error: "Pick a drink from the menu." }, 400);
+    const { order, error } = await createOrder(env, user.id, user, drink);
+    if (error) return json({ ok: false, error });
+    await send(env, user.id, receiptText(env, order, drink));
+    return json({ ok: true, order: { num: order.num, drink: drink.id }, orders: await todaysOrders(env, user.id) });
+  }
+  return json({ ok: false, error: "Not found" }, 404);
+}
+
 export default {
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(ensureWebhook(env));
+    ctx.waitUntil(ensureWebhook(env).then(() => ensureMenuButton(env)));
   },
 
   async fetch(request, env) {
+    const path = new URL(request.url).pathname;
+    if (path === "/app") {
+      return new Response(miniAppHtml(DRINKS), { headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    if (path.startsWith("/api/")) return handleApi(request, env, path);
     if (request.method !== "POST") return new Response("Beach Coffee Co. bot is running ☕");
     if (request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.WEBHOOK_SECRET) {
       return new Response("forbidden", { status: 403 });

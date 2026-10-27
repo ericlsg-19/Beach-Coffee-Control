@@ -146,3 +146,63 @@ test("scheduled check re-registers a lost webhook and leaves a healthy one alone
   await runCron();
   assert.ok(!calls.some(c => c.method === "setWebhook"));
 });
+
+// ---------- Mini App ----------
+import { createHmac } from "node:crypto";
+
+// Builds initData the way Telegram does, signed with the bot token (independent of the worker code).
+function signedInitData(botToken, user, authDate = Math.floor(Date.now() / 1000)) {
+  const fields = { auth_date: String(authDate), query_id: "AAE", user: JSON.stringify(user) };
+  const check = Object.keys(fields).sort().map(k => `${k}=${fields[k]}`).join("\n");
+  const secret = createHmac("sha256", "WebAppData").update(botToken).digest();
+  const hash = createHmac("sha256", secret).update(check).digest("hex");
+  return new URLSearchParams({ ...fields, hash }).toString();
+}
+const apiCall = (env, path, body) => worker.fetch(new Request(`https://bot${path}`, {
+  method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
+}), env);
+
+test("serves the Mini App page with all 12 drinks", async () => {
+  const { env } = setup();
+  const res = await worker.fetch(new Request("https://bot/app"), env);
+  assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
+  const html = await res.text();
+  assert.match(html, /telegram-web-app\.js/);
+  for (const name of ["Freddo Espresso", "Iced Latte", "Hot Chocolate"]) assert.ok(html.includes(name), name);
+});
+
+test("Mini App rejects forged or expired initData", async () => {
+  const { env } = setup();
+  const forged = signedInitData("some-other-token", { id: ANA, first_name: "Ana" });
+  assert.equal((await apiCall(env, "/api/session", { initData: forged })).status, 401);
+  const old = signedInitData("t", { id: ANA, first_name: "Ana" }, Math.floor(Date.now() / 1000) - 2 * 86400);
+  assert.equal((await apiCall(env, "/api/session", { initData: old })).status, 401);
+  assert.equal((await apiCall(env, "/api/order", { drink: "latte" })).status, 401);
+});
+
+test("Mini App order: saved, receipt to customer, barista notified, listed in session", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const initData = signedInitData("t", { id: ANA, first_name: "Ana", username: "ana" });
+
+  const session = await (await apiCall(env, "/api/session", { initData })).json();
+  assert.deepEqual([session.ok, session.open, session.user.first_name, session.orders.length], [true, true, "Ana", 0]);
+
+  calls.length = 0;
+  const r = await (await apiCall(env, "/api/order", { initData, drink: "icedlatte" })).json();
+  assert.deepEqual(r.order, { num: 1, drink: "icedlatte" });
+  assert.equal(r.orders[0].status, "pending");
+  assert.match(calls.find(c => c.body.chat_id === ANA).body.text, /Order #1<\/b> · Iced Latte/);
+  assert.match(calls.find(c => c.body.chat_id === String(BARISTA)).body.text, /#1 · Iced Latte[\s\S]*Ana \(@ana\)/);
+
+  const bad = await (await apiCall(env, "/api/order", { initData, drink: "beer" })).json();
+  assert.equal(bad.ok, false);
+});
+
+test("chat menu offers the Mini App when WEBHOOK_URL is set", async () => {
+  const { env, calls, post } = setup();
+  env.WEBHOOK_URL = "https://bot.example";
+  await post(msg(ANA, "/start"));
+  const first = calls.at(-1).body.reply_markup.inline_keyboard[0][0];
+  assert.equal(first.web_app.url, "https://bot.example/app");
+});
