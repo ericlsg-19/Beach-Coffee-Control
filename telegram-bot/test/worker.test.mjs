@@ -124,3 +124,25 @@ test("wrong barista code is refused", async () => {
   await post(msg(ANA, "/barista nope"));
   assert.match(calls.at(-1).body.text, /doesn't match/);
 });
+
+test("scheduled check re-registers a lost webhook and leaves a healthy one alone", async () => {
+  const { env, calls } = setup();
+  env.WEBHOOK_URL = "https://bot.example";
+  let current = "";
+  globalThis.fetch = async (url, init) => {
+    const method = url.split("/").pop(); const body = JSON.parse(init.body);
+    calls.push({ method, body });
+    if (method === "getWebhookInfo") return new Response(JSON.stringify({ ok: true, result: { url: current, pending_update_count: 3 } }));
+    if (method === "setWebhook") current = body.url;
+    return new Response(JSON.stringify({ ok: true, result: true }));
+  };
+  const runCron = async () => { const jobs = []; await worker.scheduled({}, env, { waitUntil: p => jobs.push(p) }); await Promise.all(jobs); };
+  await runCron();
+  const set = calls.find(c => c.method === "setWebhook");
+  assert.equal(set.body.url, "https://bot.example");
+  assert.equal(set.body.secret_token, "s");
+
+  calls.length = 0;
+  await runCron();
+  assert.ok(!calls.some(c => c.method === "setWebhook"));
+});

@@ -237,7 +237,30 @@ async function onCallback(env, cb) {
   }
 }
 
+// ---------- Webhook health ----------
+
+// Runs on a schedule: re-registers the webhook when Telegram lost it (e.g. after
+// /revoke in BotFather) or keeps rejecting deliveries.
+async function ensureWebhook(env) {
+  const info = await tg(env, "getWebhookInfo", {});
+  if (!info.ok) return; // bad BOT_TOKEN: already logged by tg()
+  const { url, pending_update_count, last_error_message } = info.result;
+  console.log("webhook info", JSON.stringify({ url, pending_update_count, last_error_message }));
+  const rejected = last_error_message && /403|401|Forbidden|Unauthorized/.test(last_error_message);
+  if (url === env.WEBHOOK_URL && !rejected) return;
+  const res = await tg(env, "setWebhook", {
+    url: env.WEBHOOK_URL,
+    secret_token: env.WEBHOOK_SECRET,
+    allowed_updates: ["message", "callback_query"],
+  });
+  console.log("webhook reset", JSON.stringify(res));
+}
+
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(ensureWebhook(env));
+  },
+
   async fetch(request, env) {
     if (request.method !== "POST") return new Response("Beach Coffee Co. bot is running ☕");
     if (request.headers.get("X-Telegram-Bot-Api-Secret-Token") !== env.WEBHOOK_SECRET) {
