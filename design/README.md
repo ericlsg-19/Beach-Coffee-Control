@@ -9,5 +9,6 @@ Arquivos finais entregues, guardados aqui para não depender de uma conversa.
 | `shirt/` | Camiseta: frente BEACH COFFEE CO. (SVG bege e marrom), costas Hebrews 6:19 (PNG bege e marrom), mockup. |
 | `logo/` | Logo badge (SVG/PNG redondo e quadrado) e o logo original. |
 | `social/` | Posts do X: resumo da semana, resumo de 27/10, pedido pelo Telegram, edição especial na Vila; imagem "how to order" do bot. |
+| `deck/` | Deck do pitch (8 slides), cópia do artifact https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS. As imagens apontam para os arquivos guardados no artifact (`/_blob/…`). |
 | `screenshots/` | Telas do mini app, do painel e do fluxo de gorjeta/pacote (para o deck). |
 | `templates/` | HTML editável do cartão, do adesivo e dos resumos do X. Para gerar o PNG: `NODE_PATH=$(npm root -g) node render-x.js` (Playwright), ajustando o nome do arquivo. |
