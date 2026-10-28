@@ -28,8 +28,9 @@ No mini app, o cliente tem a aba **Ranking 🏆** com o Top 10 (primeiro nome e 
 **Gorjeta e pacote de café (USDC na Solana)**
 
 As bebidas são grátis: o recibo do pedido nunca mostra pagamento. Para dar gorjeta ou comprar o **Island DAO Limited Edition coffee bag**:
-- No mini app, aba **Tip & Bag**: escolhe 2, 5, 10 USDC ou outro valor, ou o pacote (preço em `BAG_PRICE_USDC`), e toca **Pay with Phantom** ou **Pay with Solflare**. A carteira abre a página de pagamento, que monta a transferência de USDC; o cliente só confirma.
+- No mini app, aba **Tip & Bag**: escolhe 2, 5, 10 USDC ou outro valor, ou o pacote (preço em `BAG_PRICE_USDC`, 10 USDC), e toca **Pay with Phantom** ou **Pay with Solflare**. A carteira abre a página de pagamento, que monta a transferência de USDC; o cliente só confirma.
 - Fora do Telegram: `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` (é para onde o QR impresso deve apontar). Funciona com a câmera do celular, porque é um link `https://`.
+- **Edição limitada:** são `BAG_STOCK` pacotes (20). A tela mostra quantos restam; quando acabam, aparece **Sold out** e a venda para. Um checkout de pacote sem pagar segura uma unidade por 15 minutos, para não vender o mesmo pacote duas vezes. No chat da barista, `/bags` mostra vendidos, entregues e restantes.
 - Qualquer outra carteira ou exchange: a página mostra o endereço **puro** e o valor, cada um com botão **Copy**. Esses envios manuais não são reconhecidos sozinhos: o cliente mostra a carteira para a barista.
 
 Cada pagamento leva uma *reference* (padrão Solana Pay). O bot procura a transação na rede a cada minuto (e a cada 3 s enquanto a página está aberta) e só aceita se o endereço recebeu o valor inteiro em USDC. Aí a barista recebe 💛 *Tip* ou 🛍️ *Coffee bag #N paid* com o botão **Handed over**, e o cliente do Telegram recebe o agradecimento. O `/today`, o relatório das 23:00 e o Âncora (cartão **Tips & Bags**) mostram o total do dia.
@@ -75,7 +76,7 @@ Você precisa de: o **token** do bot (do @BotFather) e uma conta grátis no **Cl
    ```
 7. No Telegram, mande para o bot: `/barista <BARISTA_CODE>`. A partir daí os pedidos chegam nesse chat. Para receber num grupo, adicione o bot ao grupo e mande o mesmo comando lá.
 
-Para trocar o endereço que recebe gorjetas e pacotes, ou o preço do pacote, edite `SOLANA_ADDRESS` e `BAG_PRICE_USDC` no `wrangler.toml` e publique de novo. `SOLANA_ADDRESS` vazio desliga a aba **Tip & Bag** e o `/pay`.
+Para trocar o endereço que recebe gorjetas e pacotes, ou o preço do pacote, edite `SOLANA_ADDRESS`, `BAG_PRICE_USDC` e `BAG_STOCK` no `wrangler.toml` e publique de novo. `SOLANA_ADDRESS` vazio desliga a aba **Tip & Bag** e o `/pay`.
 
 O bot consulta a Solana pelo RPC público (`api.mainnet-beta.solana.com`). Ele tem limite de uso; se os pagamentos demorarem a aparecer, crie uma URL de RPC grátis (Helius, QuickNode, Alchemy…) e guarde como segredo: `npx wrangler secret put SOLANA_RPC_URL`.
 

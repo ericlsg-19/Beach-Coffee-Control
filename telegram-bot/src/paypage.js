@@ -5,8 +5,8 @@
 import { WORDMARK_SVG } from "./wordmark.js";
 import { USDC_MINT, TIP_PRESETS, PRODUCTS } from "./pay.js";
 
-export function payPageHtml({ recipient, bagPrice, payment }) {
-  const config = JSON.stringify({ recipient, mint: USDC_MINT, presets: TIP_PRESETS, bagPrice, products: PRODUCTS, payment })
+export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }) {
+  const config = JSON.stringify({ recipient, mint: USDC_MINT, presets: TIP_PRESETS, bagPrice, bagStock, bagsLeft, products: PRODUCTS, payment })
     .replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en"><head>
@@ -39,6 +39,7 @@ export function payPageHtml({ recipient, bagPrice, payment }) {
   input { height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); padding: 0 14px; font: 500 1rem/1 var(--body); width: 100%; }
   .bag { background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.18), transparent 60%), var(--card); }
   .bag.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+  .bag.soldout { opacity: .55; cursor: default; }
   .tag { justify-self: start; font: 600 .7rem/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--gold-ink); background: var(--gold); padding: 6px 10px; border-radius: 999px; }
   .price { font: 500 1.1rem/1 var(--mono); color: var(--gold); }
   .btn { height: 52px; width: 100%; border-radius: 999px; border: 0; background: var(--gold); color: var(--gold-ink); font: 600 1.02rem/1 var(--body); cursor: pointer; display: grid; place-items: center; text-decoration: none; }
@@ -141,7 +142,9 @@ export function payPageHtml({ recipient, bagPrice, payment }) {
   function renderChoose() {
     $("chips").innerHTML = C.presets.map(v => '<button class="chip" data-v="' + v + '">' + v + '</button>').join("") + '<button class="chip" data-v="other">Other</button>';
     $("bagDetail").textContent = C.products.bag.detail;
-    $("bagPrice").textContent = C.bagPrice + " USDC";
+    const soldOut = C.bagsLeft === 0;
+    $("bagPrice").textContent = soldOut ? "Sold out" : C.bagPrice + " USDC" + (C.bagsLeft != null ? " · " + C.bagsLeft + " of " + C.bagStock + " left" : "");
+    $("bagCard").classList.toggle("soldout", soldOut);
     $("choose").hidden = false;
   }
   function amountPicked() {
@@ -164,7 +167,7 @@ export function payPageHtml({ recipient, bagPrice, payment }) {
     if (pick.v === "other") $("custom").focus();
   });
   $("custom").addEventListener("input", updateContinue);
-  const chooseBag = () => { pick = { kind: "bag" }; updateContinue(); };
+  const chooseBag = () => { if (C.bagsLeft === 0) return; pick = { kind: "bag" }; updateContinue(); };
   $("bagCard").addEventListener("click", chooseBag);
   $("bagCard").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); chooseBag(); } });
   $("continue").addEventListener("click", async () => {

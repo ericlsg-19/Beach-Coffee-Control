@@ -550,3 +550,38 @@ test("the Mini App and payment page scripts are valid JavaScript", async () => {
     for (const js of list) assert.doesNotThrow(() => new Function(js), `${path} script parses`);
   }
 });
+
+test("limited edition: bags stop selling at BAG_STOCK, unpaid checkouts hold one for 15 minutes", async () => {
+  const { env, calls, post, chain } = setupPay({ BAG_STOCK: "2" });
+  await post(msg(BARISTA, "/barista beach123"));
+  const appText = async () => (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.ok((await appText()).includes('"bagStock":2,"bagsLeft":2'));
+
+  const a = (await pay(env, { kind: "bag" })).payment;
+  const b = (await pay(env, { kind: "bag" })).payment;
+  const held = await pay(env, { kind: "bag" });
+  assert.match(held.error, /being paid for right now/);
+  assert.equal((await pay(env, { kind: "tip", amount: "2" })).ok, true, "tips aren't limited");
+
+  chain[a.ref] = [{ signature: "a1", received: 10 }];
+  calls.length = 0;
+  await runMinuteCron(env);
+  assert.match(calls.find(c => /Coffee bag #1 paid/.test(c.body.text || "")).body.text, /📦 1 left/);
+
+  // An abandoned checkout stops holding its bag after 15 minutes.
+  await env.DB.prepare("UPDATE payments SET created_at = ? WHERE id = ?").bind(new Date(Date.now() - 16 * 60 * 1000).toISOString(), 2).run();
+  const c = (await pay(env, { kind: "bag" })).payment;
+  chain[c.ref] = [{ signature: "c1", received: 10 }];
+  await runMinuteCron(env);
+  const soldOut = await pay(env, { kind: "bag" });
+  assert.match(soldOut.error, /sold out/);
+  assert.ok((await appText()).includes('"bagsLeft":0'));
+
+  calls.length = 0;
+  await post(msg(BARISTA, "/bags"));
+  assert.match(calls.at(-1).body.text, /Sold: <b>2<\/b>[\s\S]*Left: <b>0<\/b> of 2/);
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /🛍️ Coffee bags: 2 · 20 USDC \(0 left\)/);
+  assert.equal((await (await panel(env, "GET", "/api/panel/payments")).json()).bags_left, 0);
+  void b;
+});

@@ -60,7 +60,7 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 - **Onde:** aba **Tip & Bag** no mini app e `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` (QR impresso). Bebidas continuam grátis.
 - **Como o bot confirma:** cada checkout tem uma *reference* (Solana Pay) guardada na tabela `payments`. O cron de cada minuto chama `getSignaturesForAddress(reference)` para os checkouts das últimas 2 horas e confere com `getTransaction` que `SOLANA_ADDRESS` recebeu o valor inteiro em USDC (mint `EPjFWdd5…Dt1v`). Uma mesma transação não paga dois checkouts (`signature` é única). Checkouts sem pagamento viram `expired` depois de 24 h.
 - **Logs:** `payment created`, `payment paid`, `payment check failed` (RPC fora do ar ou limitado), `payment signature reused`.
-- **Configuração:** `SOLANA_ADDRESS` e `BAG_PRICE_USDC` no `wrangler.toml`; segredo opcional `SOLANA_RPC_URL`.
+- **Configuração:** `SOLANA_ADDRESS`, `BAG_PRICE_USDC` (10) e `BAG_STOCK` (20 pacotes; `/bags` mostra o que resta) no `wrangler.toml`; segredo opcional `SOLANA_RPC_URL`.
 
 | Sintoma | Nos logs | O que fazer |
 |---|---|---|

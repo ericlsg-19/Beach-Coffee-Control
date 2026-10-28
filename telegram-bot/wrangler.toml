@@ -8,6 +8,8 @@ compatibility_date = "2025-01-01"
 SOLANA_ADDRESS = "WTxV6GDprgz2vHT4gX4ULCexqqaXYKQ8zWpZoYJHz2u"
 # Price of the Island DAO Limited Edition coffee bag, in USDC.
 BAG_PRICE_USDC = "10"
+# How many Limited Edition bags there are. Sales stop when they're sold; remove the line for no limit.
+BAG_STOCK = "20"
 # Where Telegram delivers updates; the scheduled check re-registers it if lost.
 WEBHOOK_URL = "https://beach-coffee-bot.beachcoffeeco.workers.dev"
 

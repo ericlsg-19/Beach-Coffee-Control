@@ -350,16 +350,17 @@
     setSync(true);
     render();
     serverCall("GET", "/api/panel/ranking").then(r => renderRanking(r.ranking)).catch(() => {});
-    serverCall("GET", "/api/panel/payments").then(r => { payments = r.payments; renderSales(); }).catch(() => {});
+    serverCall("GET", "/api/panel/payments").then(r => { payments = r.payments; bagsLeft = r.bags_left; renderSales(); }).catch(() => {});
   }
   // Tips and Island DAO coffee bags paid in USDC (through the bot), for the selected day.
-  let payments = [];
+  let payments = [], bagsLeft = null;
   function renderSales() {
     if (!SERVER) return;
     const day = dayInput.value || localDay();
     const list = payments.filter(p => p.day === day).reverse();
     const total = list.reduce((sum, p) => sum + Number(p.amount), 0);
-    $("salesMeta").textContent = list.length ? `${formatDay(day)} · ${+total.toFixed(2)} USDC` : "USDC on Solana";
+    const stock = bagsLeft === null ? "" : ` · ${bagsLeft} bags left`;
+    $("salesMeta").textContent = (list.length ? `${formatDay(day)} · ${+total.toFixed(2)} USDC` : "USDC on Solana") + stock;
     $("salesList").innerHTML = list.length
       ? list.map(p => `
           <li>

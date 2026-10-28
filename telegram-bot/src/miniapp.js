@@ -18,7 +18,7 @@ const ICONS = {
   chocolate:  '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 9h12M6 15h12M12 3v18"/>',
 };
 
-// pay: { recipient, bagPrice } when tips and bags are on, null otherwise.
+// pay: { recipient, bagPrice, bagStock, bagsLeft } when tips and bags are on, null otherwise.
 export function miniAppHtml(drinks, pay = null) {
   const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "" })));
   const payConfig = JSON.stringify(pay && { ...pay, presets: TIP_PRESETS, products: PRODUCTS });
@@ -100,6 +100,7 @@ export function miniAppHtml(drinks, pay = null) {
   .pay input { height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); padding: 0 14px; font: 500 1rem/1 var(--body); width: 100%; }
   .bag { background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.18), transparent 60%), var(--card); cursor: pointer; }
   .bag.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+  .bag.soldout { opacity: .55; cursor: default; }
   .tag { justify-self: start; font: 600 .7rem/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--gold-ink); background: var(--gold); padding: 6px 10px; border-radius: 999px; }
   .price { font: 500 1.05rem/1 var(--mono); color: var(--gold); }
   .amount { font: 900 2.4rem/1 var(--display); font-stretch: 125%; color: var(--gold); }
@@ -372,14 +373,16 @@ export function miniAppHtml(drinks, pay = null) {
     document.querySelector(".tabs").style.setProperty("--tabs", 3);
     $("chips").innerHTML = PAY.presets.map(v => '<button class="chip" data-v="' + v + '">' + v + '</button>').join("") + '<button class="chip" data-v="other">Other</button>';
     $("bagDetail").textContent = PAY.products.bag.detail;
-    $("bagPrice").textContent = PAY.bagPrice + " USDC";
+    const soldOut = PAY.bagsLeft === 0;
+    $("bagPrice").textContent = soldOut ? "Sold out" : PAY.bagPrice + " USDC" + (PAY.bagsLeft != null ? " · " + PAY.bagsLeft + " of " + PAY.bagStock + " left" : "");
+    $("bagCard").classList.toggle("soldout", soldOut);
     $("chips").addEventListener("click", e => {
       const b = e.target.closest("[data-v]"); if (!b) return;
       payPick = { kind: "tip", v: b.dataset.v }; renderPayPick();
       if (payPick.v === "other") $("custom").focus();
     });
     $("custom").addEventListener("input", renderPayPick);
-    $("bagCard").addEventListener("click", () => { payPick = { kind: "bag" }; renderPayPick(); });
+    $("bagCard").addEventListener("click", () => { if (soldOut) return; payPick = { kind: "bag" }; renderPayPick(); });
     $("payGo").addEventListener("click", async () => {
       $("payGo").disabled = true;
       const r = await api("/api/pay", { kind: payPick.kind, amount: payAmountPicked() });

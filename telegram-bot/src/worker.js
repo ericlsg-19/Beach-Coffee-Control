@@ -7,7 +7,7 @@
 //
 // Bindings (see wrangler.toml): DB (D1 database).
 // Secrets: BOT_TOKEN, WEBHOOK_SECRET, BARISTA_CODE, SOLANA_RPC_URL (optional).
-// Vars: WEBHOOK_URL, SOLANA_ADDRESS (receives tips and bag payments; empty turns them off), BAG_PRICE_USDC.
+// Vars: WEBHOOK_URL, SOLANA_ADDRESS (receives tips and bag payments; empty turns them off), BAG_PRICE_USDC, BAG_STOCK.
 //
 // Routes: POST /         Telegram webhook (checked with WEBHOOK_SECRET)
 //         GET  /app      the Mini App menu
@@ -249,7 +249,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -279,6 +279,7 @@ async function onMessage(env, message) {
     }
     if (cmd === "/queue") return queue(env, chatId);
     if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
+    if (cmd === "/bags") return send(env, chatId, await bagsText(env));
     if (cmd === "/close") { await setSetting(env, "open", "0"); return send(env, chatId, "🌙 Closed. New orders are paused."); }
     if (cmd === "/open") { await setSetting(env, "open", "1"); return send(env, chatId, "☀️ Open. Taking orders."); }
     if (message.chat.type !== "private") return; // stay quiet in a group
@@ -448,7 +449,7 @@ async function handlePanelApi(request, env, path) {
 
   if (path === "/api/panel/payments" && request.method === "GET") {
     const { results } = await env.DB.prepare("SELECT * FROM payments WHERE status = 'paid' ORDER BY id").all();
-    return json({ ok: true, payments: results.map(panelPayment) });
+    return json({ ok: true, payments: results.map(panelPayment), bags_left: await bagsLeft(env) });
   }
   if (path.startsWith("/api/panel/payments/") && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
@@ -521,6 +522,23 @@ const MAX_OPEN_PER_CUSTOMER = 5;
 const usdc = micro => `${fromMicro(micro)} USDC`;
 const paymentsOn = env => isAddress(env.SOLANA_ADDRESS);
 const bagPrice = env => fromMicro(priceFor(env, "bag").micro || 0);
+const BAG_HOLD_MS = 15 * 60 * 1000; // an unpaid bag checkout holds one bag for 15 minutes
+
+// Limited edition: BAG_STOCK bags in total. null when no stock is set (no limit).
+const bagStock = env => (/^\d+$/.test(String(env.BAG_STOCK ?? "")) ? Number(env.BAG_STOCK) : null);
+async function bagsLeft(env) {
+  const stock = bagStock(env);
+  if (stock === null) return null;
+  const sold = await env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'paid'").first();
+  return Math.max(0, stock - sold.n);
+}
+async function bagsText(env) {
+  const stock = bagStock(env), left = await bagsLeft(env);
+  const sold = await env.DB.prepare("SELECT COUNT(*) AS n, SUM(handed_over) AS handed FROM payments WHERE kind = 'bag' AND status = 'paid'").first();
+  return [`🛍️ <b>Island DAO coffee bags</b> · ${bagPrice(env)} USDC`, `Sold: <b>${sold.n}</b> · handed over: ${sold.handed || 0}`,
+    stock === null ? "No stock limit set." : `Left: <b>${left}</b> of ${stock}`].join("\n");
+}
+const payConfig = async env => ({ recipient: env.SOLANA_ADDRESS, bagPrice: bagPrice(env), bagStock: bagStock(env), bagsLeft: await bagsLeft(env) });
 const payerName = p => p.customer_name || "Someone at the bar";
 
 function publicPayment(env, p, base, withQr = false) {
@@ -537,6 +555,13 @@ async function createPayment(env, { kind, amount, chat = 0, name = "" }) {
   if (!paymentsOn(env)) return { error: "Tips and coffee bags aren't open yet. Ask at the bar 🙏" };
   const price = priceFor(env, kind, amount);
   if (price.error) return price;
+  const left = price.kind === "bag" ? await bagsLeft(env) : null;
+  if (left !== null) {
+    if (left <= 0) return { error: "The Island DAO coffee bags are sold out 🙏" };
+    const held = await env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'pending' AND created_at > ?")
+      .bind(new Date(Date.now() - BAG_HOLD_MS).toISOString()).first();
+    if (held.n >= left) return { error: "The last bags are being paid for right now. Try again in a few minutes." };
+  }
   const since = new Date(Date.now() - CHECK_WINDOW_MS).toISOString();
   const open = await env.DB.prepare(
     "SELECT COUNT(*) AS n, COALESCE(SUM(customer_chat = ?), 0) AS mine FROM payments WHERE status = 'pending' AND created_at > ?"
@@ -584,8 +609,10 @@ async function announcePayment(env, p) {
   const link = `<a href="https://solscan.io/tx/${p.signature}">View on Solscan</a>`;
   const baristaChat = await getSetting(env, "barista_chat");
   if (baristaChat && p.kind === "bag") {
+    const left = await bagsLeft(env);
     await send(env, baristaChat,
-      `🛍️ <b>Coffee bag #${p.id} paid · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\nHand them an Island DAO Limited Edition bag.\n${link}`,
+      `🛍️ <b>Coffee bag #${p.id} paid · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\nHand them an Island DAO Limited Edition bag.` +
+      (left === null ? "" : `\n📦 ${left} left`) + `\n${link}`,
       { inline_keyboard: [[{ text: "✅ Handed over", callback_data: `h:${p.id}` }]] });
   } else if (baristaChat) {
     await send(env, baristaChat, `💛 <b>Tip · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\n${link}`);
@@ -620,9 +647,10 @@ async function salesLines(env, day) {
     "SELECT kind, COUNT(*) AS n, SUM(amount_micro) AS micro FROM payments WHERE day = ? AND status = 'paid' GROUP BY kind"
   ).bind(day).all();
   const of = kind => results.find(r => r.kind === kind);
+  const left = of("bag") ? await bagsLeft(env) : null;
   return [
     ...(of("tip") ? [`💛 Tips: ${of("tip").n} · ${usdc(of("tip").micro)}`] : []),
-    ...(of("bag") ? [`🛍️ Coffee bags: ${of("bag").n} · ${usdc(of("bag").micro)}`] : []),
+    ...(of("bag") ? [`🛍️ Coffee bags: ${of("bag").n} · ${usdc(of("bag").micro)}${left === null ? "" : ` (${left} left)`}`] : []),
   ];
 }
 
@@ -670,7 +698,7 @@ async function payPage(env, path, base) {
     if (!p || p.status === "expired") return Response.redirect(`${base}/pay`, 302);
     payment = publicPayment(env, p, base, true);
   }
-  return html(payPageHtml({ recipient: env.SOLANA_ADDRESS, bagPrice: bagPrice(env), payment }));
+  return html(payPageHtml({ ...(await payConfig(env)), payment }));
 }
 
 export default {
@@ -685,7 +713,7 @@ export default {
     const path = url.pathname;
     const base = env.WEBHOOK_URL || url.origin;
     if (path === "/app") {
-      const pay = paymentsOn(env) ? { recipient: env.SOLANA_ADDRESS, bagPrice: bagPrice(env) } : null;
+      const pay = paymentsOn(env) ? await payConfig(env) : null;
       return new Response(miniAppHtml(DRINKS, pay), { headers: { "content-type": "text/html; charset=utf-8" } });
     }
     if (path === "/pay" || path.startsWith("/pay/")) return payPage(env, path, base);
