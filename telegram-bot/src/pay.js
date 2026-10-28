@@ -111,7 +111,7 @@ export async function rpcStatus(env) {
   for (const url of rpcUrls(env)) {
     // Both calls a payment needs: the blockhash (to build it) and the signature lookup (to confirm it).
     try {
-      await rpcAt(url, "getLatestBlockhash", [{ commitment: "confirmed" }]);
+      await rpcAt(url, "getLatestBlockhash", [{ commitment: "finalized" }]);
       await rpcAt(url, "getSignaturesForAddress", [env.SOLANA_ADDRESS, { limit: 1, commitment: "confirmed" }]);
       out.push({ host: hostOf(url), ok: true });
     }
@@ -120,8 +120,10 @@ export async function rpcStatus(env) {
   return out;
 }
 
+// "finalized", not "confirmed": a few seconds older, so the RPC the wallet simulates on already has it.
+// With a newer one, Phantom sometimes couldn't simulate the first try and blocked it as "may be malicious".
 export const latestBlockhash = async env =>
-  (await rpc(env, "getLatestBlockhash", [{ commitment: "confirmed" }])).value;
+  (await rpc(env, "getLatestBlockhash", [{ commitment: "finalized" }])).value;
 
 // USDC the recipient gained in this transaction, in micro units.
 function received(meta, owner) {

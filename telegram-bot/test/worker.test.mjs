@@ -279,6 +279,32 @@ const panel = (env, method, path, body, code = "beach123") => worker.fetch(new R
   body: body ? JSON.stringify(body) : undefined,
 }), env);
 
+test("Mini App order with lactose-free or plant milk: barista, receipt and panel show it", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const initData = signedInitData("t", { id: ANA, first_name: "Ana", username: "ana" });
+
+  calls.length = 0;
+  const r = await (await apiCall(env, "/api/order", { initData, drink: "latte", milk: "lactosefree" })).json();
+  assert.deepEqual(r.order, { num: 1, drink: "latte", milk: "lactosefree" });
+  assert.match(calls.find(c => c.body.chat_id === String(BARISTA)).body.text, /#1 · Latte<\/b>\n🥛 <b>Lactose-free milk<\/b>/);
+  assert.match(calls.find(c => c.body.chat_id === ANA).body.text, /Latte · Lactose-free milk/);
+
+  // No milk to swap in an espresso, and unknown milks are ignored: both stay regular.
+  const esp = await (await apiCall(env, "/api/order", { initData, drink: "espresso", milk: "plant" })).json();
+  assert.deepEqual(esp.order, { num: 2, drink: "espresso" });
+  const odd = await (await apiCall(env, "/api/order", { initData, drink: "mocha", milk: "whisky" })).json();
+  assert.deepEqual(odd.order, { num: 3, drink: "mocha" });
+
+  const { orders } = await (await panel(env, "GET", "/api/panel/orders")).json();
+  assert.deepEqual(orders.map(o => o.milk), ["Lactose-free milk", "", ""]);
+
+  const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.match(app, /id="milkPick"/);
+  assert.match(app, /"id":"latte"[^}]*"milk":true/);
+  assert.match(app, /"id":"espresso"[^}]*"milk":false/);
+});
+
 test("serves Âncora at /panel from the generated copy of ancora/ancora.html", async () => {
   const { env } = setup();
   const html = await (await worker.fetch(new Request("https://bot/panel"), env)).text();

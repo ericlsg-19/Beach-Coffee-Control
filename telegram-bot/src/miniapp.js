@@ -18,9 +18,13 @@ const ICONS = {
   chocolate:  '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 9h12M6 15h12M12 3v18"/>',
 };
 
+// Drinks made with milk, and the milks a guest can swap in (regular needs no choice).
+export const MILK_DRINKS = ["cappuccino", "flatwhite", "latte", "icedlatte", "mocha", "matcha", "chocolate"];
+export const MILKS = { lactosefree: "Lactose-free milk", plant: "Plant-based milk" };
+
 // pay: { recipient, bagPrice, bagStock, bagsLeft } when tips and bags are on, null otherwise.
 export function miniAppHtml(drinks, pay = null) {
-  const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "" })));
+  const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "", milk: MILK_DRINKS.includes(d.id) })));
   const payConfig = JSON.stringify(pay && { ...pay, presets: TIP_PRESETS, products: PRODUCTS });
   return `<!doctype html>
 <html lang="en"><head>
@@ -145,6 +149,10 @@ export function miniAppHtml(drinks, pay = null) {
   <section id="pick">
     <p class="eyebrow" style="margin-bottom:10px">Menu</p>
     <div class="drinks" id="drinks"></div>
+    <div id="milkPick" hidden>
+      <p class="eyebrow" style="margin:18px 0 10px">Milk <span style="color:var(--muted)">· if you need it</span></p>
+      <div class="chips" id="milkChips" style="grid-template-columns:repeat(3, 1fr)"></div>
+    </div>
   </section>
   <section id="done" class="center" hidden></section>
   <p class="note" id="msg"></p>
@@ -206,11 +214,12 @@ export function miniAppHtml(drinks, pay = null) {
 </div>
 <script>
   const MENU = ${menu};
+  const MILKS = ${JSON.stringify(MILKS)};
   const PAY = ${payConfig};
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg ? tg.initData : "";
   const $ = id => document.getElementById(id);
-  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false;
+  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = "";
 
   if (tg) {
     tg.ready(); tg.expand();
@@ -232,6 +241,14 @@ export function miniAppHtml(drinks, pay = null) {
       '<button class="drink' + (selected === d.id ? " selected" : "") + '" data-id="' + d.id + '">' +
       '<span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + d.icon + '</svg></span>' +
       '<span class="name">' + esc(d.name) + '</span></button>').join("");
+  }
+
+  function renderMilk() {
+    const d = MENU.find(x => x.id === selected);
+    $("milkPick").hidden = !(d && d.milk);
+    const opts = [["", "Regular"], ["lactosefree", "Lactose-free"], ["plant", "Plant-based"]];
+    $("milkChips").innerHTML = opts.map(([id, label]) =>
+      '<button class="chip' + (milk === id ? " on" : "") + '" data-milk="' + id + '">' + label + '</button>').join("");
   }
 
   function renderOrders(list) {
@@ -272,7 +289,7 @@ export function miniAppHtml(drinks, pay = null) {
   }
 
   function updateButton() {
-    const text = selected ? "Order " + drinkName(selected) : "Pick a drink";
+    const text = selected ? "Order " + drinkName(selected) + (milk ? " · " + MILKS[milk].replace(" milk", "") : "") : "Pick a drink";
     if (main) {
       main.setParams({ text, color: "#e8b86a", text_color: "#1d1407", is_active: !!selected && open && !busy, is_visible: open && tab === "menu" });
       if (busy) main.showProgress(); else main.hideProgress();
@@ -311,7 +328,7 @@ export function miniAppHtml(drinks, pay = null) {
   async function order() {
     if (!selected || busy) return;
     busy = true; updateButton();
-    const r = await api("/api/order", { drink: selected });
+    const r = await api("/api/order", { drink: selected, milk });
     busy = false;
     if (!r.ok) {
       tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error");
@@ -323,7 +340,7 @@ export function miniAppHtml(drinks, pay = null) {
     $("pick").hidden = true; $("msg").textContent = "";
     if (main) main.hide(); else $("fallback").hidden = true;
     $("done").innerHTML =
-      '<p class="eyebrow">Order #' + r.order.num + '</p>' +
+      '<p class="eyebrow">Order #' + r.order.num + (r.order.milk ? ' · ' + esc(MILKS[r.order.milk]) : '') + '</p>' +
       '<h2>' + esc(drinkName(r.order.drink)) + '<br><b>on the way</b></h2>' +
       '<p class="note">We\\'ll message you in the chat when it\\'s ready ☕</p>' +
       '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
@@ -332,7 +349,7 @@ export function miniAppHtml(drinks, pay = null) {
         '<button class="chip" data-tip="other">Other</button></div></div>' : '');
     $("done").hidden = false;
     $("close").onclick = () => tg ? tg.close() : null;
-    $("again").onclick = () => { selected = null; $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
+    $("again").onclick = () => { selected = null; milk = ""; renderMilk(); $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
     renderOrders(r.orders);
     refreshRanking();
     // Once per visit, a moment after the confirmation: the optional tip pop-up.
@@ -343,9 +360,18 @@ export function miniAppHtml(drinks, pay = null) {
     const b = e.target.closest("[data-id]");
     if (!b) return;
     selected = selected === b.dataset.id ? null : b.dataset.id;
+    milk = "";
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     $("msg").textContent = "";
-    renderDrinks(); updateButton();
+    renderDrinks(); renderMilk(); updateButton();
+    if (!$("milkPick").hidden) $("milkPick").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+  // Optional: regular milk stays the default, nothing to tap.
+  $("milkChips").addEventListener("click", e => {
+    const b = e.target.closest("[data-milk]"); if (!b) return;
+    milk = b.dataset.milk;
+    tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
+    renderMilk(); updateButton();
   });
   document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
   if (main) main.onClick(order); else $("fallbackBtn").addEventListener("click", order);

@@ -132,3 +132,9 @@ cd telegram-bot && npm test
 ```
 
 Cobrem: webhook com e sem segredo, pedido completo pelo chat, Ready/Cancel, limite de 3 bebidas, `/today`, `/queue`, `/close`, código de barista, cron do webhook, mini app (página, assinatura initData forjada/expirada, pedido), imagem de boas-vindas e `/health`.
+
+## Phantom: "Solicitud bloqueada / Esta dApp podría ser maliciosa"
+
+28/10: na primeira tentativa a Phantom bloqueava a gorjeta, e na segunda passava. Causa provável: a página montava a transação com um blockhash `confirmed`, novo demais para o RPC em que a Phantom simula; sem conseguir simular, ela bloqueia como "pode ser maliciosa". A v1.6.0 usa blockhash `finalized` e manda só a transferência de USDC quando a conta USDC da barista já existe (o caso normal).
+
+Se continuar aparecendo, o domínio pode estar marcado: subdomínios `*.workers.dev` são muito usados por golpes. O caminho é um domínio próprio no Cloudflare (Workers → Custom Domains) e pedir revisão à Phantom (lista de bloqueio em github.com/phantom/blocklist).

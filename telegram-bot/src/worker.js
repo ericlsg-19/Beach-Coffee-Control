@@ -15,7 +15,7 @@
 //         GET  /pay      tip / coffee bag page (printed QR), /pay/<reference> checkout
 //         /api/pay/...   payments, open to the web
 
-import { miniAppHtml } from "./miniapp.js";
+import { miniAppHtml, MILK_DRINKS, MILKS } from "./miniapp.js";
 import { verifyInitData } from "./initdata.js";
 import { HOW_TO_ORDER_JPG } from "./howto.js";
 import { ANCORA_HTML } from "./ancora-html.js";
@@ -39,7 +39,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.5.1";
+const VERSION = "1.6.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -124,7 +124,9 @@ async function askConfirm(env, chatId, messageId, drink) {
 }
 
 // Saves the order and notifies the barista. Returns { order } or { error } with a customer-facing message.
-async function createOrder(env, chatId, from, drink) {
+// milk: a key of MILKS for a drink made with milk; anything else means regular.
+async function createOrder(env, chatId, from, drink, milk = "") {
+  if (!MILKS[milk] || !MILK_DRINKS.includes(drink.id)) milk = "";
   if (!(await isOpen(env))) return { error: "The bar is closed right now 🌙 Come back soon!" };
 
   const baristaChat = await getSetting(env, "barista_chat");
@@ -145,9 +147,13 @@ async function createOrder(env, chatId, from, drink) {
      VALUES (?1, (SELECT COALESCE(MAX(num), 0) + 1 FROM orders WHERE day = ?1), ?2, ?3, ?4, ?5)
      RETURNING id, num`
   ).bind(day, createdAt, drink.id, chatId, name).first();
+  if (milk) {
+    order.milk = milk;
+    await env.DB.prepare("INSERT INTO order_extras (order_id, milk) VALUES (?, ?)").bind(order.id, milk).run();
+  }
 
   const msg = await send(env, baristaChat,
-    `🆕 <b>#${order.num} · ${drink.name}</b>\n👤 ${escapeHtml(name)}\n🕐 ${localTime(createdAt)}`,
+    `🆕 <b>#${order.num} · ${drink.name}</b>${milk ? `\n🥛 <b>${MILKS[milk]}</b>` : ""}\n👤 ${escapeHtml(name)}\n🕐 ${localTime(createdAt)}`,
     { inline_keyboard: [[
       { text: "✅ Ready", callback_data: `r:${order.id}` },
       { text: "❌ Cancel", callback_data: `k:${order.id}` },
@@ -161,7 +167,7 @@ async function createOrder(env, chatId, from, drink) {
 
 // No payment details here: drinks are free.
 function receiptText(order, drink) {
-  return `🧾 <b>Order #${order.num}</b> · ${drink.name}\nGot it! We'll message you here when it's ready.`;
+  return `🧾 <b>Order #${order.num}</b> · ${drink.name}${order.milk ? ` · ${MILKS[order.milk]}` : ""}\nGot it! We'll message you here when it's ready.`;
 }
 
 // Order placed from the chat buttons: the menu message turns into the receipt.
@@ -454,7 +460,7 @@ const isBarOrder = o => o.customer_chat === 0;
 
 function panelOrder(o) {
   return {
-    id: String(o.id), drink: o.drink, day: o.day, time: o.created_at, done: o.status === "ready",
+    id: String(o.id), drink: o.drink, day: o.day, time: o.created_at, done: o.status === "ready", milk: MILKS[o.milk] || "",
     customer: isBarOrder(o) ? o.customer_name : `${o.customer_name} · Telegram`,
     source: isBarOrder(o) ? "bar" : "telegram",
   };
@@ -467,7 +473,9 @@ async function handlePanelApi(request, env, path) {
   const id = Number(path.split("/")[4]);
 
   if (path === "/api/panel/orders" && request.method === "GET") {
-    const { results } = await env.DB.prepare("SELECT * FROM orders WHERE status != 'cancelled' ORDER BY id").all();
+    const { results } = await env.DB.prepare(
+      "SELECT o.*, e.milk FROM orders o LEFT JOIN order_extras e ON e.order_id = o.id WHERE o.status != 'cancelled' ORDER BY o.id"
+    ).all();
     return json({ ok: true, orders: results.map(panelOrder) });
   }
   if (path === "/api/panel/ranking") {
@@ -542,13 +550,13 @@ async function handleApi(request, env, path) {
   if (path === "/api/order") {
     const drink = drinkById(body.drink);
     if (!drink) return json({ ok: false, error: "Pick a drink from the menu." }, 400);
-    const { order, error } = await createOrder(env, user.id, user, drink);
+    const { order, error } = await createOrder(env, user.id, user, drink, body.milk);
     if (error) {
       console.log("order refused", JSON.stringify({ chat: user.id, drink: drink.id, error }));
       return json({ ok: false, error });
     }
     await send(env, user.id, receiptText(order, drink));
-    return json({ ok: true, order: { num: order.num, drink: drink.id }, orders: await todaysOrders(env, user.id) });
+    return json({ ok: true, order: { num: order.num, drink: drink.id, ...(order.milk ? { milk: order.milk } : {}) }, orders: await todaysOrders(env, user.id) });
   }
   return json({ ok: false, error: "Not found" }, 404);
 }

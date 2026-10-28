@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS orders_day ON orders (day);
 CREATE INDEX IF NOT EXISTS orders_customer ON orders (customer_chat, status);
 
+-- Optional extras of an order, today only the milk (lactose-free or plant-based). No row = regular.
+CREATE TABLE IF NOT EXISTS order_extras (
+  order_id INTEGER PRIMARY KEY,
+  milk TEXT NOT NULL
+);
+
 -- Key/value settings: barista_chat (where orders arrive), open ("1"/"0").
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,

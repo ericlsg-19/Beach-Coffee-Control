@@ -228,11 +228,22 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     if (viaBot && viaBot.ok) return viaBot;
     for (const url of C.rpcs) {
       const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestBlockhash", params: [{ commitment: "confirmed" }] }) })
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestBlockhash", params: [{ commitment: "finalized" }] }) })
         .then(r => r.json()).catch(() => null);
       if (r && r.result && r.result.value) return r.result.value;
     }
     throw Object.assign(new Error("no blockhash"), { network: true });
+  }
+
+  // Whether the barista's USDC account already exists; unknown counts as no.
+  async function accountExists(address) {
+    for (const url of C.rpcs) {
+      const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo", params: [address, { encoding: "base64", commitment: "finalized" }] }) })
+        .then(r => r.json()).catch(() => null);
+      if (r && r.result) return !!r.result.value;
+    }
+    return false;
   }
 
   // Builds the USDC transfer with the payment's reference attached and asks the wallet to send it.
@@ -255,8 +266,11 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     const data = new Uint8Array(10); data[0] = 12; new DataView(data.buffer).setBigUint64(1, BigInt(p.micro), true); data[9] = 6;
     const transfer = new W.TransactionInstruction({ programId: TOKEN, data, keys: [
       key(from, false, true), key(mint, false, false), key(to, false, true), key(payer, true, false), key(reference, false, false)] });
-    const bh = await recentBlockhash();
-    const tx = new W.Transaction({ feePayer: payer, blockhash: bh.blockhash, lastValidBlockHeight: bh.lastValidBlockHeight }).add(create, transfer);
+    // Only the transfer when the account is there: a plain "send USDC" is what wallets simulate best.
+    const [bh, exists] = await Promise.all([recentBlockhash(), accountExists(to.toBase58())]);
+    const tx = new W.Transaction({ feePayer: payer, blockhash: bh.blockhash, lastValidBlockHeight: bh.lastValidBlockHeight });
+    if (!exists) tx.add(create);
+    tx.add(transfer);
     return wallet.signAndSendTransaction(tx);
   }
   $("payNow").addEventListener("click", async () => {
