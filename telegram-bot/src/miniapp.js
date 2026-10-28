@@ -72,6 +72,21 @@ export function miniAppHtml(drinks) {
   .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
   .fallback { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .fallback .btn { width: 100%; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+  .tab { height: 42px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 .95rem/1 var(--body); cursor: pointer; }
+  .tab.active { background: var(--card-2); color: var(--mint); box-shadow: 0 0 0 1px var(--line) inset; }
+  .me-card { border: 1px solid var(--line); border-radius: 22px; padding: 18px 20px; margin-bottom: 12px;
+    background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.16), transparent 60%), var(--card); display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .me-card b { font: 900 2.2rem/1 var(--display); font-stretch: 125%; color: var(--gold); }
+  .me-card span { color: var(--muted); font-size: .95rem; text-align: right; }
+  .rank { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .rank:last-child { border-bottom: 0; }
+  .rank .pos { width: 34px; font: 500 .95rem/1 var(--mono); color: var(--muted); text-align: center; }
+  .rank .pos.medal { font-size: 1.4rem; }
+  .rank .who { flex: 1; font-weight: 500; }
+  .rank .n { font: 500 .95rem/1 var(--mono); color: var(--text); }
+  .rank.me .who { color: var(--mint); }
+  .rank.me .who::after { content: " · you"; color: var(--muted); font-weight: 400; }
   [hidden] { display: none !important; }
 </style>
 </head><body>
@@ -82,6 +97,11 @@ export function miniAppHtml(drinks) {
     <p class="live" id="live">Live · Floripa</p>
     <h1>What's your<b>coffee?</b></h1>
   </div>
+  <div class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-tab="menu">Menu</button>
+    <button class="tab" role="tab" data-tab="rank">Ranking 🏆</button>
+  </div>
+  <div id="tab-menu">
   <section id="mine" hidden>
     <p class="eyebrow" style="margin-bottom:10px">Your orders today</p>
     <div class="card" id="orders"></div>
@@ -92,6 +112,13 @@ export function miniAppHtml(drinks) {
   </section>
   <section id="done" class="center" hidden></section>
   <p class="note" id="msg"></p>
+  </div>
+  <section id="tab-rank" hidden>
+    <p class="eyebrow" style="margin-bottom:10px">Top coffee lovers · Island DAO</p>
+    <div class="me-card" id="meRank"></div>
+    <div class="card" id="rankList"></div>
+    <p class="note" style="margin-top:12px">Every drink you order here in Telegram counts. Keep ordering to climb 🏝️</p>
+  </section>
 </div>
 <div class="fallback" id="fallback" hidden><button class="btn" id="fallbackBtn">Order</button></div>
 <script>
@@ -99,7 +126,7 @@ export function miniAppHtml(drinks) {
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg ? tg.initData : "";
   const $ = id => document.getElementById(id);
-  let selected = null, busy = false, open = true;
+  let selected = null, busy = false, open = true, tab = "menu";
 
   if (tg) {
     tg.ready(); tg.expand();
@@ -132,13 +159,40 @@ export function miniAppHtml(drinks) {
     $("mine").hidden = false;
   }
 
+  function renderRanking(r) {
+    if (!r) return;
+    $("meRank").innerHTML = r.me
+      ? '<b>#' + r.me.rank + '</b><span>' + r.me.drinks + ' drink' + (r.me.drinks === 1 ? '' : 's') + '<br>out of ' + r.total + ' coffee lovers</span>'
+      : '<span style="text-align:left">Order your first drink to join the ranking ☕</span>';
+    const medal = n => ["🥇", "🥈", "🥉"][n - 1];
+    $("rankList").innerHTML = r.top.length
+      ? r.top.map(x => '<div class="rank' + (x.me ? ' me' : '') + '"><span class="pos' + (medal(x.rank) ? ' medal' : '') + '">' +
+          (medal(x.rank) || '#' + x.rank) + '</span><span class="who">' + esc(x.name) + '</span><span class="n">' + x.drinks + '</span></div>').join("")
+      : '<div class="rank"><span class="who" style="color:var(--muted)">No orders yet. Be the first!</span></div>';
+  }
+
+  function showTab(name) {
+    tab = name;
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+    $("tab-menu").hidden = name !== "menu";
+    $("tab-rank").hidden = name !== "rank";
+    tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
+    if (name === "rank") refreshRanking();
+    updateButton();
+  }
+
+  async function refreshRanking() {
+    const s = await api("/api/session", {});
+    if (s.ok) renderRanking(s.ranking);
+  }
+
   function updateButton() {
     const text = selected ? "Order " + drinkName(selected) : "Pick a drink";
     if (main) {
-      main.setParams({ text, color: "#e8b86a", text_color: "#1d1407", is_active: !!selected && open && !busy, is_visible: open });
+      main.setParams({ text, color: "#e8b86a", text_color: "#1d1407", is_active: !!selected && open && !busy, is_visible: open && tab === "menu" });
       if (busy) main.showProgress(); else main.hideProgress();
     } else {
-      $("fallback").hidden = !open;
+      $("fallback").hidden = !open || tab !== "menu";
       $("fallbackBtn").textContent = text;
       $("fallbackBtn").disabled = !selected || busy;
     }
@@ -165,6 +219,7 @@ export function miniAppHtml(drinks) {
       $("msg").textContent = "The bar is closed right now 🌙 Come back soon!";
     }
     renderOrders(s.orders);
+    renderRanking(s.ranking);
     updateButton();
   }
 
@@ -191,6 +246,7 @@ export function miniAppHtml(drinks) {
     $("close").onclick = () => tg ? tg.close() : null;
     $("again").onclick = () => { selected = null; $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
     renderOrders(r.orders);
+    refreshRanking();
   }
 
   $("drinks").addEventListener("click", e => {
@@ -201,6 +257,7 @@ export function miniAppHtml(drinks) {
     $("msg").textContent = "";
     renderDrinks(); updateButton();
   });
+  document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
   if (main) main.onClick(order); else $("fallbackBtn").addEventListener("click", order);
 
   renderDrinks();
