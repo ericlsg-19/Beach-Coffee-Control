@@ -150,11 +150,15 @@ export function miniAppHtml(drinks, pay = null) {
     <div class="card" id="orders"></div>
   </section>
   <section id="pick">
-    <p class="eyebrow" style="margin-bottom:10px">Menu</p>
+    <p class="eyebrow" style="margin-bottom:10px">Step 1 · Pick your drink</p>
     <div class="drinks" id="drinks"></div>
     <div id="milkPick" hidden>
-      <p class="eyebrow" style="margin:18px 0 10px">Choose your milk</p>
+      <p class="eyebrow" style="margin:18px 0 10px">Step 2 · Choose your milk</p>
       <div class="chips" id="milkChips" style="grid-template-columns:repeat(3, 1fr)"></div>
+    </div>
+    <div id="confirmStep" hidden>
+      <p class="eyebrow" style="margin:18px 0 10px" id="confirmTitle"></p>
+      <div class="card" style="padding:14px 18px"><p class="note" id="confirmText" style="color:var(--text)"></p></div>
     </div>
   </section>
   <section id="done" class="center" hidden></section>
@@ -297,6 +301,13 @@ export function miniAppHtml(drinks, pay = null) {
     const text = !selected ? "Pick a drink" : needsMilk() ? "Choose your milk"
       : "Order " + drinkName(selected) + (MILKS[milk] ? " · " + MILKS[milk].replace(" milk", "") : "");
     const ready = !!selected && !needsMilk();
+    // The last step: what's about to be ordered, then the Order button.
+    const d = MENU.find(x => x.id === selected);
+    $("confirmStep").hidden = !ready;
+    if (ready) {
+      $("confirmTitle").textContent = "Step " + (d.milk ? 3 : 2) + " · Confirm your order";
+      $("confirmText").innerHTML = "<b>" + esc(d.name) + "</b>" + (d.milk ? " · " + esc(MILKS[milk] || "Regular milk") : "") + ". Tap <b>Order</b> below.";
+    }
     if (main) {
       main.setParams({ text, color: "#e8b86a", text_color: "#1d1407", is_active: ready && open && !busy, is_visible: open && tab === "menu" });
       if (busy) main.showProgress(); else main.hideProgress();
@@ -372,6 +383,7 @@ export function miniAppHtml(drinks, pay = null) {
     $("msg").textContent = "";
     renderDrinks(); renderMilk(); updateButton();
     if (!$("milkPick").hidden) $("milkPick").scrollIntoView({ behavior: "smooth", block: "center" });
+    else if (selected) $("confirmStep").scrollIntoView({ behavior: "smooth", block: "center" });
   });
   // Nothing is preselected: for a drink with milk the order button waits for this choice.
   $("milkChips").addEventListener("click", e => {
@@ -379,6 +391,7 @@ export function miniAppHtml(drinks, pay = null) {
     milk = b.dataset.milk;
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     renderMilk(); updateButton();
+    $("confirmStep").scrollIntoView({ behavior: "smooth", block: "center" });
   });
   document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
   if (main) main.onClick(order); else $("fallbackBtn").addEventListener("click", order);
