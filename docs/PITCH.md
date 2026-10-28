@@ -14,7 +14,7 @@
 | Demo ao vivo | Pronto: [@BeachCoffeeIslandBot](https://t.me/BeachCoffeeIslandBot) e `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` |
 | Vídeo de pitch (até ~3 min) | Falta |
 | Vídeo de demo técnica (~2–3 min): pedido → barista → Ready; gorjeta/pacote → Solscan → aviso | Falta |
-| Deck (6–8 slides) | Pronto: https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (8 slides, notas do apresentador em inglês, cópia em `design/deck/`). Falta preencher: total de bebidas do evento, link do Solscan e o pedido aos jurados. Está privado: compartilhar pelo menu Share. |
+| Deck (6–8 slides) | Pronto: https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (7 slides, notas do apresentador em inglês, cópia em `design/deck/`). Falta preencher: total de bebidas do evento, link do Solscan e o pedido aos jurados. Está privado: compartilhar pelo menu Share. |
 | Descrição curta, trilha, equipe, carteira para prêmio | Texto abaixo |
 | Números de tração | Tirar os totais exatos do Âncora (**Summary by day** / **Download CSV**) e do `/ranking` |
 

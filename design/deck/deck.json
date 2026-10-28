@@ -4,7 +4,7 @@
   "lists": "css",
   "title": "Beach Coffee Co. Pitch",
   "cover": "cover",
-  "order": ["cover", "problem", "solution", "bar", "pay", "how", "traction", "next"],
+  "order": ["cover", "problem", "solution", "bar", "pay", "how", "next"],
   "sections": {
     "s1": {"description": "Who we are and the problem at an event coffee bar", "start": "cover"},
     "s2": {"description": "The product: Telegram ordering, one barista panel, USDC payments", "start": "solution"},
