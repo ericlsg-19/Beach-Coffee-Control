@@ -318,3 +318,43 @@ test("daily report at 23:00 Floripa covers Telegram and bar orders", async () =>
 function localDayForTest() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
+
+// ---------- Ranking ----------
+
+test("ranking counts Telegram orders per customer, skips bar and cancelled orders, hides last names", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const BEN = 3;
+  const tapAs = (chat, first, last, username, data) => post({ callback_query: { id: "cb", data,
+    from: { id: chat, first_name: first, last_name: last, username }, message: { chat: { id: chat, type: "private" }, message_id: 50 } } });
+  await tapAs(ANA, "Ana", "Souza", "ana", "c:latte");
+  await tapAs(ANA, "Ana", "Souza", "ana", "c:mocha");
+  await tapAs(BEN, "Ben", undefined, "ben", "c:espresso");
+  await tapAs(BEN, "Ben", undefined, "ben", "c:espresso");
+  await tapAs(BEN, "Ben", undefined, "ben", "c:espresso");
+  await panel(env, "POST", "/api/panel/orders", { drink: "latte", customer: "Walk-in", day: localDayForTest() });
+  // Cancel one of Ben's: he drops to 2 and Ana (who got to 2 first) stays ahead.
+  const benOrders = (await (await panel(env, "GET", "/api/panel/orders")).json()).orders.filter(o => o.customer.startsWith("Ben"));
+  await panel(env, "DELETE", `/api/panel/orders/${benOrders[0].id}`);
+
+  const full = (await (await panel(env, "GET", "/api/panel/ranking")).json()).ranking;
+  assert.deepEqual(full.map(r => [r.rank, r.name, r.drinks]), [[1, "Ana Souza (@ana)", 2], [2, "Ben (@ben)", 2]]);
+
+  const initData = signedInitData("t", { id: BEN, first_name: "Ben", username: "ben" });
+  const s = await (await apiCall(env, "/api/session", { initData })).json();
+  assert.deepEqual(s.ranking.top, [{ rank: 1, name: "Ana S.", drinks: 2, me: false }, { rank: 2, name: "Ben", drinks: 2, me: true }]);
+  assert.deepEqual(s.ranking.me, { rank: 2, drinks: 2 });
+
+  calls.length = 0;
+  await post(msg(BARISTA, "/ranking"));
+  assert.match(calls.at(-1).body.text, /🥇 Ana Souza \(@ana\) · <b>2<\/b>\n🥈 Ben \(@ben\) · <b>2<\/b>/);
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /Top customer: Ana Souza \(@ana\) \(2\)/);
+});
+
+test("Mini App has Menu and Ranking tabs", async () => {
+  const { env } = setup();
+  const html = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.match(html, /data-tab="menu"/);
+  assert.match(html, /data-tab="rank"/);
+});

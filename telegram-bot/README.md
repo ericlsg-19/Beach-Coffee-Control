@@ -17,9 +17,13 @@ Cada cliente pode ter no máximo 3 bebidas esperando ao mesmo tempo.
 
 **Barista** (no chat configurado com `/barista`)
 - Cada pedido chega com número, bebida, nome do cliente e hora, e os botões **Ready** / **Cancel**.
-- `/today`: quantas bebidas de cada tipo hoje, total e quantas estão esperando.
+- `/today` e `/report AAAA-MM-DD`: relatório do dia (Telegram × barra, cada bebida, horário de pico, maior cliente). Às 23:00 o bot manda o do dia sozinho.
 - `/queue`: lista das bebidas esperando.
+- `/ranking`: quem mais pediu pelo Telegram no evento todo.
+- `/panel`: abre o Âncora, o painel da barista, com pedidos do Telegram e da barra, ranking e resumo por dia.
 - `/close` e `/open`: pausar e voltar a aceitar pedidos (ex.: à noite).
+
+No mini app, o cliente tem a aba **Ranking 🏆** com o Top 10 (primeiro nome e inicial do sobrenome) e a própria posição.
 
 O dia e a hora seguem o fuso de Florianópolis (`America/Sao_Paulo`).
 

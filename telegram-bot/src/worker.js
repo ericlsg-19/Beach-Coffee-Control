@@ -31,7 +31,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -207,6 +207,7 @@ async function dayReport(env, day) {
   const waiting = results.filter(o => o.status === "pending").length;
   const name = id => (drinkById(id) || { name: id }).name;
   const [peakHour, peakCount] = byHour[0];
+  const [top] = await ranking(env, day);
 
   return [
     `📊 <b>${label}</b>`,
@@ -217,6 +218,7 @@ async function dayReport(env, day) {
     `⭐ Top drink: ${name(byDrink[0][0])}`,
     `⏰ Busiest hour: ${peakHour}:00–${String((Number(peakHour) + 1) % 24).padStart(2, "0")}:00 (${peakCount})`,
     `👥 Telegram customers: ${customers}`,
+    ...(top ? [`🏆 Top customer: ${escapeHtml(top.name)} (${top.drinks})`] : []),
     `⏳ Still waiting: ${waiting}`,
   ].join("\n");
 }
@@ -239,7 +241,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/panel: open Âncora, the barista panel\n/close: stop taking orders\n/open: start taking orders";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/close: stop taking orders\n/open: start taking orders";
 
 // ---------- Update routing ----------
 
@@ -268,6 +270,7 @@ async function onMessage(env, message) {
         { inline_keyboard: [[{ text: "Open the panel", url: `${env.WEBHOOK_URL}/panel#key=${encodeURIComponent(env.BARISTA_CODE)}` }]] });
     }
     if (cmd === "/queue") return queue(env, chatId);
+    if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
     if (cmd === "/close") { await setSetting(env, "open", "0"); return send(env, chatId, "🌙 Closed. New orders are paused."); }
     if (cmd === "/open") { await setSetting(env, "open", "1"); return send(env, chatId, "☀️ Open. Taking orders."); }
     if (message.chat.type !== "private") return; // stay quiet in a group
@@ -328,6 +331,45 @@ async function ensureMenuButton(env) {
 
 // ---------- Mini App API ----------
 
+// ---------- Ranking ----------
+//
+// Telegram customers ordered by drinks (cancelled orders don't count). On a tie, whoever got
+// there first stays ahead. Bar orders have no customer identity, so they're not ranked.
+
+async function ranking(env, day) {
+  const stmt = env.DB.prepare(
+    `SELECT customer_chat AS chat, MAX(customer_name) AS name, COUNT(*) AS drinks, MAX(created_at) AS last
+     FROM orders WHERE customer_chat != 0 AND status != 'cancelled' ${day ? "AND day = ?" : ""}
+     GROUP BY customer_chat ORDER BY drinks DESC, last ASC`
+  );
+  const { results } = await (day ? stmt.bind(day) : stmt).all();
+  return results.map((r, i) => ({ rank: i + 1, ...r }));
+}
+
+// "Ana Souza (@ana)" → "Ana S.": what other customers see in the Mini App.
+function publicName(name) {
+  const words = String(name || "").replace(/\s*\(@[^)]*\)\s*$/, "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "Coffee lover";
+  return words.length > 1 ? `${words[0]} ${words[words.length - 1][0].toUpperCase()}.` : words[0];
+}
+
+async function rankingForCustomer(env, chatId) {
+  const all = await ranking(env);
+  const me = all.find(r => r.chat === chatId);
+  return {
+    top: all.slice(0, 10).map(r => ({ rank: r.rank, name: publicName(r.name), drinks: r.drinks, me: r.chat === chatId })),
+    me: me ? { rank: me.rank, drinks: me.drinks } : null,
+    total: all.length,
+  };
+}
+
+async function rankingText(env) {
+  const all = await ranking(env);
+  if (!all.length) return "🏆 <b>Ranking</b>\nNo Telegram orders yet.";
+  const medal = r => ["🥇", "🥈", "🥉"][r.rank - 1] || `${r.rank}.`;
+  return ["🏆 <b>Ranking · whole event</b>", ...all.slice(0, 10).map(r => `${medal(r)} ${escapeHtml(r.name)} · <b>${r.drinks}</b>`)].join("\n");
+}
+
 async function todaysOrders(env, chatId) {
   const { results } = await env.DB.prepare(
     "SELECT num, drink, status FROM orders WHERE customer_chat = ? AND day = ? ORDER BY id DESC LIMIT 5"
@@ -374,6 +416,9 @@ async function handlePanelApi(request, env, path) {
   if (path === "/api/panel/orders" && request.method === "GET") {
     const { results } = await env.DB.prepare("SELECT * FROM orders WHERE status != 'cancelled' ORDER BY id").all();
     return json({ ok: true, orders: results.map(panelOrder) });
+  }
+  if (path === "/api/panel/ranking") {
+    return json({ ok: true, ranking: (await ranking(env)).map(({ rank, name, drinks, last }) => ({ rank, name, drinks, last })) });
   }
   if (path === "/api/panel/orders" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
@@ -427,7 +472,8 @@ async function handleApi(request, env, path) {
   if (!user) return json({ ok: false, error: "Please open the menu from the bot in Telegram." }, 401);
 
   if (path === "/api/session") {
-    return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id) });
+    return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
+      ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
     const drink = drinkById(body.drink);
