@@ -23,7 +23,7 @@ html, body { margin: 0; }
 .brand span { font-size: 18px; letter-spacing: .32em; color: #9db3a6; padding-left: 22px; border-left: 1px solid rgba(168,230,184,.16); }
 .copy { position: absolute; left: 88px; top: 230px; width: 800px; }
 .eyebrow { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: .3em; text-transform: uppercase; color: #e8b86a; }
-h1 { margin: 22px 0 0; font: 900 92px/0.98 Archivo, sans-serif; font-stretch: 125%; text-transform: uppercase; }
+h1 { margin: 22px 0 0; font: 900 116px/0.95 Archivo, sans-serif; font-stretch: 125%; text-transform: uppercase; }
 h1 em { font-style: normal; color: #a8e6b8; }
 .sub { margin: 30px 0 0; font-size: 30px; line-height: 1.35; color: #c9d6cd; }
 .tags { margin-top: 40px; display: flex; gap: 12px; flex-wrap: wrap; }
@@ -37,9 +37,9 @@ h1 em { font-style: normal; color: #a8e6b8; }
 <div class="brand">${WORDMARK_SVG.replace('fill="#ffffff"', 'fill="#eef3ee"')}<span>@ ISLAND DAO</span></div>
 <div class="copy">
   <p class="eyebrow">Live at the Vila · Floripa</p>
-  <h1>Coffee on<br>Telegram,<br><em>tips on Solana</em></h1>
-  <p class="sub">Order free drinks from a Telegram Mini App. Tip the barista and buy the limited bag in USDC.</p>
-  <div class="tags"><span>Telegram Mini App</span><span class="gold">USDC · Solana Pay</span><span>Payments + Commerce</span></div>
+  <h1>Coffee,<br><em>onchain</em></h1>
+  <p class="sub">Order at the bar from Telegram. Tip the barista and grab the limited Island DAO bag in USDC on Solana.</p>
+  <div class="tags"><span>Telegram Mini App</span><span class="gold">USDC · Solana Pay</span><span>Proof of brew ☕</span></div>
 </div>
 <div class="phone p1"><img src="${shot("miniapp-menu.png")}" alt=""></div>
 <div class="phone p2"><img src="${shot("miniapp-tip-and-bag.png")}" alt=""></div>
