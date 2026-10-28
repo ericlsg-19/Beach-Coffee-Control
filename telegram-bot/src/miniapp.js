@@ -18,9 +18,11 @@ const ICONS = {
   chocolate:  '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 9h12M6 15h12M12 3v18"/>',
 };
 
-// Drinks made with milk, and the milks a guest can swap in (regular needs no choice).
+// Drinks made with milk: the guest has to pick one of these milks before ordering.
+// Regular is a choice too, but isn't stored (no extras row = regular milk).
 export const MILK_DRINKS = ["cappuccino", "flatwhite", "latte", "icedlatte", "mocha", "matcha", "chocolate"];
 export const MILKS = { lactosefree: "Lactose-free milk", plant: "Plant-based milk" };
+export const MILK_CHOICES = ["regular", ...Object.keys(MILKS)];
 
 // pay: { recipient, bagPrice, bagStock, bagsLeft } when tips and bags are on, null otherwise.
 export function miniAppHtml(drinks, pay = null) {
@@ -77,6 +79,7 @@ export function miniAppHtml(drinks, pay = null) {
   .center h2 { margin: 0; font: 800 1.4rem/1.1 var(--display); font-stretch: 125%; text-transform: uppercase; }
   .center h2 b { color: var(--mint); }
   .btn { height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: var(--gold); color: var(--gold-ink); font: 600 1rem/1 var(--body); cursor: pointer; }
+  .btn:disabled { opacity: .5; cursor: default; }
   .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
   .fallback { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .fallback .btn { width: 100%; }
@@ -150,7 +153,7 @@ export function miniAppHtml(drinks, pay = null) {
     <p class="eyebrow" style="margin-bottom:10px">Menu</p>
     <div class="drinks" id="drinks"></div>
     <div id="milkPick" hidden>
-      <p class="eyebrow" style="margin:18px 0 10px">Milk <span style="color:var(--muted)">· if you need it</span></p>
+      <p class="eyebrow" style="margin:18px 0 10px">Choose your milk</p>
       <div class="chips" id="milkChips" style="grid-template-columns:repeat(3, 1fr)"></div>
     </div>
   </section>
@@ -219,7 +222,7 @@ export function miniAppHtml(drinks, pay = null) {
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg ? tg.initData : "";
   const $ = id => document.getElementById(id);
-  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = "";
+  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = null;
 
   if (tg) {
     tg.ready(); tg.expand();
@@ -246,7 +249,7 @@ export function miniAppHtml(drinks, pay = null) {
   function renderMilk() {
     const d = MENU.find(x => x.id === selected);
     $("milkPick").hidden = !(d && d.milk);
-    const opts = [["", "Regular"], ["lactosefree", "Lactose-free"], ["plant", "Plant-based"]];
+    const opts = [["regular", "Regular"], ["lactosefree", "Lactose-free"], ["plant", "Plant-based"]];
     $("milkChips").innerHTML = opts.map(([id, label]) =>
       '<button class="chip' + (milk === id ? " on" : "") + '" data-milk="' + id + '">' + label + '</button>').join("");
   }
@@ -288,15 +291,19 @@ export function miniAppHtml(drinks, pay = null) {
     if (s.ok) renderRanking(s.ranking);
   }
 
+  // Step 1 the drink, step 2 the milk (drinks with milk only), step 3 the order.
+  const needsMilk = () => { const d = MENU.find(x => x.id === selected); return !!(d && d.milk && !milk); };
   function updateButton() {
-    const text = selected ? "Order " + drinkName(selected) + (milk ? " · " + MILKS[milk].replace(" milk", "") : "") : "Pick a drink";
+    const text = !selected ? "Pick a drink" : needsMilk() ? "Choose your milk"
+      : "Order " + drinkName(selected) + (MILKS[milk] ? " · " + MILKS[milk].replace(" milk", "") : "");
+    const ready = !!selected && !needsMilk();
     if (main) {
-      main.setParams({ text, color: "#e8b86a", text_color: "#1d1407", is_active: !!selected && open && !busy, is_visible: open && tab === "menu" });
+      main.setParams({ text, color: "#e8b86a", text_color: "#1d1407", is_active: ready && open && !busy, is_visible: open && tab === "menu" });
       if (busy) main.showProgress(); else main.hideProgress();
     } else {
       $("fallback").hidden = !open || tab !== "menu";
       $("fallbackBtn").textContent = text;
-      $("fallbackBtn").disabled = !selected || busy;
+      $("fallbackBtn").disabled = !ready || busy;
     }
   }
 
@@ -326,7 +333,7 @@ export function miniAppHtml(drinks, pay = null) {
   }
 
   async function order() {
-    if (!selected || busy) return;
+    if (!selected || needsMilk() || busy) return;
     busy = true; updateButton();
     const r = await api("/api/order", { drink: selected, milk });
     busy = false;
@@ -349,7 +356,7 @@ export function miniAppHtml(drinks, pay = null) {
         '<button class="chip" data-tip="other">Other</button></div></div>' : '');
     $("done").hidden = false;
     $("close").onclick = () => tg ? tg.close() : null;
-    $("again").onclick = () => { selected = null; milk = ""; renderMilk(); $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
+    $("again").onclick = () => { selected = null; milk = null; renderMilk(); $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
     renderOrders(r.orders);
     refreshRanking();
     // Once per visit, a moment after the confirmation: the optional tip pop-up.
@@ -360,13 +367,13 @@ export function miniAppHtml(drinks, pay = null) {
     const b = e.target.closest("[data-id]");
     if (!b) return;
     selected = selected === b.dataset.id ? null : b.dataset.id;
-    milk = "";
+    milk = null;
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     $("msg").textContent = "";
     renderDrinks(); renderMilk(); updateButton();
-    if (!$("milkPick").hidden) $("milkPick").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!$("milkPick").hidden) $("milkPick").scrollIntoView({ behavior: "smooth", block: "center" });
   });
-  // Optional: regular milk stays the default, nothing to tap.
+  // Nothing is preselected: for a drink with milk the order button waits for this choice.
   $("milkChips").addEventListener("click", e => {
     const b = e.target.closest("[data-milk]"); if (!b) return;
     milk = b.dataset.milk;

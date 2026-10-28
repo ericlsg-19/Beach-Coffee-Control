@@ -217,7 +217,7 @@ test("Mini App order: saved, receipt to customer, barista notified, listed in se
   assert.deepEqual([session.ok, session.open, session.user.first_name, session.orders.length], [true, true, "Ana", 0]);
 
   calls.length = 0;
-  const r = await (await apiCall(env, "/api/order", { initData, drink: "icedlatte" })).json();
+  const r = await (await apiCall(env, "/api/order", { initData, drink: "icedlatte", milk: "regular" })).json();
   assert.deepEqual(r.order, { num: 1, drink: "icedlatte" });
   assert.equal(r.orders[0].status, "pending");
   assert.match(calls.find(c => c.body.chat_id === ANA).body.text, /Order #1<\/b> · Iced Latte/);
@@ -279,7 +279,7 @@ const panel = (env, method, path, body, code = "beach123") => worker.fetch(new R
   body: body ? JSON.stringify(body) : undefined,
 }), env);
 
-test("Mini App order with lactose-free or plant milk: barista, receipt and panel show it", async () => {
+test("Mini App: a drink with milk needs a milk choice; lactose-free or plant shows for barista, receipt and panel", async () => {
   const { env, calls, post } = setup();
   await post(msg(BARISTA, "/barista beach123"));
   const initData = signedInitData("t", { id: ANA, first_name: "Ana", username: "ana" });
@@ -290,11 +290,17 @@ test("Mini App order with lactose-free or plant milk: barista, receipt and panel
   assert.match(calls.find(c => c.body.chat_id === String(BARISTA)).body.text, /#1 · Latte<\/b>\n🥛 <b>Lactose-free milk<\/b>/);
   assert.match(calls.find(c => c.body.chat_id === ANA).body.text, /Latte · Lactose-free milk/);
 
-  // No milk to swap in an espresso, and unknown milks are ignored: both stay regular.
+  // No milk in an espresso: whatever comes along is ignored.
   const esp = await (await apiCall(env, "/api/order", { initData, drink: "espresso", milk: "plant" })).json();
   assert.deepEqual(esp.order, { num: 2, drink: "espresso" });
-  const odd = await (await apiCall(env, "/api/order", { initData, drink: "mocha", milk: "whisky" })).json();
-  assert.deepEqual(odd.order, { num: 3, drink: "mocha" });
+  // A drink with milk can't be ordered without choosing one, and only the three milks count.
+  for (const milk of [undefined, "", "whisky"]) {
+    const no = await (await apiCall(env, "/api/order", { initData, drink: "mocha", milk })).json();
+    assert.equal(no.ok, false);
+    assert.match(no.error, /Choose your milk/);
+  }
+  const regular = await (await apiCall(env, "/api/order", { initData, drink: "mocha", milk: "regular" })).json();
+  assert.deepEqual(regular.order, { num: 3, drink: "mocha" });
 
   const { orders } = await (await panel(env, "GET", "/api/panel/orders")).json();
   assert.deepEqual(orders.map(o => o.milk), ["Lactose-free milk", "", ""]);
