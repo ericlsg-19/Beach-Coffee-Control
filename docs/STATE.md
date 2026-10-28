@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 28/10/2026, bot e Âncora na **v1.6.1** (no ar desde 28/10, PR #12).
+Atualizado em 28/10/2026, bot e Âncora na **v1.6.2** (no ar depois do merge na `main`; a v1.6.1 está no ar desde 28/10, PR #12).
 
 ## O que existe e onde
 
@@ -29,7 +29,7 @@ Atualizado em 28/10/2026, bot e Âncora na **v1.6.1** (no ar desde 28/10, PR #12
 - 22/10: Âncora (artifact), página de gorjeta, cartão 10x15, camiseta, logo.
 - 24/10: resumo da semana para o X. 25/10: adesivo do pacote Island DAO Edition.
 - 27/10: bot no Cloudflare (Workers + D1), mini app, incidente do webhook após `/revoke` (ver OPERATIONS), Âncora dentro do bot (`/panel`), 301 pedidos do Âncora importados, relatórios e ranking (v1.2.0).
-- 28/10: v1.3.0 gorjeta + pacote em USDC (Solana Pay, 20 pacotes a 10 USDC); v1.3.1 RPC reserva (o `api.mainnet-beta` bloqueia a Cloudflare com 403); v1.3.2 diagnóstico em `/health?rpc=1`; deck do pitch (8 slides); banner com QR para o notebook; v1.4.0 gorjeta opcional logo depois do pedido no mini app; v1.5.0 `/total` com o relatório do evento todo; v1.5.1 pop-up de gorjeta depois do pedido; v1.6.0 leite sem lactose ou vegetal e correção do bloqueio da Phantom na primeira tentativa (blockhash `finalized`, transação só com a transferência); v1.6.1 escolha do leite obrigatória nas bebidas com leite.
+- 28/10: v1.3.0 gorjeta + pacote em USDC (Solana Pay, 20 pacotes a 10 USDC); v1.3.1 RPC reserva (o `api.mainnet-beta` bloqueia a Cloudflare com 403); v1.3.2 diagnóstico em `/health?rpc=1`; deck do pitch (8 slides); banner com QR para o notebook; v1.4.0 gorjeta opcional logo depois do pedido no mini app; v1.5.0 `/total` com o relatório do evento todo; v1.5.1 pop-up de gorjeta depois do pedido; v1.6.0 leite sem lactose ou vegetal e correção do bloqueio da Phantom na primeira tentativa (blockhash `finalized`, transação só com a transferência); v1.6.1 escolha do leite obrigatória nas bebidas com leite; v1.6.2 passos escritos na tela (Step 1, 2, 3).
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

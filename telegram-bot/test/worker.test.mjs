@@ -307,6 +307,7 @@ test("Mini App: a drink with milk needs a milk choice; lactose-free or plant sho
 
   const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
   assert.match(app, /id="milkPick"/);
+  assert.match(app, /Step 1 · Pick your drink[\s\S]*Step 2 · Choose your milk[\s\S]*Confirm your order/);
   assert.match(app, /"id":"latte"[^}]*"milk":true/);
   assert.match(app, /"id":"espresso"[^}]*"milk":false/);
 });
