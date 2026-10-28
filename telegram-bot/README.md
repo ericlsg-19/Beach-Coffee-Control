@@ -78,7 +78,7 @@ Você precisa de: o **token** do bot (do @BotFather) e uma conta grátis no **Cl
 
 Para trocar o endereço que recebe gorjetas e pacotes, ou o preço do pacote, edite `SOLANA_ADDRESS`, `BAG_PRICE_USDC` e `BAG_STOCK` no `wrangler.toml` e publique de novo. `SOLANA_ADDRESS` vazio desliga a aba **Tip & Bag** e o `/pay`.
 
-O bot consulta a Solana pelo RPC público (`api.mainnet-beta.solana.com`). Ele tem limite de uso; se os pagamentos demorarem a aparecer, crie uma URL de RPC grátis (Helius, QuickNode, Alchemy…) e guarde como segredo: `npx wrangler secret put SOLANA_RPC_URL`.
+O bot consulta a Solana por RPCs públicos, um depois do outro: `solana-rpc.publicnode.com` e, por último, `api.mainnet-beta.solana.com` (que recusa com `403 Access forbidden` pedidos vindos da Cloudflare e de páginas web). A página de pagamento faz o mesmo quando precisa do *blockhash* da transação. Para o serviço mais estável, crie uma URL de RPC grátis (Helius, QuickNode, Alchemy…) e guarde como segredo: `npx wrangler secret put SOLANA_RPC_URL`; ela passa a ser a primeira tentativa. Para ver quais RPCs respondem agora: `/health?rpc=1`.
 
 ## Testes
 

@@ -3,10 +3,10 @@
 // wallet to send the USDC; anywhere else it offers to open a wallet, a Solana Pay QR and the
 // plain address to copy (never with "solana:" in front, which wallets and exchanges reject).
 import { WORDMARK_SVG } from "./wordmark.js";
-import { USDC_MINT, TIP_PRESETS, PRODUCTS } from "./pay.js";
+import { USDC_MINT, TIP_PRESETS, PRODUCTS, PUBLIC_RPCS } from "./pay.js";
 
 export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }) {
-  const config = JSON.stringify({ recipient, mint: USDC_MINT, presets: TIP_PRESETS, bagPrice, bagStock, bagsLeft, products: PRODUCTS, payment })
+  const config = JSON.stringify({ recipient, mint: USDC_MINT, presets: TIP_PRESETS, bagPrice, bagStock, bagsLeft, products: PRODUCTS, rpcs: PUBLIC_RPCS, payment })
     .replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en"><head>
@@ -222,6 +222,19 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     b.textContent = "Copied ✓"; setTimeout(() => { b.textContent = "Copy"; }, 1600);
   });
 
+  // Every transaction needs a recent blockhash: from the bot first, then straight from a public RPC.
+  async function recentBlockhash() {
+    const viaBot = await fetch("/api/pay/blockhash").then(r => r.json()).catch(() => null);
+    if (viaBot && viaBot.ok) return viaBot;
+    for (const url of C.rpcs) {
+      const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestBlockhash", params: [{ commitment: "confirmed" }] }) })
+        .then(r => r.json()).catch(() => null);
+      if (r && r.result && r.result.value) return r.result.value;
+    }
+    throw Object.assign(new Error("no blockhash"), { network: true });
+  }
+
   // Builds the USDC transfer with the payment's reference attached and asks the wallet to send it.
   async function payInWallet(p) {
     const W = window.solanaWeb3, wallet = provider();
@@ -242,8 +255,7 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     const data = new Uint8Array(10); data[0] = 12; new DataView(data.buffer).setBigUint64(1, BigInt(p.micro), true); data[9] = 6;
     const transfer = new W.TransactionInstruction({ programId: TOKEN, data, keys: [
       key(from, false, true), key(mint, false, false), key(to, false, true), key(payer, true, false), key(reference, false, false)] });
-    let bh = await fetch("/api/pay/blockhash").then(r => r.json()).catch(() => null);
-    if (!bh || !bh.ok) bh = await new W.Connection("https://api.mainnet-beta.solana.com", "confirmed").getLatestBlockhash();
+    const bh = await recentBlockhash();
     const tx = new W.Transaction({ feePayer: payer, blockhash: bh.blockhash, lastValidBlockHeight: bh.lastValidBlockHeight }).add(create, transfer);
     return wallet.signAndSendTransaction(tx);
   }
@@ -253,9 +265,10 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
       await payInWallet(C.payment);
       $("payNow").textContent = "Sent ✓ confirming…";
     } catch (err) {
-      $("payErr").textContent = (err && err.message && !/reject/i.test(err.message))
-        ? "Couldn't send: " + err.message + ". Check you have " + C.payment.amount + " USDC on Solana and a little SOL for the fee."
-        : "Payment cancelled.";
+      const msg = String(err && err.message || "");
+      $("payErr").textContent = err && err.network ? "The Solana network didn't answer. Wait a few seconds and tap Pay again."
+        : /reject|cancel|denied/i.test(msg) ? "Payment cancelled."
+        : "Couldn't send: " + msg + ". Check you have " + C.payment.amount + " USDC on Solana and a little SOL for the fee.";
       $("payNow").disabled = false;
     }
   });
