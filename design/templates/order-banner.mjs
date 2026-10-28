@@ -53,7 +53,7 @@ li b { color: var(--text); font-weight: 600; }
 <section>
   <div class="brand">${WORDMARK_SVG.replace('fill="#ffffff"', 'fill="#eef3ee"')}<span>@ ISLAND DAO</span></div>
   <p class="eyebrow">Live · Floripa</p>
-  <h1>What’s your<br><em>coffee?</em></h1>
+  <h1>Want a<br><em>coffee?</em></h1>
   <ol>
     <li><span class="n">1</span><span><b>Scan the QR</b> with your phone camera.</span></li>
     <li><span class="n">2</span><span>Tap <b>Start</b>, then <span class="pill">Order ☕</span></span></li>
