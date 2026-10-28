@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import worker from "../src/worker.js";
+import { PUBLIC_RPCS } from "../src/pay.js";
 
 // Minimal D1 shim: prepare().bind().first()/all()/run().
 function d1() {
@@ -370,11 +371,18 @@ function setupPay(extraEnv = {}) {
   const t = setup();
   Object.assign(t.env, { SOLANA_ADDRESS: SHOP, SOLANA_RPC_URL: "https://rpc.test", BAG_PRICE_USDC: "10", WEBHOOK_URL: "https://bot" }, extraEnv);
   const chain = {}, rpcCalls = [];
+  // Public RPCs refuse by default, the way api.mainnet-beta.solana.com answers Cloudflare Workers.
+  const publicUp = new Set();
   const telegram = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
-    if (!String(url).startsWith("https://rpc.test")) return telegram(url, init);
+    url = String(url);
+    const isPublic = PUBLIC_RPCS.includes(url);
+    if (!url.startsWith("https://rpc.test") && !isPublic) return telegram(url, init);
+    if (isPublic && !publicUp.has(url)) {
+      return new Response(JSON.stringify({ jsonrpc: "2.0", error: { code: 403, message: "Access forbidden" } }), { status: 403 });
+    }
     const { method, params } = JSON.parse(init.body);
-    rpcCalls.push(method);
+    rpcCalls.push(`${new URL(url).host} ${method}`);
     const all = Object.values(chain).flat();
     let result;
     if (method === "getLatestBlockhash") result = { value: { blockhash: "GHtXQBsoZHVnNFa9YevAzFr17DJjgHXk3ycTKD5xD3Zi", lastValidBlockHeight: 99 } };
@@ -388,7 +396,7 @@ function setupPay(extraEnv = {}) {
     return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result }));
   };
   const getJson = async path => (await worker.fetch(new Request(`https://bot${path}`), t.env)).json();
-  return { ...t, chain, rpcCalls, getJson };
+  return { ...t, chain, rpcCalls, publicUp, getJson };
 }
 const pay = (env, body) => apiCall(env, "/api/pay", body).then(r => r.json());
 const runMinuteCron = async env => { const jobs = []; await worker.scheduled({ cron: "* * * * *" }, env, { waitUntil: p => jobs.push(p.catch(() => {})) }); await Promise.all(jobs); };
@@ -584,4 +592,29 @@ test("limited edition: bags stop selling at BAG_STOCK, unpaid checkouts hold one
   assert.match(calls.at(-1).body.text, /🛍️ Coffee bags: 2 · 20 USDC \(0 left\)/);
   assert.equal((await (await panel(env, "GET", "/api/panel/payments")).json()).bags_left, 0);
   void b;
+});
+
+test("falls back to a public RPC when the first one refuses (403 from api.mainnet-beta)", async () => {
+  const { env, post, chain, publicUp, rpcCalls, getJson } = setupPay();
+  delete env.SOLANA_RPC_URL;
+  await post(msg(BARISTA, "/barista beach123"));
+  const [publicnode, mainnetBeta] = PUBLIC_RPCS;
+  assert.equal(mainnetBeta, "https://api.mainnet-beta.solana.com");
+
+  // Nothing answers: checkout still works and the page gets a clear failure for the blockhash.
+  const { payment } = await pay(env, { kind: "tip", amount: "1" });
+  assert.equal((await worker.fetch(new Request("https://bot/api/pay/blockhash"), env)).status, 502);
+  let h = await getJson("/health?rpc=1");
+  assert.deepEqual(h.rpc.map(r => [r.host, r.ok]), [["solana-rpc.publicnode.com", false], ["api.mainnet-beta.solana.com", false]]);
+  assert.match(h.rpc[1].error, /403/);
+
+  publicUp.add(publicnode);
+  assert.equal((await getJson("/api/pay/blockhash")).blockhash, "GHtXQBsoZHVnNFa9YevAzFr17DJjgHXk3ycTKD5xD3Zi");
+  chain[payment.ref] = [{ signature: "pn1", received: 1 }];
+  await runMinuteCron(env);
+  assert.equal((await getJson(`/api/pay/${payment.ref}`)).payment.status, "paid");
+  assert.ok(rpcCalls.some(c => c === "solana-rpc.publicnode.com getSignaturesForAddress"));
+  h = await getJson("/health?rpc=1");
+  assert.equal(h.rpc[0].ok, true);
+  assert.equal((await getJson("/health")).rpc, undefined, "plain /health doesn't call Solana");
 });

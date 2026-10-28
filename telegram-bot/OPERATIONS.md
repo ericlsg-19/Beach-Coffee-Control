@@ -60,11 +60,13 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 - **Onde:** aba **Tip & Bag** no mini app e `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` (QR impresso). Bebidas continuam grátis.
 - **Como o bot confirma:** cada checkout tem uma *reference* (Solana Pay) guardada na tabela `payments`. O cron de cada minuto chama `getSignaturesForAddress(reference)` para os checkouts das últimas 2 horas e confere com `getTransaction` que `SOLANA_ADDRESS` recebeu o valor inteiro em USDC (mint `EPjFWdd5…Dt1v`). Uma mesma transação não paga dois checkouts (`signature` é única). Checkouts sem pagamento viram `expired` depois de 24 h.
 - **Logs:** `payment created`, `payment paid`, `payment check failed` (RPC fora do ar ou limitado), `payment signature reused`.
+- **RPC:** `SOLANA_RPC_URL` (se existir), depois `solana-rpc.publicnode.com`, depois `api.mainnet-beta.solana.com`. Em 28/10 o primeiro pagamento real falhou com `failed to get recent blockhash: 403 Access forbidden`: o `api.mainnet-beta` recusa a Cloudflare e páginas web. A v1.3.1 passou a tentar os outros RPCs antes.
 - **Configuração:** `SOLANA_ADDRESS`, `BAG_PRICE_USDC` (10) e `BAG_STOCK` (20 pacotes; `/bags` mostra o que resta) no `wrangler.toml`; segredo opcional `SOLANA_RPC_URL`.
 
 | Sintoma | Nos logs | O que fazer |
 |---|---|---|
-| Cliente pagou e nada aconteceu | `payment check failed … 429` ou `403` | RPC público limitando: criar `SOLANA_RPC_URL` (Helius etc.) e fazer deploy. |
+| Cliente pagou e nada aconteceu | `payment check failed … 429` ou `403` | Nenhum RPC respondeu. Abrir `/health?rpc=1` para ver quais falham; criar `SOLANA_RPC_URL` (Helius etc.) e fazer deploy. |
+| "The Solana network didn't answer" na página | — | Mesma causa: nenhum RPC deu o *blockhash*. `/health?rpc=1` e `SOLANA_RPC_URL`. |
 | Cliente pagou e nada aconteceu | nenhum `payment created` | Pagou copiando o endereço (sem *reference*): conferir na carteira; não é reconhecido sozinho. |
 | "Couldn't send" na página | — | Falta USDC na Solana ou um pouco de SOL para a taxa na carteira do cliente. |
 

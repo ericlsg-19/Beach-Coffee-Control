@@ -7,7 +7,12 @@
 import qrcode from "./vendor/qrcode.mjs";
 
 export const USDC_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-export const DEFAULT_RPC = "https://api.mainnet-beta.solana.com";
+// Public RPCs, tried in order after SOLANA_RPC_URL (set it, e.g. a free Helius URL, for the most
+// reliable service). api.mainnet-beta.solana.com answers 403 "Access forbidden" to Cloudflare
+// Workers and to web pages, so it's only the last resort.
+export const PUBLIC_RPCS = ["https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com"];
+const rpcUrls = env => [...new Set([env.SOLANA_RPC_URL, ...PUBLIC_RPCS].filter(Boolean))];
+const hostOf = url => { try { return new URL(url).host; } catch (e) { return "rpc"; } };
 
 export const TIP_PRESETS = [2, 5, 10];
 const TIP_MIN = 1, TIP_MAX = 500;
@@ -80,15 +85,34 @@ export function qrSvg(text) {
 
 // ---------- Checking the chain ----------
 
-async function rpc(env, method, params) {
-  const res = await fetch(env.SOLANA_RPC_URL || DEFAULT_RPC, {
+async function rpcAt(url, method, params) {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || data.error || !("result" in data)) throw new Error(`rpc ${method}: ${res.status} ${JSON.stringify(data.error || "")}`);
+  if (!res.ok || data.error || !("result" in data)) throw new Error(`rpc ${method} ${hostOf(url)}: ${res.status} ${JSON.stringify(data.error || "")}`);
   return data.result;
+}
+
+// Asks each RPC in turn until one answers.
+async function rpc(env, method, params) {
+  const errors = [];
+  for (const url of rpcUrls(env)) {
+    try { return await rpcAt(url, method, params); } catch (e) { errors.push(String(e && e.message || e)); }
+  }
+  throw new Error(errors.join(" | "));
+}
+
+// For /health?rpc=1: which RPCs answer right now (hosts only; a key in the URL stays hidden).
+export async function rpcStatus(env) {
+  const out = [];
+  for (const url of rpcUrls(env)) {
+    try { await rpcAt(url, "getLatestBlockhash", [{ commitment: "confirmed" }]); out.push({ host: hostOf(url), ok: true }); }
+    catch (e) { out.push({ host: hostOf(url), ok: false, error: String(e && e.message || e).slice(0, 160) }); }
+  }
+  return out;
 }
 
 export const latestBlockhash = async env =>

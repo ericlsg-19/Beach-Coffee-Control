@@ -21,7 +21,7 @@ import { HOW_TO_ORDER_JPG } from "./howto.js";
 import { ANCORA_HTML } from "./ancora-html.js";
 import { WEB3_IIFE } from "./vendor/web3-iife.js";
 import { payPageHtml } from "./paypage.js";
-import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash } from "./pay.js";
+import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus } from "./pay.js";
 
 const DRINKS = [
   { id: "espresso",   name: "Espresso" },
@@ -39,7 +39,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.3.0";
+const VERSION = "1.3.1";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -391,13 +391,14 @@ async function todaysOrders(env, chatId) {
 }
 
 // GET /health: is the worker up, can it reach the database, are orders open?
-async function health(env) {
+async function health(env, withRpc = false) {
   try {
     const today = await env.DB.prepare(
       "SELECT COUNT(*) AS orders, SUM(status = 'pending') AS waiting FROM orders WHERE day = ?"
     ).bind(localDay()).first();
     return json({ ok: true, version: VERSION, day: localDay(), open: await isOpen(env), barista_set: !!(await getSetting(env, "barista_chat")),
-      orders_today: today.orders, waiting: today.waiting || 0, payments: paymentsOn(env) });
+      orders_today: today.orders, waiting: today.waiting || 0, payments: paymentsOn(env),
+      ...(withRpc && paymentsOn(env) ? { rpc: await rpcStatus(env) } : {}) });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message || e) }, 500);
   }
@@ -724,7 +725,7 @@ export default {
     if (path === "/panel") return new Response(panelHtml(), { headers: { "content-type": "text/html; charset=utf-8" } });
     if (path.startsWith("/api/panel/")) return handlePanelApi(request, env, path);
     if (path.startsWith("/api/")) return handleApi(request, env, path);
-    if (path === "/health") return health(env);
+    if (path === "/health") return health(env, url.searchParams.has("rpc"));
     if (path === "/how-to-order.jpg") {
       const bytes = Uint8Array.from(atob(HOW_TO_ORDER_JPG), c => c.charCodeAt(0));
       return new Response(bytes, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=86400" } });
