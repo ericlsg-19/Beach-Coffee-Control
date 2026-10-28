@@ -39,7 +39,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.3.2";
+const VERSION = "1.5.1";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -231,6 +231,44 @@ async function dayReport(env, day) {
   ].join("\n");
 }
 
+// The whole event so far, every day together: /total.
+async function eventReport(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT day, drink, customer_chat FROM orders WHERE status != 'cancelled'"
+  ).all();
+  const { results: paid } = await env.DB.prepare(
+    "SELECT kind, COUNT(*) AS n, SUM(amount_micro) AS micro FROM payments WHERE status = 'paid' GROUP BY kind"
+  ).all();
+  const tips = paid.find(r => r.kind === "tip"), bags = paid.find(r => r.kind === "bag");
+  const sales = [
+    ...(tips ? [`💛 Tips: ${tips.n} · ${usdc(tips.micro)}`] : []),
+    ...(bags ? [`🛍️ Coffee bags: ${bags.n} · ${usdc(bags.micro)}`] : []),
+  ];
+  if (!results.length) return ["📈 <b>Event so far</b>", "No orders yet.", ...sales].join("\n");
+
+  const count = key => [...results.reduce((m, o) => m.set(key(o), (m.get(key(o)) || 0) + 1), new Map())].sort((a, b) => b[1] - a[1]);
+  const byDrink = count(o => o.drink), byDay = count(o => o.day);
+  const days = byDay.map(([d]) => d).sort();
+  const telegram = results.filter(o => o.customer_chat !== 0);
+  const name = id => (drinkById(id) || { name: id }).name;
+  const dayLabel = day => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" })
+    .format(new Date(`${day}T12:00:00Z`));
+  const [top] = await ranking(env);
+
+  return [
+    `📈 <b>Event so far</b> · since ${dayLabel(days[0])} (${days.length} day${days.length === 1 ? "" : "s"})`,
+    `Total: <b>${results.length}</b> drinks · Telegram ${telegram.length} · Bar ${results.length - telegram.length}`,
+    `Average: ${Math.round(results.length / days.length)} a day · Best day: ${dayLabel(byDay[0][0])} (${byDay[0][1]})`,
+    "",
+    ...byDrink.map(([id, n]) => `${name(id)}: <b>${n}</b>`),
+    "",
+    `⭐ Top drink: ${name(byDrink[0][0])}`,
+    `👥 Telegram customers: ${new Set(telegram.map(o => o.customer_chat)).size}`,
+    ...(top ? [`🏆 Top customer: ${escapeHtml(top.name)} (${top.drinks})`] : []),
+    ...(sales.length ? ["", ...sales] : []),
+  ].join("\n");
+}
+
 async function sendDailyReport(env) {
   const chat = await getSetting(env, "barista_chat");
   if (!chat) return;
@@ -249,7 +287,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -269,6 +307,7 @@ async function onMessage(env, message) {
 
   if (await isBaristaChat(env, chatId)) {
     if (cmd === "/today") return send(env, chatId, await dayReport(env, localDay()));
+    if (cmd === "/total") return send(env, chatId, await eventReport(env));
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
       return send(env, chatId, await dayReport(env, day));

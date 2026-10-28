@@ -1,0 +1,19 @@
+{
+  "v": 4,
+  "createdOnFiles": {"v": 1, "at": "2026-10-28T03:15:00Z"},
+  "lists": "css",
+  "title": "Beach Coffee Co. Pitch",
+  "cover": "cover",
+  "order": ["cover", "problem", "solution", "bar", "pay", "how", "traction", "next"],
+  "sections": {
+    "s1": {"description": "Who we are and the problem at an event coffee bar", "start": "cover"},
+    "s2": {"description": "The product: Telegram ordering, one barista panel, USDC payments", "start": "solution"},
+    "s3": {"description": "Why Solana, real usage and what comes next", "start": "how"}
+  },
+  "faces": {
+    "archivo": {"family": "Archivo", "href": "https://fonts.googleapis.com/css2?family=Archivo:wght@800;900&display=swap"},
+    "figtree": {"family": "Figtree", "href": "https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600&display=swap"},
+    "jetbrains-mono": {"family": "JetBrains Mono", "href": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap"}
+  },
+  "designSystems": []
+}
