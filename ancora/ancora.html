@@ -173,6 +173,7 @@
   ul.ranks .who strong { font: 500 1.05rem/1.25 var(--body); overflow-wrap: anywhere; }
   ul.ranks .who span { font: 500 .8rem/1.2 var(--mono); color: var(--muted); }
   ul.ranks .n { font: 700 1.3rem/1 var(--display); font-stretch: 125%; color: var(--mint); }
+  ul.ranks .who a { color: var(--muted); }
   .banner { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
     padding: 14px 18px; border-radius: 18px; border: 1px solid rgba(232, 184, 106, .35); background: rgba(232, 184, 106, .08);
     color: var(--text); text-decoration: none; font-size: .92rem; }
@@ -255,6 +256,16 @@
     </div>
   </section>
 
+  <section id="sales" hidden>
+    <div class="card">
+      <div class="card-head">
+        <h2><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>TIPS &amp; BAGS</h2>
+        <span class="meta" id="salesMeta">USDC on Solana</span>
+      </div>
+      <ul class="ranks" id="salesList"></ul>
+    </div>
+  </section>
+
   <section id="resumo">
     <div class="card">
       <div class="card-head">
@@ -268,7 +279,7 @@
     </div>
   </section>
 
-  <p class="version">Âncora v1.2.0 · same menu as @BeachCoffeeIslandBot</p>
+  <p class="version">Âncora v1.3.0 · same menu as @BeachCoffeeIslandBot</p>
 </div>
 
 <nav class="dock" aria-label="Sections">
@@ -339,7 +350,33 @@
     setSync(true);
     render();
     serverCall("GET", "/api/panel/ranking").then(r => renderRanking(r.ranking)).catch(() => {});
+    serverCall("GET", "/api/panel/payments").then(r => { payments = r.payments; renderSales(); }).catch(() => {});
   }
+  // Tips and Island DAO coffee bags paid in USDC (through the bot), for the selected day.
+  let payments = [];
+  function renderSales() {
+    if (!SERVER) return;
+    const day = dayInput.value || localDay();
+    const list = payments.filter(p => p.day === day).reverse();
+    const total = list.reduce((sum, p) => sum + Number(p.amount), 0);
+    $("salesMeta").textContent = list.length ? `${formatDay(day)} · ${+total.toFixed(2)} USDC` : "USDC on Solana";
+    $("salesList").innerHTML = list.length
+      ? list.map(p => `
+          <li>
+            <span class="pos medal">${p.kind === "bag" ? "🛍️" : "💛"}</span>
+            <div class="who"><strong>${p.kind === "bag" ? `Coffee bag #${p.id}` : "Tip"} · ${escapeHtml(p.customer)}</strong>
+              <span>${formatTime(p.time)} · <a href="https://solscan.io/tx/${encodeURIComponent(p.signature)}" target="_blank" rel="noopener">Solscan</a></span></div>
+            ${p.kind === "bag" ? `<button class="chip ${p.handed ? "" : "go"}" data-handed="${p.id}" data-on="${p.handed ? 0 : 1}">${p.handed ? "Handed ✓" : "Hand over"}</button>` : ""}
+            <span class="n">${p.amount}</span>
+          </li>`).join("")
+      : '<li class="empty" style="padding-left:0">No tips or coffee bags this day yet.</li>';
+  }
+  document.addEventListener("click", async e => {
+    const b = e.target.closest("[data-handed]");
+    if (!b || !SERVER) return;
+    await serverCall("POST", "/api/panel/payments/" + b.dataset.handed, { handed: b.dataset.on === "1" }).catch(() => {});
+    refresh();
+  });
   function renderRanking(list) {
     const medal = n => ["🥇", "🥈", "🥉"][n - 1];
     $("rankList").innerHTML = list.length
@@ -486,6 +523,7 @@
       : `<li class="empty" style="padding-left:0">${hideDone && n ? "All caught up." : "No orders yet. Tap a drink to add the first one."}</li>`;
 
     renderSummary();
+    renderSales();
   }
 
   function renderSummary() {
@@ -594,6 +632,7 @@
     orders = [];
     render();
     $("ranking").hidden = false;
+    $("sales").hidden = false;
     document.querySelector('[data-nav="ranking"]').hidden = false;
     document.querySelector("nav.dock").classList.add("four");
     startServer();

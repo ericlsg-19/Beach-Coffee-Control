@@ -1,5 +1,7 @@
 // The Telegram Mini App: a drink menu in the Âncora / Island DAO look, opened from the bot.
+// Drinks are free; the "Tip & Bag" tab takes tips and sells the Island DAO coffee bag in USDC.
 import { WORDMARK_SVG } from "./wordmark.js";
+import { TIP_PRESETS, PRODUCTS } from "./pay.js";
 
 const ICONS = {
   espresso:   '<path d="M6 10h9v3a4 4 0 0 1-4 4h-1a4 4 0 0 1-4-4z"/><path d="M15 11h1.5a2 2 0 0 1 0 4H15M4 20h14"/>',
@@ -16,8 +18,10 @@ const ICONS = {
   chocolate:  '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 9h12M6 15h12M12 3v18"/>',
 };
 
-export function miniAppHtml(drinks) {
+// pay: { recipient, bagPrice } when tips and bags are on, null otherwise.
+export function miniAppHtml(drinks, pay = null) {
   const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "" })));
+  const payConfig = JSON.stringify(pay && { ...pay, presets: TIP_PRESETS, products: PRODUCTS });
   return `<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -72,7 +76,7 @@ export function miniAppHtml(drinks) {
   .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
   .fallback { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .fallback .btn { width: 100%; }
-  .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+  .tabs { display: grid; grid-template-columns: repeat(var(--tabs, 2), 1fr); gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
   .tab { height: 42px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 .95rem/1 var(--body); cursor: pointer; }
   .tab.active { background: var(--card-2); color: var(--mint); box-shadow: 0 0 0 1px var(--line) inset; }
   .me-card { border: 1px solid var(--line); border-radius: 22px; padding: 18px 20px; margin-bottom: 12px;
@@ -87,6 +91,28 @@ export function miniAppHtml(drinks) {
   .rank .n { font: 500 .95rem/1 var(--mono); color: var(--text); }
   .rank.me .who { color: var(--mint); }
   .rank.me .who::after { content: " · you"; color: var(--muted); font-weight: 400; }
+  .pay { display: grid; gap: 12px; }
+  .pay-card { border: 1px solid var(--line); border-radius: 22px; background: var(--card); padding: 18px; display: grid; gap: 12px; }
+  .pay-card h3 { margin: 0; font: 800 1.02rem/1.2 var(--display); font-stretch: 125%; letter-spacing: .02em; }
+  .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .chip { height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); font: 600 1rem/1 var(--body); cursor: pointer; }
+  .chip.on { border-color: var(--mint); color: var(--mint); box-shadow: 0 0 0 1px var(--mint) inset; }
+  .pay input { height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); padding: 0 14px; font: 500 1rem/1 var(--body); width: 100%; }
+  .bag { background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.18), transparent 60%), var(--card); cursor: pointer; }
+  .bag.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
+  .tag { justify-self: start; font: 600 .7rem/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--gold-ink); background: var(--gold); padding: 6px 10px; border-radius: 999px; }
+  .price { font: 500 1.05rem/1 var(--mono); color: var(--gold); }
+  .amount { font: 900 2.4rem/1 var(--display); font-stretch: 125%; color: var(--gold); }
+  .amount small { font: 600 1rem/1 var(--body); color: var(--muted); letter-spacing: .1em; margin-left: 6px; }
+  .wide { width: 100%; }
+  .field { display: grid; gap: 6px; }
+  .field label { font: 600 .72rem/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--faint); }
+  .copy { display: flex; gap: 8px; align-items: center; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 14px; }
+  .copy code { flex: 1; font: 500 .84rem/1.35 var(--mono); word-break: break-all; }
+  .copy button { flex: none; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--mint); font: 600 .85rem/1 var(--body); cursor: pointer; }
+  .waiting { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .92rem; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
   [hidden] { display: none !important; }
 </style>
 </head><body>
@@ -100,6 +126,7 @@ export function miniAppHtml(drinks) {
   <div class="tabs" role="tablist">
     <button class="tab active" role="tab" data-tab="menu">Menu</button>
     <button class="tab" role="tab" data-tab="rank">Ranking 🏆</button>
+    <button class="tab" role="tab" data-tab="pay" hidden>Tip & Bag</button>
   </div>
   <div id="tab-menu">
   <section id="mine" hidden>
@@ -119,10 +146,49 @@ export function miniAppHtml(drinks) {
     <div class="card" id="rankList"></div>
     <p class="note" style="margin-top:12px">Every drink you order here in Telegram counts. Keep ordering to climb 🏝️</p>
   </section>
+  <section id="tab-pay" class="pay" hidden>
+    <div id="payPick" class="pay">
+      <p class="eyebrow">Drinks are on the house ☕</p>
+      <div class="pay-card">
+        <h3>💛 Tip the barista</h3>
+        <div class="chips" id="chips"></div>
+        <input id="custom" inputmode="decimal" placeholder="Other amount (USDC)" hidden>
+      </div>
+      <div class="pay-card bag" id="bagCard" role="button" tabindex="0">
+        <span class="tag">Limited edition</span>
+        <h3>🛍️ Island DAO coffee bag</h3>
+        <p class="note" id="bagDetail"></p>
+        <span class="price" id="bagPrice"></span>
+      </div>
+      <button class="btn wide" id="payGo" disabled>Choose a tip or the bag</button>
+      <p class="note">Paid in USDC on Solana.</p>
+    </div>
+    <div id="payBox" class="pay" hidden>
+      <div class="pay-card">
+        <p class="eyebrow" id="payItem"></p>
+        <div class="amount" id="payAmount"></div>
+        <p class="note">USDC on the Solana network.</p>
+      </div>
+      <button class="btn wide" id="payPhantom">Pay with Phantom</button>
+      <button class="btn ghost wide" id="paySolflare">Pay with Solflare</button>
+      <div class="pay-card">
+        <h3>Other wallet or exchange</h3>
+        <p class="note">Send exactly this amount of <b>USDC</b> on <b>Solana</b> to:</p>
+        <div class="field"><label>Address</label><div class="copy"><code id="payAddr"></code><button data-copy="payAddr">Copy</button></div></div>
+        <div class="field"><label>Amount (USDC)</label><div class="copy"><code id="payAmt"></code><button data-copy="payAmt">Copy</button></div></div>
+        <p class="note">Sent this way, it won't show up here: show your wallet to the barista.</p>
+      </div>
+      <div class="waiting"><span class="dot"></span><span>Waiting for the payment…</span></div>
+      <button class="btn ghost wide" id="payBack">Back</button>
+    </div>
+    <section id="payDone" class="center" hidden></section>
+    <p class="note" id="payMsg"></p>
+  </section>
 </div>
 <div class="fallback" id="fallback" hidden><button class="btn" id="fallbackBtn">Order</button></div>
 <script>
   const MENU = ${menu};
+  const PAY = ${payConfig};
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg ? tg.initData : "";
   const $ = id => document.getElementById(id);
@@ -176,6 +242,7 @@ export function miniAppHtml(drinks) {
     document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
     $("tab-menu").hidden = name !== "menu";
     $("tab-rank").hidden = name !== "rank";
+    $("tab-pay").hidden = name !== "pay";
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     if (name === "rank") refreshRanking();
     updateButton();
@@ -259,6 +326,76 @@ export function miniAppHtml(drinks) {
   });
   document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
   if (main) main.onClick(order); else $("fallbackBtn").addEventListener("click", order);
+
+  // ----- Tip & Bag -----
+  let payPick = null, payPoll = null;
+  function payAmountPicked() {
+    if (!payPick) return null;
+    if (payPick.kind === "bag") return PAY.bagPrice;
+    return payPick.v === "other" ? $("custom").value.trim().replace(",", ".") : payPick.v;
+  }
+  function renderPayPick() {
+    const a = payAmountPicked(), ok = payPick && a && Number(a) > 0;
+    $("payGo").disabled = !ok;
+    $("payGo").textContent = !payPick ? "Choose a tip or the bag" : ok ? "Continue · " + a + " USDC" : "Type an amount";
+    document.querySelectorAll(".chip").forEach(b => b.classList.toggle("on", !!payPick && payPick.kind === "tip" && String(payPick.v) === b.dataset.v));
+    $("bagCard").classList.toggle("on", !!payPick && payPick.kind === "bag");
+    $("custom").hidden = !(payPick && payPick.v === "other");
+  }
+  function openLink(url) { if (tg && tg.openLink) tg.openLink(url); else window.open(url, "_blank"); }
+  function showPayment(p) {
+    $("payPick").hidden = true; $("payMsg").textContent = "";
+    $("payItem").textContent = p.kind === "bag" ? "🛍️ " + PAY.products.bag.title : "💛 " + PAY.products.tip.title;
+    $("payAmount").innerHTML = esc(p.amount) + "<small>USDC</small>";
+    $("payAddr").textContent = PAY.recipient;
+    $("payAmt").textContent = p.amount;
+    $("payPhantom").onclick = () => openLink(p.phantom);
+    $("paySolflare").onclick = () => openLink(p.solflare);
+    $("payBox").hidden = false;
+    clearInterval(payPoll);
+    payPoll = setInterval(async () => {
+      const r = await fetch("/api/pay/" + p.ref).then(r => r.json()).catch(() => null);
+      if (r && r.ok && r.payment.status === "paid") paidView(r.payment);
+    }, 3000);
+  }
+  function paidView(p) {
+    clearInterval(payPoll);
+    tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("success");
+    $("payBox").hidden = true;
+    $("payDone").innerHTML = p.kind === "bag"
+      ? '<p class="eyebrow">Coffee bag #' + p.bagNo + '</p><h2>Paid!<br><b>It\\'s yours</b></h2><p class="note">Show the message in the chat at the bar to pick up your bag 🛍️</p>'
+      : '<p class="eyebrow">' + esc(p.amount) + ' USDC</p><h2>Thank<br><b>you!</b></h2><p class="note">Your tip went straight to the barista 💛</p>';
+    $("payDone").hidden = false;
+  }
+  if (PAY) {
+    document.querySelector('[data-tab="pay"]').hidden = false;
+    document.querySelector(".tabs").style.setProperty("--tabs", 3);
+    $("chips").innerHTML = PAY.presets.map(v => '<button class="chip" data-v="' + v + '">' + v + '</button>').join("") + '<button class="chip" data-v="other">Other</button>';
+    $("bagDetail").textContent = PAY.products.bag.detail;
+    $("bagPrice").textContent = PAY.bagPrice + " USDC";
+    $("chips").addEventListener("click", e => {
+      const b = e.target.closest("[data-v]"); if (!b) return;
+      payPick = { kind: "tip", v: b.dataset.v }; renderPayPick();
+      if (payPick.v === "other") $("custom").focus();
+    });
+    $("custom").addEventListener("input", renderPayPick);
+    $("bagCard").addEventListener("click", () => { payPick = { kind: "bag" }; renderPayPick(); });
+    $("payGo").addEventListener("click", async () => {
+      $("payGo").disabled = true;
+      const r = await api("/api/pay", { kind: payPick.kind, amount: payAmountPicked() });
+      if (!r.ok) { $("payMsg").textContent = r.error || "Something went wrong. Try again."; renderPayPick(); return; }
+      showPayment(r.payment);
+    });
+    $("payBack").addEventListener("click", () => { clearInterval(payPoll); $("payBox").hidden = true; $("payPick").hidden = false; renderPayPick(); });
+    document.addEventListener("click", async e => {
+      const b = e.target.closest("[data-copy]"); if (!b) return;
+      const text = $(b.dataset.copy).textContent;
+      try { await navigator.clipboard.writeText(text); }
+      catch (err) { const r = document.createRange(); r.selectNodeContents($(b.dataset.copy)); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand("copy"); }
+      b.textContent = "Copied ✓"; setTimeout(() => { b.textContent = "Copy"; }, 1600);
+    });
+    renderPayPick();
+  }
 
   renderDrinks();
   load();
