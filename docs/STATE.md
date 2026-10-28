@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 28/10/2026, bot e Âncora na **v1.6.2** (no ar depois do merge na `main`; a v1.6.1 está no ar desde 28/10, PR #12).
+Atualizado em 28/10/2026, bot e Âncora na **v1.6.2** (no ar desde 28/10, PR #13).
 
 ## O que existe e onde
 
