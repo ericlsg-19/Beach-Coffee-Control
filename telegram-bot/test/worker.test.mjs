@@ -110,6 +110,31 @@ test("daily numbers count up, /today and /queue report them", async () => {
   assert.match(calls.at(-1).body.text, /Waiting \(2\)/);
 });
 
+test("/total adds up every day of the event, Telegram and bar", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(msg(BARISTA, "/total"));
+  assert.match(calls.at(-1).body.text, /No orders yet/);
+
+  const add = (day, drink, chat, status = "ready") => env.DB.prepare(
+    "INSERT INTO orders (day, num, created_at, drink, customer_chat, customer_name, status) VALUES (?, 1, ?, ?, ?, 'Ana S.', ?)"
+  ).bind(day, `${day}T15:00:00Z`, drink, chat, status).run();
+  await add("2026-10-22", "latte", 0);
+  await add("2026-10-22", "latte", 0);
+  await add("2026-10-27", "latte", ANA);
+  await add("2026-10-27", "mocha", 0);
+  await add("2026-10-27", "espresso", 0);
+  await add("2026-10-27", "mocha", ANA, "cancelled");
+
+  await post(msg(BARISTA, "/total"));
+  const text = calls.at(-1).body.text;
+  assert.match(text, /since Thu 22 Oct \(2 days\)/);
+  assert.match(text, /Total: <b>5<\/b> drinks · Telegram 1 · Bar 4/);
+  assert.match(text, /Best day: Tue 27 Oct \(3\)/);
+  assert.match(text, /Top drink: Latte/);
+  assert.match(text, /Telegram customers: 1/);
+});
+
 test("limits pending drinks per customer and respects /close", async () => {
   const { calls, post } = setup();
   await post(msg(BARISTA, "/barista beach123"));
