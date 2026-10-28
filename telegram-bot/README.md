@@ -13,7 +13,7 @@ Roda de graça no **Cloudflare Workers**, com os pedidos guardados num banco **D
 
 Quem manda `/start` ou qualquer mensagem recebe a explicação de que o pedido é feito pelo botão **Order ☕**.
 
-Nas bebidas com leite (Cappuccino, Flat White, Latte, Iced Latte, Mocha, Matcha, Hot Chocolate) aparece embaixo do cardápio a opção **Milk**: Regular (já marcado), Lactose-free ou Plant-based. Quem não mexe pede normal. A barista vê 🥛 no pedido, no chat e no painel.
+Nas bebidas com leite (Cappuccino, Flat White, Latte, Iced Latte, Mocha, Matcha, Hot Chocolate) o pedido tem 3 passos: escolhe a bebida, escolhe o leite em **Choose your milk** (Regular, Lactose-free ou Plant-based, nada vem marcado) e só então o botão **Order** libera. Sem escolher o leite não dá para pedir; o bot também recusa. A barista vê 🥛 no pedido, no chat e no painel.
 
 Cada cliente pode ter no máximo 3 bebidas esperando ao mesmo tempo.
 

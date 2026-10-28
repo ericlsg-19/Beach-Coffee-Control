@@ -15,7 +15,7 @@
 //         GET  /pay      tip / coffee bag page (printed QR), /pay/<reference> checkout
 //         /api/pay/...   payments, open to the web
 
-import { miniAppHtml, MILK_DRINKS, MILKS } from "./miniapp.js";
+import { miniAppHtml, MILK_DRINKS, MILKS, MILK_CHOICES } from "./miniapp.js";
 import { verifyInitData } from "./initdata.js";
 import { HOW_TO_ORDER_JPG } from "./howto.js";
 import { ANCORA_HTML } from "./ancora-html.js";
@@ -39,7 +39,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.6.0";
+const VERSION = "1.6.1";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -550,6 +550,9 @@ async function handleApi(request, env, path) {
   if (path === "/api/order") {
     const drink = drinkById(body.drink);
     if (!drink) return json({ ok: false, error: "Pick a drink from the menu." }, 400);
+    if (MILK_DRINKS.includes(drink.id) && !MILK_CHOICES.includes(body.milk)) {
+      return json({ ok: false, error: "Choose your milk first: regular, lactose-free or plant-based." }, 400);
+    }
     const { order, error } = await createOrder(env, user.id, user, drink, body.milk);
     if (error) {
       console.log("order refused", JSON.stringify({ chat: user.id, drink: drink.id, error }));
