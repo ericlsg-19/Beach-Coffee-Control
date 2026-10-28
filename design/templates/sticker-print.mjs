@@ -1,5 +1,5 @@
 // Print files for the 105 × 145 mm sticker (17 × 24 cm stand-up pouch): PDF with 3 mm bleed (111 × 151 mm) and a 300 dpi PNG.
-// Run: cd design/templates && NODE_PATH=$(npm root -g) node sticker-print.mjs
+// Run: cd design/templates && NODE_PATH=$(npm root -g) node sticker-print.mjs && python3 sticker-pdf-boxes.py
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 const require = createRequire(import.meta.url);
@@ -11,6 +11,9 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: Math.round(111 * mm), height: Math.round(151 * mm) }, deviceScaleFactor: dpi });
 await p.goto(page, { waitUntil: "networkidle" });
 await p.evaluate(() => document.fonts.ready);
-await p.pdf({ path: out("beach-coffee-sticker-island-105x145-bleed.pdf"), width: "111mm", height: "151mm", printBackground: true, pageRanges: "1" });
+// The page size comes from the template's @page (exact mm); the dark background also fills the page,
+// so rounding can never leave a white hairline on an edge.
+await p.addStyleTag({ content: "html,body{background:#081210} @media print { .sheet{width:100vw;height:100vh} }" });
+await p.pdf({ path: out("beach-coffee-sticker-island-105x145-bleed.pdf"), preferCSSPageSize: true, printBackground: true, pageRanges: "1" });
 await p.screenshot({ path: out("beach-coffee-sticker-island-105x145-bleed.png"), clip: { x: 0, y: 0, width: 111 * mm, height: 151 * mm } });
 await b.close();

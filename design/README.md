@@ -5,7 +5,7 @@ Arquivos finais entregues, guardados aqui para não depender de uma conversa.
 | Pasta | O que tem |
 |---|---|
 | `print/` | Cartão 10x15 (PDF para gráfica e PNG): Island DAO Coffee Bag 10 USDC, QR para `/pay` (abre pela câmera). |
-| `sticker/` | Adesivo do pacote Island DAO Edition, 80x110 mm (PDF com sangria, PNG, mockup). Para o pacote stand-up 17 × 24 cm (+4 cm de base): etiqueta de 105 × 145 mm: arte para a gráfica em `beach-coffee-sticker-island-105x145-bleed.pdf` (111 × 151 mm, 3 mm de sangria; PNG 300 dpi ao lado, gerados por `templates/sticker-print.mjs` a partir de `templates/sticker-island-105x145.html`) e mockup em `mockup-pacote-17x24.png` (`templates/bag-17x24-mockup.mjs`). |
+| `sticker/` | Adesivo do pacote Island DAO Edition, 80x110 mm (PDF com sangria, PNG, mockup). Para o pacote stand-up 17 × 24 cm (+4 cm de base): etiqueta de 105 × 145 mm: arte para a gráfica em `beach-coffee-sticker-island-105x145-bleed.pdf` (111 × 151 mm, 3 mm de sangria; PNG 300 dpi ao lado, gerados por `templates/sticker-print.mjs` e `templates/sticker-pdf-boxes.py` a partir de `templates/sticker-island-105x145.html`; o PDF tem TrimBox marcando o corte) e mockup em `mockup-pacote-17x24.png` (`templates/bag-17x24-mockup.mjs`). |
 | `shirt/` | Camiseta: frente BEACH COFFEE CO. (SVG bege e marrom), costas Hebrews 6:19 (PNG bege e marrom), mockup. |
 | `logo/` | Logo badge (SVG/PNG redondo e quadrado) e o logo original. |
 | `social/` | Posts do X: resumo da semana, resumo de 27/10, pedido pelo Telegram, edição especial na Vila; imagem "how to order" do bot. Textos dos posts em `social/posts.md`. |
