@@ -18,6 +18,8 @@
 | Descrição curta, trilha, equipe, carteira para prêmio | Texto abaixo |
 | Números de tração | Tirar os totais exatos do Âncora (**Summary by day** / **Download CSV**) e do `/ranking` |
 
+Respostas do formulário **Add your project** do app da Island DAO, com logo e banner: `design/hackathon/`.
+
 ## Descrição curta (EN)
 
 > Beach Coffee Co. runs the coffee bar at Island DAO Floripa. Guests order free drinks from a Telegram Mini App and get pinged when they're ready; the barista runs the bar from one panel that merges Telegram and walk-up orders. Tips and the limited-edition Island DAO coffee bag are paid in USDC on Solana: Solana Pay references let the bot confirm each payment on-chain within a minute and notify the bar, with no wallet setup for the shop and no custody.
