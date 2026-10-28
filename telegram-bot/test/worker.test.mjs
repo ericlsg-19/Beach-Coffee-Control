@@ -75,7 +75,7 @@ test("full order: menu, confirm, barista notified, ready message to customer", a
   const toCustomer = calls.find(c => c.method === "editMessageText" && c.body.chat_id === ANA);
   const toBarista = calls.find(c => c.method === "sendMessage" && c.body.chat_id === String(BARISTA));
   assert.match(toCustomer.body.text, /Order #1<\/b> · Flat White/);
-  assert.match(toCustomer.body.text, /ADDR/);
+  assert.doesNotMatch(toCustomer.body.text, /ADDR|USDC|SOL/); // drinks are free: no payment details
   assert.match(toBarista.body.text, /#1 · Flat White/);
   assert.match(toBarista.body.text, /Ana \(@ana\)/);
   const readyData = toBarista.body.reply_markup.inline_keyboard[0][0].callback_data;
@@ -357,4 +357,231 @@ test("Mini App has Menu and Ranking tabs", async () => {
   const html = await (await worker.fetch(new Request("https://bot/app"), env)).text();
   assert.match(html, /data-tab="menu"/);
   assert.match(html, /data-tab="rank"/);
+});
+
+// ---------- Tips and the coffee bag (USDC on Solana) ----------
+
+const SHOP = "WTxV6GDprgz2vHT4gX4ULCexqqaXYKQ8zWpZoYJHz2u";
+const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+const BUYER = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
+
+// setup() plus a fake Solana RPC. chain[reference] = [{ signature, received (USDC), failed? }].
+function setupPay(extraEnv = {}) {
+  const t = setup();
+  Object.assign(t.env, { SOLANA_ADDRESS: SHOP, SOLANA_RPC_URL: "https://rpc.test", BAG_PRICE_USDC: "10", WEBHOOK_URL: "https://bot" }, extraEnv);
+  const chain = {}, rpcCalls = [];
+  const telegram = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (!String(url).startsWith("https://rpc.test")) return telegram(url, init);
+    const { method, params } = JSON.parse(init.body);
+    rpcCalls.push(method);
+    const all = Object.values(chain).flat();
+    let result;
+    if (method === "getLatestBlockhash") result = { value: { blockhash: "GHtXQBsoZHVnNFa9YevAzFr17DJjgHXk3ycTKD5xD3Zi", lastValidBlockHeight: 99 } };
+    if (method === "getSignaturesForAddress") result = (chain[params[0]] || []).map(t => ({ signature: t.signature, err: t.failed ? {} : null }));
+    if (method === "getTransaction") {
+      const t = all.find(t => t.signature === params[0]);
+      const bal = amount => [{ accountIndex: 2, mint: USDC, owner: SHOP, uiTokenAmount: { amount: String(amount) } }];
+      result = { meta: { err: t.failed ? { InstructionError: [1, "x"] } : null, preTokenBalances: bal(5_000_000), postTokenBalances: bal(5_000_000 + t.received * 1e6) },
+        transaction: { message: { accountKeys: [{ pubkey: BUYER }, { pubkey: SHOP }] } } };
+    }
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result }));
+  };
+  const getJson = async path => (await worker.fetch(new Request(`https://bot${path}`), t.env)).json();
+  return { ...t, chain, rpcCalls, getJson };
+}
+const pay = (env, body) => apiCall(env, "/api/pay", body).then(r => r.json());
+const runMinuteCron = async env => { const jobs = []; await worker.scheduled({ cron: "* * * * *" }, env, { waitUntil: p => jobs.push(p.catch(() => {})) }); await Promise.all(jobs); };
+
+test("tips and bags are off until SOLANA_ADDRESS is a real address", async () => {
+  const { env } = setup();
+  const r = await pay(env, { kind: "tip", amount: "5" });
+  assert.equal(r.ok, false);
+  assert.match(r.error, /aren't open yet/);
+  const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.match(app, /const PAY = null;/);
+});
+
+test("validates tips and uses the bag price from the config", async () => {
+  const { env } = setupPay();
+  assert.equal((await pay(env, { kind: "tip", amount: "0.5" })).ok, false);
+  assert.equal((await pay(env, { kind: "tip", amount: "1000" })).ok, false);
+  assert.equal((await pay(env, { kind: "tip", amount: "5.123" })).ok, false);
+  assert.equal((await pay(env, { kind: "drink" })).ok, false);
+  const tip = await pay(env, { kind: "tip", amount: "7,5" });
+  assert.equal(tip.payment.amount, "7.5");
+  const bag = await pay(env, { kind: "bag", amount: "1" }); // the price can't be chosen by the customer
+  assert.equal(bag.payment.amount, "10");
+  assert.equal(bag.payment.micro, 10_000_000);
+});
+
+test("payment links: plain address on the page, Solana Pay only inside the QR and wallet links", async () => {
+  const { env } = setupPay();
+  const { payment } = await pay(env, { kind: "tip", amount: "5" });
+  assert.match(payment.ref, /^[1-9A-HJ-NP-Za-km-z]{32,44}$/);
+  assert.equal(payment.page, `https://bot/pay/${payment.ref}`);
+  const sp = new URL(payment.solanaPay);
+  assert.equal(sp.protocol, "solana:");
+  assert.equal(sp.pathname, SHOP);
+  assert.equal(sp.searchParams.get("amount"), "5");
+  assert.equal(sp.searchParams.get("spl-token"), USDC);
+  assert.equal(sp.searchParams.get("reference"), payment.ref);
+  assert.equal(payment.phantom, `https://phantom.app/ul/browse/${encodeURIComponent(payment.page)}?ref=${encodeURIComponent("https://bot")}`);
+  assert.match(payment.solflare, /^https:\/\/solflare\.com\/ul\/v1\/browse\//);
+
+  const html = await (await worker.fetch(new Request(payment.page), env)).text();
+  assert.ok(html.includes('"qr":"\\u003csvg xmlns='), "QR code embedded");
+  // The address people copy is the bare address; "solana:" only lives in the Solana Pay link (QR).
+  assert.ok(html.includes(`"recipient":"${SHOP}"`));
+  assert.equal(html.split(`solana:${SHOP}`).length - 1, 1);
+  const chooser = await worker.fetch(new Request("https://bot/pay"), env);
+  assert.equal(chooser.status, 200);
+  assert.match(await chooser.text(), /Tip the barista/);
+  const missing = await worker.fetch(new Request("https://bot/pay/nope"), env);
+  assert.equal(missing.status, 302);
+  const lib = await worker.fetch(new Request("https://bot/vendor/web3.js"), env);
+  assert.match(lib.headers.get("content-type"), /javascript/);
+  assert.match(await lib.text(), /^var solanaWeb3=/);
+  const bh = await (await worker.fetch(new Request("https://bot/api/pay/blockhash"), env)).json();
+  assert.equal(bh.lastValidBlockHeight, 99);
+});
+
+test("web tip: found on chain, barista told once with a Solscan link", async () => {
+  const { env, calls, post, chain, getJson } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const { payment } = await pay(env, { kind: "tip", amount: "5", name: "Rita" });
+  assert.equal((await getJson(`/api/pay/${payment.ref}`)).payment.status, "pending");
+
+  chain[payment.ref] = [{ signature: "sig1", received: 5 }];
+  calls.length = 0;
+  await new Promise(r => setTimeout(r, 0));
+  // The page polls; the worker looks at the chain at most every 3 s, so force a fresh check.
+  await env.DB.prepare("UPDATE payments SET checked_at = NULL").run();
+  const paid = await getJson(`/api/pay/${payment.ref}`);
+  assert.equal(paid.payment.status, "paid");
+  const toBarista = calls.filter(c => c.method === "sendMessage" && c.body.chat_id === String(BARISTA));
+  assert.equal(toBarista.length, 1);
+  assert.match(toBarista[0].body.text, /💛 <b>Tip · 5 USDC<\/b>\n👤 Rita/);
+  assert.match(toBarista[0].body.text, /solscan\.io\/tx\/sig1/);
+
+  calls.length = 0;
+  await env.DB.prepare("UPDATE payments SET checked_at = NULL").run();
+  await getJson(`/api/pay/${payment.ref}`);
+  await runMinuteCron(env);
+  assert.ok(!calls.some(c => c.method === "sendMessage" && /Tip/.test(c.body.text || "")), "no second announcement");
+});
+
+test("underpaid or failed transactions don't count, and one transaction can't pay twice", async () => {
+  const { env, post, chain, getJson } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const a = (await pay(env, { kind: "bag" })).payment;
+  const b = (await pay(env, { kind: "bag" })).payment;
+  chain[a.ref] = [{ signature: "short", received: 9.99 }, { signature: "failed", received: 10, failed: true }];
+  await runMinuteCron(env);
+  assert.equal((await getJson(`/api/pay/${a.ref}`)).payment.status, "pending");
+
+  chain[a.ref].push({ signature: "good", received: 10 });
+  chain[b.ref] = [{ signature: "good", received: 10 }]; // same transaction carrying both references
+  await runMinuteCron(env);
+  const statuses = [(await getJson(`/api/pay/${a.ref}`)).payment.status, (await getJson(`/api/pay/${b.ref}`)).payment.status];
+  assert.deepEqual(statuses.sort(), ["paid", "pending"]);
+});
+
+test("coffee bag from the Mini App: customer and barista told, hand-over, /today and the panel", async () => {
+  const { env, calls, post, chain } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const initData = signedInitData("t", { id: ANA, first_name: "Ana", last_name: "Souza", username: "ana" });
+  const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.match(app, /data-tab="pay"/);
+  assert.ok(app.includes(`"recipient":"${SHOP}"`));
+
+  const { payment } = await pay(env, { initData, kind: "bag" });
+  chain[payment.ref] = [{ signature: "bagsig", received: 10 }];
+  calls.length = 0;
+  await runMinuteCron(env);
+
+  const toAna = calls.find(c => c.method === "sendMessage" && c.body.chat_id === ANA);
+  assert.match(toAna.body.text, /Coffee bag #1 is yours/);
+  const toBarista = calls.find(c => c.method === "sendMessage" && /Coffee bag #1 paid · 10 USDC/.test(c.body.text));
+  assert.match(toBarista.body.text, /Ana Souza \(@ana\)/);
+  const handOver = toBarista.body.reply_markup.inline_keyboard[0][0].callback_data;
+  assert.equal(handOver, "h:1");
+
+  calls.length = 0;
+  await post(tap(ANA, handOver)); // customers can't mark it handed over
+  assert.ok(!calls.some(c => c.method === "editMessageText"));
+  await post(tap(BARISTA, handOver, 88));
+  assert.match(calls.find(c => c.method === "editMessageText").body.text, /Coffee bag #1 handed over/);
+
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /🛍️ Coffee bags: 1 · 10 USDC/);
+
+  const list = (await (await panel(env, "GET", "/api/panel/payments")).json()).payments;
+  assert.deepEqual(list.map(p => [p.kind, p.amount, p.customer, p.handed]), [["bag", "10", "Ana Souza (@ana) · Telegram", true]]);
+  await panel(env, "POST", `/api/panel/payments/${list[0].id}`, { handed: false });
+  assert.equal((await (await panel(env, "GET", "/api/panel/payments")).json()).payments[0].handed, false);
+  assert.equal((await panel(env, "GET", "/api/panel/payments", null, "wrong")).status, 401);
+});
+
+test("an RPC outage doesn't break checkout; it's retried by the cron", async () => {
+  const { env, chain, getJson } = setupPay({ SOLANA_RPC_URL: "https://rpc.test/down" });
+  const { payment } = await pay(env, { kind: "tip", amount: "2" });
+  const telegramAndRpc = globalThis.fetch;
+  globalThis.fetch = async (url, init) => String(url).endsWith("/down") ? new Response("busy", { status: 503 }) : telegramAndRpc(url, init);
+  await runMinuteCron(env);
+  assert.equal((await getJson(`/api/pay/${payment.ref}`)).payment.status, "pending");
+  globalThis.fetch = telegramAndRpc;
+  env.SOLANA_RPC_URL = "https://rpc.test";
+  chain[payment.ref] = [{ signature: "late", received: 2 }];
+  await runMinuteCron(env);
+  assert.equal((await getJson(`/api/pay/${payment.ref}`)).payment.status, "paid");
+});
+
+test("the Mini App and payment page scripts are valid JavaScript", async () => {
+  const { env } = setupPay();
+  const scripts = async path => {
+    const html = await (await worker.fetch(new Request(`https://bot${path}`), env)).text();
+    return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  };
+  const { payment } = await pay(env, { kind: "bag" });
+  for (const path of ["/app", "/pay", `/pay/${payment.ref}`]) {
+    const list = await scripts(path);
+    assert.ok(list.length, `${path} has an inline script`);
+    for (const js of list) assert.doesNotThrow(() => new Function(js), `${path} script parses`);
+  }
+});
+
+test("limited edition: bags stop selling at BAG_STOCK, unpaid checkouts hold one for 15 minutes", async () => {
+  const { env, calls, post, chain } = setupPay({ BAG_STOCK: "2" });
+  await post(msg(BARISTA, "/barista beach123"));
+  const appText = async () => (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.ok((await appText()).includes('"bagStock":2,"bagsLeft":2'));
+
+  const a = (await pay(env, { kind: "bag" })).payment;
+  const b = (await pay(env, { kind: "bag" })).payment;
+  const held = await pay(env, { kind: "bag" });
+  assert.match(held.error, /being paid for right now/);
+  assert.equal((await pay(env, { kind: "tip", amount: "2" })).ok, true, "tips aren't limited");
+
+  chain[a.ref] = [{ signature: "a1", received: 10 }];
+  calls.length = 0;
+  await runMinuteCron(env);
+  assert.match(calls.find(c => /Coffee bag #1 paid/.test(c.body.text || "")).body.text, /📦 1 left/);
+
+  // An abandoned checkout stops holding its bag after 15 minutes.
+  await env.DB.prepare("UPDATE payments SET created_at = ? WHERE id = ?").bind(new Date(Date.now() - 16 * 60 * 1000).toISOString(), 2).run();
+  const c = (await pay(env, { kind: "bag" })).payment;
+  chain[c.ref] = [{ signature: "c1", received: 10 }];
+  await runMinuteCron(env);
+  const soldOut = await pay(env, { kind: "bag" });
+  assert.match(soldOut.error, /sold out/);
+  assert.ok((await appText()).includes('"bagsLeft":0'));
+
+  calls.length = 0;
+  await post(msg(BARISTA, "/bags"));
+  assert.match(calls.at(-1).body.text, /Sold: <b>2<\/b>[\s\S]*Left: <b>0<\/b> of 2/);
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /🛍️ Coffee bags: 2 · 20 USDC \(0 left\)/);
+  assert.equal((await (await panel(env, "GET", "/api/panel/payments")).json()).bags_left, 0);
+  void b;
 });

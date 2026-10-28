@@ -19,3 +19,25 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- USDC payments on Solana: tips and the Island DAO coffee bag. Drinks are free.
+-- amount_micro is USDC × 1,000,000. customer_chat 0 = paid from the web page (/pay).
+CREATE TABLE IF NOT EXISTS payments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  reference TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,
+  amount_micro INTEGER NOT NULL,
+  day TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  customer_chat INTEGER NOT NULL DEFAULT 0,
+  customer_name TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending',
+  signature TEXT UNIQUE,
+  payer TEXT,
+  paid_at TEXT,
+  checked_at TEXT,
+  handed_over INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS payments_status ON payments (status, created_at);
+CREATE INDEX IF NOT EXISTS payments_day ON payments (day, status);

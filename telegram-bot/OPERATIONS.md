@@ -55,11 +55,24 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 - **CSV:** botão **Download CSV** no painel, com todos os pedidos.
 - **Histórico:** os 301 pedidos do Âncora no Claude (22, 23, 26 e 27/10, até 18:55 UTC) foram importados como pedidos da barra. A data do corte está em `settings.ancora_imported_until`.
 
+## Gorjetas e pacote de café em USDC (v1.3.0)
+
+- **Onde:** aba **Tip & Bag** no mini app e `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` (QR impresso). Bebidas continuam grátis.
+- **Como o bot confirma:** cada checkout tem uma *reference* (Solana Pay) guardada na tabela `payments`. O cron de cada minuto chama `getSignaturesForAddress(reference)` para os checkouts das últimas 2 horas e confere com `getTransaction` que `SOLANA_ADDRESS` recebeu o valor inteiro em USDC (mint `EPjFWdd5…Dt1v`). Uma mesma transação não paga dois checkouts (`signature` é única). Checkouts sem pagamento viram `expired` depois de 24 h.
+- **Logs:** `payment created`, `payment paid`, `payment check failed` (RPC fora do ar ou limitado), `payment signature reused`.
+- **Configuração:** `SOLANA_ADDRESS`, `BAG_PRICE_USDC` (10) e `BAG_STOCK` (20 pacotes; `/bags` mostra o que resta) no `wrangler.toml`; segredo opcional `SOLANA_RPC_URL`.
+
+| Sintoma | Nos logs | O que fazer |
+|---|---|---|
+| Cliente pagou e nada aconteceu | `payment check failed … 429` ou `403` | RPC público limitando: criar `SOLANA_RPC_URL` (Helius etc.) e fazer deploy. |
+| Cliente pagou e nada aconteceu | nenhum `payment created` | Pagou copiando o endereço (sem *reference*): conferir na carteira; não é reconhecido sozinho. |
+| "Couldn't send" na página | — | Falta USDC na Solana ou um pouco de SOL para a taxa na carteira do cliente. |
+
 ## Verificar se está tudo bem
 
 1. Abra **`https://beach-coffee-bot.beachcoffeeco.workers.dev/health`**. Esperado:
    ```json
-   {"ok":true,"day":"2026-10-27","open":true,"barista_set":true,"orders_today":11,"waiting":3}
+   {"ok":true,"version":"1.3.0","day":"2026-10-28","open":true,"barista_set":true,"orders_today":11,"waiting":3,"payments":true}
    ```
    - `ok:false` → problema no banco (binding `DB` ou tabelas).
    - `open:false` → o bar está fechado (`/open` no chat da barista).

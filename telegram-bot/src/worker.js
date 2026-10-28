@@ -3,17 +3,25 @@
 // Customers order a drink from the menu; the order lands in the barista chat
 // with Ready / Cancel buttons; tapping Ready messages the customer.
 //
+// Drinks are free. Tips and the Island DAO coffee bag are paid in USDC on Solana (see pay.js).
+//
 // Bindings (see wrangler.toml): DB (D1 database).
-// Secrets: BOT_TOKEN, WEBHOOK_SECRET, BARISTA_CODE. Vars: WEBHOOK_URL, SOLANA_ADDRESS (optional).
+// Secrets: BOT_TOKEN, WEBHOOK_SECRET, BARISTA_CODE, SOLANA_RPC_URL (optional).
+// Vars: WEBHOOK_URL, SOLANA_ADDRESS (receives tips and bag payments; empty turns them off), BAG_PRICE_USDC, BAG_STOCK.
 //
 // Routes: POST /         Telegram webhook (checked with WEBHOOK_SECRET)
 //         GET  /app      the Mini App menu
 //         POST /api/...  Mini App calls, authenticated with Telegram initData
+//         GET  /pay      tip / coffee bag page (printed QR), /pay/<reference> checkout
+//         /api/pay/...   payments, open to the web
 
 import { miniAppHtml } from "./miniapp.js";
 import { verifyInitData } from "./initdata.js";
 import { HOW_TO_ORDER_JPG } from "./howto.js";
 import { ANCORA_HTML } from "./ancora-html.js";
+import { WEB3_IIFE } from "./vendor/web3-iife.js";
+import { payPageHtml } from "./paypage.js";
+import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash } from "./pay.js";
 
 const DRINKS = [
   { id: "espresso",   name: "Espresso" },
@@ -31,7 +39,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -67,7 +75,7 @@ async function tg(env, method, body) {
   return data;
 }
 const send = (env, chat_id, text, reply_markup) =>
-  tg(env, "sendMessage", { chat_id, text, parse_mode: "HTML", reply_markup });
+  tg(env, "sendMessage", { chat_id, text, parse_mode: "HTML", reply_markup, link_preview_options: { is_disabled: true } });
 const edit = (env, chat_id, message_id, text, reply_markup) =>
   tg(env, "editMessageText", { chat_id, message_id, text, parse_mode: "HTML", reply_markup });
 
@@ -151,17 +159,15 @@ async function createOrder(env, chatId, from, drink) {
   return { order };
 }
 
-function receiptText(env, order, drink) {
-  const pay = env.SOLANA_ADDRESS
-    ? `\n\nPay at the bar, or send SOL / USDC (Solana) to:\n<code>${escapeHtml(env.SOLANA_ADDRESS)}</code>`
-    : "";
-  return `🧾 <b>Order #${order.num}</b> · ${drink.name}\nGot it! We'll message you here when it's ready.${pay}`;
+// No payment details here: drinks are free.
+function receiptText(order, drink) {
+  return `🧾 <b>Order #${order.num}</b> · ${drink.name}\nGot it! We'll message you here when it's ready.`;
 }
 
 // Order placed from the chat buttons: the menu message turns into the receipt.
 async function placeOrder(env, chatId, messageId, from, drink) {
   const { order, error } = await createOrder(env, chatId, from, drink);
-  return edit(env, chatId, messageId, error || receiptText(env, order, drink));
+  return edit(env, chatId, messageId, error || receiptText(order, drink));
 }
 
 // ---------- Barista flow ----------
@@ -197,7 +203,8 @@ async function dayReport(env, day) {
   ).bind(day).all();
   const label = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" })
     .format(new Date(`${day}T12:00:00Z`));
-  if (!results.length) return `📊 <b>${label}</b>\nNo orders yet.`;
+  const sales = await salesLines(env, day);
+  if (!results.length) return [`📊 <b>${label}</b>`, "No orders yet.", ...sales].join("\n");
 
   const count = (list, key) => list.reduce((m, o) => m.set(key(o), (m.get(key(o)) || 0) + 1), new Map());
   const byDrink = [...count(results, o => o.drink)].sort((a, b) => b[1] - a[1]);
@@ -220,6 +227,7 @@ async function dayReport(env, day) {
     `👥 Telegram customers: ${customers}`,
     ...(top ? [`🏆 Top customer: ${escapeHtml(top.name)} (${top.drinks})`] : []),
     `⏳ Still waiting: ${waiting}`,
+    ...(sales.length ? ["", ...sales] : []),
   ].join("\n");
 }
 
@@ -241,7 +249,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/close: stop taking orders\n/open: start taking orders";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -271,6 +279,7 @@ async function onMessage(env, message) {
     }
     if (cmd === "/queue") return queue(env, chatId);
     if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
+    if (cmd === "/bags") return send(env, chatId, await bagsText(env));
     if (cmd === "/close") { await setSetting(env, "open", "0"); return send(env, chatId, "🌙 Closed. New orders are paused."); }
     if (cmd === "/open") { await setSetting(env, "open", "1"); return send(env, chatId, "☀️ Open. Taking orders."); }
     if (message.chat.type !== "private") return; // stay quiet in a group
@@ -295,6 +304,10 @@ async function onCallback(env, cb) {
   if (data.startsWith("c:")) {
     const drink = drinkById(data.slice(2));
     return drink ? placeOrder(env, chatId, messageId, cb.from, drink) : showMenu(env, chatId, messageId);
+  }
+  if (data.startsWith("h:")) {
+    if (!(await isBaristaChat(env, chatId))) return;
+    return handOverBag(env, chatId, messageId, Number(data.slice(2)));
   }
   if (data.startsWith("r:") || data.startsWith("k:")) {
     if (!(await isBaristaChat(env, chatId))) return;
@@ -384,7 +397,7 @@ async function health(env) {
       "SELECT COUNT(*) AS orders, SUM(status = 'pending') AS waiting FROM orders WHERE day = ?"
     ).bind(localDay()).first();
     return json({ ok: true, version: VERSION, day: localDay(), open: await isOpen(env), barista_set: !!(await getSetting(env, "barista_chat")),
-      orders_today: today.orders, waiting: today.waiting || 0 });
+      orders_today: today.orders, waiting: today.waiting || 0, payments: paymentsOn(env) });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message || e) }, 500);
   }
@@ -432,6 +445,17 @@ async function handlePanelApi(request, env, path) {
     ).bind(day, new Date().toISOString(), drink.id, String(body.customer || "").slice(0, 80)).first();
     console.log("order created", JSON.stringify({ num: order.num, drink: drink.id, source: "bar" }));
     return json({ ok: true, order: panelOrder(order) });
+  }
+
+  if (path === "/api/panel/payments" && request.method === "GET") {
+    const { results } = await env.DB.prepare("SELECT * FROM payments WHERE status = 'paid' ORDER BY id").all();
+    return json({ ok: true, payments: results.map(panelPayment), bags_left: await bagsLeft(env) });
+  }
+  if (path.startsWith("/api/panel/payments/") && request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const p = await env.DB.prepare("UPDATE payments SET handed_over = ? WHERE id = ? AND kind = 'bag' AND status = 'paid' RETURNING *")
+      .bind(body.handed ? 1 : 0, id).first();
+    return p ? json({ ok: true, payment: panelPayment(p) }) : json({ ok: false, error: "Payment not found." }, 404);
   }
 
   const order = id ? await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first() : null;
@@ -483,22 +507,219 @@ async function handleApi(request, env, path) {
       console.log("order refused", JSON.stringify({ chat: user.id, drink: drink.id, error }));
       return json({ ok: false, error });
     }
-    await send(env, user.id, receiptText(env, order, drink));
+    await send(env, user.id, receiptText(order, drink));
     return json({ ok: true, order: { num: order.num, drink: drink.id }, orders: await todaysOrders(env, user.id) });
   }
   return json({ ok: false, error: "Not found" }, 404);
+}
+
+// ---------- Tips and the coffee bag (USDC on Solana) ----------
+
+const CHECK_WINDOW_MS = 2 * 60 * 60 * 1000; // the cron keeps looking for a payment for 2 hours
+const EXPIRE_MS = 24 * 60 * 60 * 1000;      // after a day an unpaid checkout is dropped
+const MAX_OPEN_PAYMENTS = 300;              // unpaid checkouts across everyone (against spam)
+const MAX_OPEN_PER_CUSTOMER = 5;
+const usdc = micro => `${fromMicro(micro)} USDC`;
+const paymentsOn = env => isAddress(env.SOLANA_ADDRESS);
+const bagPrice = env => fromMicro(priceFor(env, "bag").micro || 0);
+const BAG_HOLD_MS = 15 * 60 * 1000; // an unpaid bag checkout holds one bag for 15 minutes
+
+// Limited edition: BAG_STOCK bags in total. null when no stock is set (no limit).
+const bagStock = env => (/^\d+$/.test(String(env.BAG_STOCK ?? "")) ? Number(env.BAG_STOCK) : null);
+async function bagsLeft(env) {
+  const stock = bagStock(env);
+  if (stock === null) return null;
+  const sold = await env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'paid'").first();
+  return Math.max(0, stock - sold.n);
+}
+async function bagsText(env) {
+  const stock = bagStock(env), left = await bagsLeft(env);
+  const sold = await env.DB.prepare("SELECT COUNT(*) AS n, SUM(handed_over) AS handed FROM payments WHERE kind = 'bag' AND status = 'paid'").first();
+  return [`🛍️ <b>Island DAO coffee bags</b> · ${bagPrice(env)} USDC`, `Sold: <b>${sold.n}</b> · handed over: ${sold.handed || 0}`,
+    stock === null ? "No stock limit set." : `Left: <b>${left}</b> of ${stock}`].join("\n");
+}
+const payConfig = async env => ({ recipient: env.SOLANA_ADDRESS, bagPrice: bagPrice(env), bagStock: bagStock(env), bagsLeft: await bagsLeft(env) });
+const payerName = p => p.customer_name || "Someone at the bar";
+
+function publicPayment(env, p, base, withQr = false) {
+  const page = `${base}/pay/${p.reference}`;
+  const solanaPay = solanaPayUrl(env.SOLANA_ADDRESS, p);
+  return {
+    ref: p.reference, kind: p.kind, amount: fromMicro(p.amount_micro), micro: p.amount_micro, status: p.status, bagNo: p.id,
+    page, solanaPay, ...walletLinks(page, base), ...(withQr ? { qr: qrSvg(solanaPay) } : {}),
+  };
+}
+
+// Returns { payment } or { error } with a customer-facing message.
+async function createPayment(env, { kind, amount, chat = 0, name = "" }) {
+  if (!paymentsOn(env)) return { error: "Tips and coffee bags aren't open yet. Ask at the bar 🙏" };
+  const price = priceFor(env, kind, amount);
+  if (price.error) return price;
+  const left = price.kind === "bag" ? await bagsLeft(env) : null;
+  if (left !== null) {
+    if (left <= 0) return { error: "The Island DAO coffee bags are sold out 🙏" };
+    const held = await env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'pending' AND created_at > ?")
+      .bind(new Date(Date.now() - BAG_HOLD_MS).toISOString()).first();
+    if (held.n >= left) return { error: "The last bags are being paid for right now. Try again in a few minutes." };
+  }
+  const since = new Date(Date.now() - CHECK_WINDOW_MS).toISOString();
+  const open = await env.DB.prepare(
+    "SELECT COUNT(*) AS n, COALESCE(SUM(customer_chat = ?), 0) AS mine FROM payments WHERE status = 'pending' AND created_at > ?"
+  ).bind(chat, since).first();
+  if (open.n >= MAX_OPEN_PAYMENTS || (chat && open.mine >= MAX_OPEN_PER_CUSTOMER)) {
+    return { error: "Too many open payments right now. Try again in a few minutes." };
+  }
+  const p = await env.DB.prepare(
+    `INSERT INTO payments (reference, kind, amount_micro, day, created_at, customer_chat, customer_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`
+  ).bind(newReference(), price.kind, price.micro, localDay(), new Date().toISOString(), chat, String(name).slice(0, 80)).first();
+  console.log("payment created", JSON.stringify({ id: p.id, kind: p.kind, amount: fromMicro(p.amount_micro), chat }));
+  return { payment: p };
+}
+
+// Looks the payment up on Solana; marks it paid and tells the barista (and the customer) once.
+async function checkPayment(env, p) {
+  if (p.status !== "pending" || !paymentsOn(env)) return p;
+  await env.DB.prepare("UPDATE payments SET checked_at = ? WHERE id = ?").bind(new Date().toISOString(), p.id).run();
+  let found;
+  try {
+    found = await findPayment(env, p);
+  } catch (e) {
+    console.log("payment check failed", JSON.stringify({ id: p.id, error: String(e && e.message || e) }));
+    return p;
+  }
+  if (!found) return p;
+  let paid;
+  try {
+    paid = await env.DB.prepare(
+      "UPDATE payments SET status = 'paid', signature = ?, payer = ?, paid_at = ? WHERE id = ? AND status = 'pending' RETURNING *"
+    ).bind(found.signature, found.payer, new Date().toISOString(), p.id).first();
+  } catch (e) {
+    // signature is UNIQUE: one transaction can't pay for two checkouts.
+    console.log("payment signature reused", JSON.stringify({ id: p.id, signature: found.signature }));
+    return p;
+  }
+  if (!paid) return env.DB.prepare("SELECT * FROM payments WHERE id = ?").bind(p.id).first();
+  console.log("payment paid", JSON.stringify({ id: paid.id, kind: paid.kind, amount: fromMicro(paid.amount_micro), signature: paid.signature }));
+  await announcePayment(env, paid);
+  return paid;
+}
+
+async function announcePayment(env, p) {
+  const link = `<a href="https://solscan.io/tx/${p.signature}">View on Solscan</a>`;
+  const baristaChat = await getSetting(env, "barista_chat");
+  if (baristaChat && p.kind === "bag") {
+    const left = await bagsLeft(env);
+    await send(env, baristaChat,
+      `🛍️ <b>Coffee bag #${p.id} paid · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\nHand them an Island DAO Limited Edition bag.` +
+      (left === null ? "" : `\n📦 ${left} left`) + `\n${link}`,
+      { inline_keyboard: [[{ text: "✅ Handed over", callback_data: `h:${p.id}` }]] });
+  } else if (baristaChat) {
+    await send(env, baristaChat, `💛 <b>Tip · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\n${link}`);
+  }
+  if (!p.customer_chat) return;
+  await send(env, p.customer_chat, p.kind === "bag"
+    ? `🛍️ <b>Paid! Coffee bag #${p.id} is yours.</b>\nShow this message at the bar to pick up your Island DAO Limited Edition bag.`
+    : `💛 <b>Thank you for the ${usdc(p.amount_micro)} tip!</b>\nIt went straight to the barista. See you at the bar ☕`);
+}
+
+async function handOverBag(env, chatId, messageId, id) {
+  const p = await env.DB.prepare("UPDATE payments SET handed_over = 1 WHERE id = ? AND kind = 'bag' AND status = 'paid' RETURNING *")
+    .bind(id).first();
+  if (!p) return;
+  return edit(env, chatId, messageId, `✅ <b>Coffee bag #${p.id} handed over</b> · ${usdc(p.amount_micro)}\n👤 ${escapeHtml(payerName(p))}`);
+}
+
+// Every minute: look for the recent unpaid checkouts on Solana, and drop the old ones.
+async function checkOpenPayments(env) {
+  if (!paymentsOn(env)) return;
+  const now = Date.now();
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM payments WHERE status = 'pending' AND created_at > ? ORDER BY checked_at IS NOT NULL, checked_at LIMIT 20"
+  ).bind(new Date(now - CHECK_WINDOW_MS).toISOString()).all();
+  for (const p of results) await checkPayment(env, p);
+  await env.DB.prepare("UPDATE payments SET status = 'expired' WHERE status = 'pending' AND created_at < ?")
+    .bind(new Date(now - EXPIRE_MS).toISOString()).run();
+}
+
+async function salesLines(env, day) {
+  const { results } = await env.DB.prepare(
+    "SELECT kind, COUNT(*) AS n, SUM(amount_micro) AS micro FROM payments WHERE day = ? AND status = 'paid' GROUP BY kind"
+  ).bind(day).all();
+  const of = kind => results.find(r => r.kind === kind);
+  const left = of("bag") ? await bagsLeft(env) : null;
+  return [
+    ...(of("tip") ? [`💛 Tips: ${of("tip").n} · ${usdc(of("tip").micro)}`] : []),
+    ...(of("bag") ? [`🛍️ Coffee bags: ${of("bag").n} · ${usdc(of("bag").micro)}${left === null ? "" : ` (${left} left)`}`] : []),
+  ];
+}
+
+function panelPayment(p) {
+  return {
+    id: String(p.id), kind: p.kind, amount: fromMicro(p.amount_micro), day: p.day, time: p.paid_at,
+    customer: payerName(p) + (p.customer_chat ? " · Telegram" : ""), handed: !!p.handed_over, signature: p.signature,
+  };
+}
+
+// /api/pay: open to the web (the printed QR leads to /pay). From the Mini App, initData names the customer.
+async function handlePayApi(request, env, path, base) {
+  if (path === "/api/pay" && request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    const user = body.initData ? await verifyInitData(body.initData, env.BOT_TOKEN) : null;
+    const { payment, error } = await createPayment(env, {
+      kind: body.kind, amount: body.amount,
+      chat: user ? user.id : 0, name: user ? customerName(user) : String(body.name || "").trim(),
+    });
+    if (error) return json({ ok: false, error });
+    return json({ ok: true, payment: publicPayment(env, payment, base) });
+  }
+  if (path === "/api/pay/blockhash") {
+    try {
+      const { blockhash, lastValidBlockHeight } = await latestBlockhash(env);
+      return json({ ok: true, blockhash, lastValidBlockHeight });
+    } catch (e) {
+      return json({ ok: false, error: "Solana is busy. Try again." }, 502);
+    }
+  }
+  const ref = path.slice("/api/pay/".length);
+  let p = await env.DB.prepare("SELECT * FROM payments WHERE reference = ?").bind(ref).first();
+  if (!p) return json({ ok: false, error: "Payment not found." }, 404);
+  // The page polls every few seconds; look at the chain at most every 3 s per payment.
+  if (p.status === "pending" && (!p.checked_at || Date.now() - Date.parse(p.checked_at) > 3000)) p = await checkPayment(env, p);
+  return json({ ok: true, payment: publicPayment(env, p, base) });
+}
+
+async function payPage(env, path, base) {
+  const html = body => new Response(body, { headers: { "content-type": "text/html; charset=utf-8" } });
+  if (!paymentsOn(env)) return html("Tips and coffee bags aren't open yet. Ask at the bar ☕");
+  let payment = null;
+  if (path !== "/pay") {
+    const p = await env.DB.prepare("SELECT * FROM payments WHERE reference = ?").bind(path.slice("/pay/".length)).first();
+    if (!p || p.status === "expired") return Response.redirect(`${base}/pay`, 302);
+    payment = publicPayment(env, p, base, true);
+  }
+  return html(payPageHtml({ ...(await payConfig(env)), payment }));
 }
 
 export default {
   async scheduled(event, env, ctx) {
     if (event.cron === DAILY_REPORT_CRON) return ctx.waitUntil(sendDailyReport(env));
     ctx.waitUntil(ensureWebhook(env).then(() => ensureMenuButton(env)));
+    ctx.waitUntil(checkOpenPayments(env));
   },
 
   async fetch(request, env) {
-    const path = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const base = env.WEBHOOK_URL || url.origin;
     if (path === "/app") {
-      return new Response(miniAppHtml(DRINKS), { headers: { "content-type": "text/html; charset=utf-8" } });
+      const pay = paymentsOn(env) ? await payConfig(env) : null;
+      return new Response(miniAppHtml(DRINKS, pay), { headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+    if (path === "/pay" || path.startsWith("/pay/")) return payPage(env, path, base);
+    if (path.startsWith("/api/pay")) return handlePayApi(request, env, path, base);
+    if (path === "/vendor/web3.js") {
+      return new Response(WEB3_IIFE, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=86400" } });
     }
     if (path === "/panel") return new Response(panelHtml(), { headers: { "content-type": "text/html; charset=utf-8" } });
     if (path.startsWith("/api/panel/")) return handlePanelApi(request, env, path);
