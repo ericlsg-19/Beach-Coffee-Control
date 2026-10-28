@@ -441,6 +441,8 @@ test("after an order the Mini App offers an optional tip that goes straight to c
   assert.match(app, /Tip the barista\?/);
   assert.match(app, /data-tip=/);
   assert.match(app, /else startPay\(\)/);
+  assert.match(app, /id="tipSheet"/);
+  assert.match(app, /Maybe later/);
 });
 
 test("validates tips and uses the bag price from the config", async () => {
