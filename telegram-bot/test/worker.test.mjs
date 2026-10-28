@@ -410,6 +410,14 @@ test("tips and bags are off until SOLANA_ADDRESS is a real address", async () =>
   assert.match(app, /const PAY = null;/);
 });
 
+test("after an order the Mini App offers an optional tip that goes straight to checkout", async () => {
+  const { env } = setupPay();
+  const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.match(app, /Tip the barista\?/);
+  assert.match(app, /data-tip=/);
+  assert.match(app, /else startPay\(\)/);
+});
+
 test("validates tips and uses the bag price from the config", async () => {
   const { env } = setupPay();
   assert.equal((await pay(env, { kind: "tip", amount: "0.5" })).ok, false);

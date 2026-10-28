@@ -106,6 +106,7 @@ export function miniAppHtml(drinks, pay = null) {
   .amount { font: 900 2.4rem/1 var(--display); font-stretch: 125%; color: var(--gold); }
   .amount small { font: 600 1rem/1 var(--body); color: var(--muted); letter-spacing: .1em; margin-left: 6px; }
   .wide { width: 100%; }
+  .tip-after { justify-self: stretch; text-align: left; margin-top: 18px; }
   .field { display: grid; gap: 6px; }
   .field label { font: 600 .72rem/1 var(--body); letter-spacing: .18em; text-transform: uppercase; color: var(--faint); }
   .copy { display: flex; gap: 8px; align-items: center; background: var(--card-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 10px 14px; }
@@ -309,7 +310,10 @@ export function miniAppHtml(drinks, pay = null) {
       '<p class="eyebrow">Order #' + r.order.num + '</p>' +
       '<h2>' + esc(drinkName(r.order.drink)) + '<br><b>on the way</b></h2>' +
       '<p class="note">We\\'ll message you in the chat when it\\'s ready ☕</p>' +
-      '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>';
+      '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
+      (PAY ? '<div class="pay-card tip-after"><h3>💛 Tip the barista?</h3><p class="note">Optional, in USDC on Solana. Drinks stay on the house.</p>' +
+        '<div class="chips">' + PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") +
+        '<button class="chip" data-tip="other">Other</button></div></div>' : '');
     $("done").hidden = false;
     $("close").onclick = () => tg ? tg.close() : null;
     $("again").onclick = () => { selected = null; $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
@@ -342,6 +346,12 @@ export function miniAppHtml(drinks, pay = null) {
     document.querySelectorAll(".chip").forEach(b => b.classList.toggle("on", !!payPick && payPick.kind === "tip" && String(payPick.v) === b.dataset.v));
     $("bagCard").classList.toggle("on", !!payPick && payPick.kind === "bag");
     $("custom").hidden = !(payPick && payPick.v === "other");
+  }
+  async function startPay() {
+    $("payGo").disabled = true;
+    const r = await api("/api/pay", { kind: payPick.kind, amount: payAmountPicked() });
+    if (!r.ok) { $("payMsg").textContent = r.error || "Something went wrong. Try again."; renderPayPick(); return; }
+    showPayment(r.payment);
   }
   function openLink(url) { if (tg && tg.openLink) tg.openLink(url); else window.open(url, "_blank"); }
   function showPayment(p) {
@@ -383,11 +393,15 @@ export function miniAppHtml(drinks, pay = null) {
     });
     $("custom").addEventListener("input", renderPayPick);
     $("bagCard").addEventListener("click", () => { if (soldOut) return; payPick = { kind: "bag" }; renderPayPick(); });
-    $("payGo").addEventListener("click", async () => {
-      $("payGo").disabled = true;
-      const r = await api("/api/pay", { kind: payPick.kind, amount: payAmountPicked() });
-      if (!r.ok) { $("payMsg").textContent = r.error || "Something went wrong. Try again."; renderPayPick(); return; }
-      showPayment(r.payment);
+    $("payGo").addEventListener("click", startPay);
+    // Right after an order: a tip chip opens Tip & Bag on that amount and goes straight to checkout.
+    $("done").addEventListener("click", e => {
+      const b = e.target.closest("[data-tip]"); if (!b) return;
+      clearInterval(payPoll);
+      $("payDone").hidden = true; $("payBox").hidden = true; $("payPick").hidden = false;
+      showTab("pay");
+      payPick = { kind: "tip", v: b.dataset.tip }; renderPayPick();
+      if (payPick.v === "other") $("custom").focus(); else startPay();
     });
     $("payBack").addEventListener("click", () => { clearInterval(payPoll); $("payBox").hidden = true; $("payPick").hidden = false; renderPayPick(); });
     document.addEventListener("click", async e => {

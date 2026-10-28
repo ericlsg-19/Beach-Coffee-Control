@@ -29,6 +29,7 @@ No mini app, o cliente tem a aba **Ranking 🏆** com o Top 10 (primeiro nome e 
 
 As bebidas são grátis: o recibo do pedido nunca mostra pagamento. Para dar gorjeta ou comprar o **Island DAO Limited Edition coffee bag**:
 - No mini app, aba **Tip & Bag**: escolhe 2, 5, 10 USDC ou outro valor, ou o pacote (preço em `BAG_PRICE_USDC`, 10 USDC), e toca **Pay with Phantom** ou **Pay with Solflare**. A carteira abre a página de pagamento, que monta a transferência de USDC; o cliente só confirma.
+- **Logo depois do pedido:** a tela "on the way" mostra **💛 Tip the barista?** com 2, 5, 10 USDC ou outro valor. É opcional (as bebidas continuam grátis); um toque abre o **Tip & Bag** já no valor e vai direto para o pagamento.
 - Fora do Telegram: `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` (é para onde o QR impresso deve apontar). Funciona com a câmera do celular, porque é um link `https://`.
 - **Edição limitada:** são `BAG_STOCK` pacotes (20). A tela mostra quantos restam; quando acabam, aparece **Sold out** e a venda para. Um checkout de pacote sem pagar segura uma unidade por 15 minutos, para não vender o mesmo pacote duas vezes. No chat da barista, `/bags` mostra vendidos, entregues e restantes.
 - Qualquer outra carteira ou exchange: a página mostra o endereço **puro** e o valor, cada um com botão **Copy**. Esses envios manuais não são reconhecidos sozinhos: o cliente mostra a carteira para a barista.
