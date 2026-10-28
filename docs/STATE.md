@@ -39,7 +39,7 @@ Atualizado em 28/10/2026, bot e Âncora na **v1.5.1** (no ar desde 28/10, PR #10
 3. Opcional: release `bot-v1.3.2` no GitHub (o proxy da sessão não deixa criar tag; fazer pela interface).
 4. Opcional: `/revoke` do token do bot (foi colado no chat em 27/10) e atualizar `BOT_TOKEN` no Cloudflare.
 5. Conferir se pedidos da barra de 27/10 duplicam pedidos do Telegram.
-6. Submissão ao hackathon da Island DAO: trilha **Payments + Commerce**. Ver `docs/PITCH.md`. Deck pronto (8 slides), com os números até 28/10 11:49: 352 bebidas em 5 dias, 43 pelo Telegram de 33 pessoas. Inscrição IslandHack v5 até 11/11 (rascunho no app da Island DAO; respostas em `design/hackathon/`). Faltam também os vídeos de pitch e de demo.
+6. Submissão ao hackathon da Island DAO: trilha **Payments + Commerce**. Ver `docs/PITCH.md`. Deck pronto (8 slides), com os números do `/total` em 28/10 12:33: 356 bebidas em 5 dias, 47 pelo Telegram de 33 pessoas. Inscrição IslandHack v5 até 11/11 (rascunho no app da Island DAO; respostas em `design/hackathon/`). Faltam também os vídeos de pitch e de demo.
 
 ## Preferências do usuário
 
