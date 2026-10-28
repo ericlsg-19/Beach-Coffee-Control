@@ -22,3 +22,7 @@ When you change one, change the other in the same work:
    Âncora artifact (same URL) from `ancora/ancora.html`.
 
 Operations, incidents and redeploy steps: `telegram-bot/OPERATIONS.md`.
+
+Where things stand (versions, links, pending items, user preferences): `docs/STATE.md`.
+Hackathon submission and pitch: `docs/PITCH.md`. Final design files: `design/`.
+Keep `docs/STATE.md` current when something ships.
