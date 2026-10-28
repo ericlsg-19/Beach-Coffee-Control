@@ -109,7 +109,12 @@ async function rpc(env, method, params) {
 export async function rpcStatus(env) {
   const out = [];
   for (const url of rpcUrls(env)) {
-    try { await rpcAt(url, "getLatestBlockhash", [{ commitment: "confirmed" }]); out.push({ host: hostOf(url), ok: true }); }
+    // Both calls a payment needs: the blockhash (to build it) and the signature lookup (to confirm it).
+    try {
+      await rpcAt(url, "getLatestBlockhash", [{ commitment: "confirmed" }]);
+      await rpcAt(url, "getSignaturesForAddress", [env.SOLANA_ADDRESS, { limit: 1, commitment: "confirmed" }]);
+      out.push({ host: hostOf(url), ok: true });
+    }
     catch (e) { out.push({ host: hostOf(url), ok: false, error: String(e && e.message || e).slice(0, 160) }); }
   }
   return out;
@@ -127,14 +132,19 @@ function received(meta, owner) {
 }
 
 // Looks for a confirmed transaction carrying the payment's reference that paid the full amount.
-// Returns { signature, payer } or null.
-export async function findPayment(env, p) {
+// Returns { signature, payer } or null. `trace` collects why each transaction was skipped.
+export async function findPayment(env, p, trace = []) {
   const sigs = await rpc(env, "getSignaturesForAddress", [p.reference, { limit: 10, commitment: "confirmed" }]);
+  if (!sigs.length) trace.push("no transaction with this reference yet");
   for (const s of sigs) {
-    if (s.err) continue;
+    const short = s.signature.slice(0, 12);
+    if (s.err) { trace.push(`${short}: failed on chain`); continue; }
     const tx = await rpc(env, "getTransaction", [s.signature, { commitment: "confirmed", encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }]);
-    if (!tx || !tx.meta || tx.meta.err) continue;
-    if (received(tx.meta, env.SOLANA_ADDRESS) >= BigInt(p.amount_micro)) {
+    if (!tx || !tx.meta) { trace.push(`${short}: not readable yet`); continue; }
+    if (tx.meta.err) { trace.push(`${short}: failed on chain`); continue; }
+    const got = received(tx.meta, env.SOLANA_ADDRESS);
+    if (got < BigInt(p.amount_micro)) trace.push(`${short}: received ${got} of ${p.amount_micro} micro-USDC`);
+    if (got >= BigInt(p.amount_micro)) {
       const key = tx.transaction.message.accountKeys[0];
       return { signature: s.signature, payer: typeof key === "string" ? key : key.pubkey };
     }

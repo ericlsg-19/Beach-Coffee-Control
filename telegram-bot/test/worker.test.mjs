@@ -487,6 +487,10 @@ test("underpaid or failed transactions don't count, and one transaction can't pa
   chain[a.ref] = [{ signature: "short", received: 9.99 }, { signature: "failed", received: 10, failed: true }];
   await runMinuteCron(env);
   assert.equal((await getJson(`/api/pay/${a.ref}`)).payment.status, "pending");
+  await env.DB.prepare("UPDATE payments SET checked_at = NULL").run();
+  await getJson(`/api/pay/${a.ref}`); // the last check is now this payment's
+  const why = (await getJson("/health?rpc=1")).last_payment_check;
+  assert.ok(why.trace.includes("short: received 9990000 of 10000000 micro-USDC"), JSON.stringify(why));
 
   chain[a.ref].push({ signature: "good", received: 10 });
   chain[b.ref] = [{ signature: "good", received: 10 }]; // same transaction carrying both references
@@ -616,5 +620,7 @@ test("falls back to a public RPC when the first one refuses (403 from api.mainne
   assert.ok(rpcCalls.some(c => c === "solana-rpc.publicnode.com getSignaturesForAddress"));
   h = await getJson("/health?rpc=1");
   assert.equal(h.rpc[0].ok, true);
+  assert.equal(h.last_payment_check.found, true);
+  assert.equal(h.last_payment_check.signature, "pn1");
   assert.equal((await getJson("/health")).rpc, undefined, "plain /health doesn't call Solana");
 });
