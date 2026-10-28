@@ -14,7 +14,7 @@ Atualizado em 28/10/2026, bot e Âncora na **v1.5.0** (no ar depois do merge na 
 | Saúde | `/health` e `/health?rpc=1` (servidores Solana + última conferência de pagamento) |
 | Operação e incidentes | `telegram-bot/OPERATIONS.md` |
 | Banner "Scan to order" (QR para o bot, para o notebook da barra) | `design/banner/` |
-| Deck do pitch (8 slides) | https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (cópia em `design/deck/`) |
+| Deck do pitch (7 slides) | https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (cópia em `design/deck/`) |
 | Arquivos de design (impressão, camiseta, adesivo, posts do X, prints) | `design/` (índice em `design/README.md`) |
 
 ## Como funciona o deploy
@@ -39,7 +39,7 @@ Atualizado em 28/10/2026, bot e Âncora na **v1.5.0** (no ar depois do merge na 
 3. Opcional: release `bot-v1.3.2` no GitHub (o proxy da sessão não deixa criar tag; fazer pela interface).
 4. Opcional: `/revoke` do token do bot (foi colado no chat em 27/10) e atualizar `BOT_TOKEN` no Cloudflare.
 5. Conferir se pedidos da barra de 27/10 duplicam pedidos do Telegram.
-6. Submissão ao hackathon da Island DAO: trilha **Payments + Commerce**. Ver `docs/PITCH.md`. Deck pronto; faltam no deck o total de bebidas do evento, o link do Solscan (depende da pendência 1) e o pedido aos jurados. Faltam também os vídeos de pitch e de demo.
+6. Submissão ao hackathon da Island DAO: trilha **Payments + Commerce**. Ver `docs/PITCH.md`. Deck pronto (7 slides); falta no slide 3 o total de cafés, que sai do `/total` ou do Summary by day do Âncora. Inscrição IslandHack v5 até 11/11 (rascunho no app da Island DAO; respostas em `design/hackathon/`). Faltam também os vídeos de pitch e de demo.
 
 ## Preferências do usuário
 
