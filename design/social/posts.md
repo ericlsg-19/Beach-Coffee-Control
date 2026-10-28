@@ -1,30 +1,33 @@
 # Textos dos posts
 
-Textos para acompanhar as imagens desta pasta. No X, use o link `t.me/...` e não `@BeachCoffeeIslandBot`, porque o `@` marcaria uma conta do X.
+Textos para acompanhar as imagens desta pasta: web3, clima de ilha, a barista que fez o bot no vibecoding.
+No X, use o link `t.me/...` e não `@BeachCoffeeIslandBot`, porque o `@` marcaria uma conta do X. Cada texto cabe em um post (até 280 caracteres).
 
 ## Pedido pelo Telegram (`beach-coffee-x-telegram.png`)
 
 ```
-New at the bar ☕ Skip the line: order your coffee on Telegram.
+gm Floripa 🌴☕
 
-1. Open the bot and tap Order ☕
-2. Pick one of 12 drinks
-3. Get pinged when it's ready
+your barista vibecoded a coffee bot between espressos.
 
-Drinks are on the house. 🏆 The top coffee lover on the ranking gets a surprise.
+skip the line, order on Telegram
+12 drinks, all free, pinged when it's ready
+top coffee lover on the leaderboard gets a surprise 🏆
 
+built on the island, for the island 🏝️
 t.me/BeachCoffeeIslandBot
 ```
 
 ## Island DAO Edition (`beach-coffee-x-edition.png`)
 
 ```
-Island DAO Edition 🌴
+Island DAO Edition just dropped 🏝️
 
-Our special Arabica, packed for the island. 250 g bags, limited to 20.
+20 bags of our special Arabica. 250 g each. that's the whole supply.
 
-10 USDC on Solana, right from the Tip & Bag tab in the bot, or at the Vila while they last.
+10 USDC, paid onchain on Solana, straight from the bot. no cash, no custody, just island vibes 🌊
 
+once they're gone, they're gone.
 t.me/BeachCoffeeIslandBot
 ```
 
@@ -33,5 +36,21 @@ t.me/BeachCoffeeIslandBot
 Imagem que o bot manda como primeira mensagem no chat. Também serve para stories ou para o grupo do evento:
 
 ```
-How to order ☕ Tap Order at the bottom of the chat, pick your drink, and we'll message you when it's ready.
+new to the bar? ☕
+tap Order at the bottom of the chat, pick your drink, go touch some sand 🏖️
+we'll ping you when it's ready.
+```
+
+## Gorjeta em USDC (ainda sem imagem)
+
+```
+gm builders 🌊
+
+the bar now takes tips in USDC on Solana.
+2, 5, 10, whatever the vibe says.
+
+confirmed onchain in seconds, straight to the barista's wallet ☕
+
+vibecoded at the bar, shipped to mainnet 🏝️
+t.me/BeachCoffeeIslandBot
 ```
