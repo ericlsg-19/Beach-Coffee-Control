@@ -4,11 +4,11 @@
   "lists": "css",
   "title": "Beach Coffee Co. Pitch",
   "cover": "cover",
-  "order": ["cover", "problem", "solution", "bar", "pay", "how", "traction", "next"],
+  "order": ["cover", "problem", "solution", "how", "traction", "next"],
   "sections": {
     "s1": {"description": "Who we are and the problem at an event coffee bar", "start": "cover"},
-    "s2": {"description": "The product: Telegram ordering, one barista panel, USDC payments", "start": "solution"},
-    "s3": {"description": "Why Solana, real usage and what comes next", "start": "how"}
+    "s2": {"description": "The process: order, ready, tip, shown live", "start": "solution"},
+    "s3": {"description": "Payments on Solana, the numbers so far and what comes next", "start": "how"}
   },
   "faces": {
     "archivo": {"family": "Archivo", "href": "https://fonts.googleapis.com/css2?family=Archivo:wght@800;900&display=swap"},
