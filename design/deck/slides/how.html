@@ -1,33 +1,28 @@
-<section id="how" data-transition="fade" style="background:#0c1a17;color:#eef3ee;font-family:'Figtree', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:space-between;gap:48px">
-<div style="display:flex;flex-direction:column;gap:24px">
-<p style="font-size:24px;letter-spacing:6px;text-transform:uppercase;color:#e8b86a;font-weight:600">Why Solana</p>
-<h2 style="font-family:'Archivo', 'Arial Black', sans-serif;font-size:72px;font-weight:900;line-height:1.1;text-transform:uppercase">Every payment checked on-chain</h2>
-</div>
-<div style="display:flex;flex-direction:row;align-items:center;gap:16px">
-<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#071110;border:2px solid #1f3a32;border-radius:24px;padding:32px">
-<h3 style="font-size:32px;font-weight:600;color:#a8e6b8">Wallet pays</h3>
-<p style="font-size:24px;line-height:1.4;color:#a9bdb1">Phantom or Solflare sends USDC with a unique Solana Pay reference.</p>
-</div>
-<x-shape kind="arrow-right" style="background:#e8b86a;width:48px;height:28px"></x-shape>
-<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#071110;border:2px solid #1f3a32;border-radius:24px;padding:32px">
-<h3 style="font-size:32px;font-weight:600;color:#a8e6b8">Bot watches</h3>
-<p style="font-size:24px;line-height:1.4;color:#a9bdb1">Looks the reference up every minute, every 3 s while the page is open.</p>
-</div>
-<x-shape kind="arrow-right" style="background:#e8b86a;width:48px;height:28px"></x-shape>
-<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#071110;border:2px solid #1f3a32;border-radius:24px;padding:32px">
-<h3 style="font-size:32px;font-weight:600;color:#a8e6b8">Exact match</h3>
-<p style="font-size:24px;line-height:1.4;color:#a9bdb1">Accepted only if the shop’s address got the full USDC amount.</p>
-</div>
-<x-shape kind="arrow-right" style="background:#e8b86a;width:48px;height:28px"></x-shape>
-<div style="flex:1;display:flex;flex-direction:column;gap:12px;background:#071110;border:2px solid #e8b86a;border-radius:24px;padding:32px">
-<h3 style="font-size:32px;font-weight:600;color:#e8b86a">Bar notified</h3>
-<p style="font-size:24px;line-height:1.4;color:#a9bdb1">💛 Tip or 🛍️ Bag #N paid for the barista; a thank-you for the guest.</p>
-</div>
-</div>
-<div style="display:flex;flex-direction:row;gap:32px;border-top:2px solid #1f3a32;padding:40px 0 0 0">
-<p style="flex:1;font-size:32px;line-height:1.35;color:#c9d6cd"><b style="color:#eef3ee">Fees in cents</b>, so a 2 USDC tip still makes sense.</p>
-<p style="flex:1;font-size:32px;line-height:1.35;color:#c9d6cd"><b style="color:#eef3ee">Confirms in seconds</b>, while the guest is still at the bar.</p>
-<p style="flex:1;font-size:32px;line-height:1.35;color:#c9d6cd"><b style="color:#eef3ee">No custody</b>: USDC goes straight to the shop’s wallet.</p>
-</div>
-<aside>Why Solana, about 20 seconds. USDC with fees in cents, so even a 2 USDC tip works, and confirmation in seconds. Each checkout carries a Solana Pay reference, so the bot can find that exact transaction on-chain and check that the full amount arrived, without ever holding the funds. If one RPC refuses, it falls back to another.</aside>
+<section id="how" data-transition="fade" style="display:flex; flex-direction:column; gap:96px; justify-content:center; padding:128px; background:#0c1a17">
+  <div style="display:flex; flex-direction:column; gap:24px">
+    <p style="font-family:Figtree, Arial, sans-serif; font-size:24px; font-weight:600; letter-spacing:6px; text-transform:uppercase; color:#e8b86a">Payments on Solana</p>
+    <h2 style="font-family:Archivo, sans-serif; font-size:72px; font-weight:900; line-height:1.1; text-transform:uppercase; color:#eef3ee">Every payment checked on-chain</h2>
+  </div>
+  <div style="display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:32px; background:#071110; border:2px solid #1f3a32; border-radius:24px">
+      <h3 style="font-family:Figtree, Arial, sans-serif; font-size:36px; font-weight:600; color:#a8e6b8">Wallet pays</h3>
+      <p style="font-family:Figtree, Arial, sans-serif; font-size:28px; line-height:1.4; color:#a9bdb1">Phantom or Solflare sends USDC with a unique Solana Pay reference.</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:48px; height:28px; background:#e8b86a"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:32px; background:#071110; border:2px solid #1f3a32; border-radius:24px">
+      <h3 style="font-family:Figtree, Arial, sans-serif; font-size:36px; font-weight:600; color:#a8e6b8">Bot watches</h3>
+      <p style="font-family:Figtree, Arial, sans-serif; font-size:28px; line-height:1.4; color:#a9bdb1">Looks the reference up every minute, every 3 s while the page is open.</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:48px; height:28px; background:#e8b86a"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:32px; background:#071110; border:2px solid #1f3a32; border-radius:24px">
+      <h3 style="font-family:Figtree, Arial, sans-serif; font-size:36px; font-weight:600; color:#a8e6b8">Exact match</h3>
+      <p style="font-family:Figtree, Arial, sans-serif; font-size:28px; line-height:1.4; color:#a9bdb1">Accepted only if the shop’s address got the full USDC amount.</p>
+    </div>
+    <x-shape kind="arrow-right" style="width:48px; height:28px; background:#e8b86a"></x-shape>
+    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:32px; background:#071110; border:2px solid #e8b86a; border-radius:24px">
+      <h3 style="font-family:Figtree, Arial, sans-serif; font-size:36px; font-weight:600; color:#e8b86a">Bar notified</h3>
+      <p style="font-family:Figtree, Arial, sans-serif; font-size:28px; line-height:1.4; color:#a9bdb1">Tip or Coffee Bag paid for the barista; a thank-you for the guest.<span style="color:#a8e6b8">💛</span></p>
+    </div>
+  </div>
+  <aside>Payments on Solana, about 25 seconds. USDC with fees in cents, so even a 2 USDC tip works, and confirmation in seconds. Each checkout carries a Solana Pay reference, so the bot can find that exact transaction on-chain and check that the full amount arrived, without ever holding the funds. Fees in cents, confirmed in seconds, no custody: the USDC goes straight to the shop’s wallet.</aside>
 </section>

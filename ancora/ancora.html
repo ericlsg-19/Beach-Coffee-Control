@@ -125,6 +125,7 @@
   .info time { font: 500 .85rem/1.2 var(--mono); color: var(--muted); }
   .info strong { font: 500 1.15rem/1.25 var(--body); }
   .info span { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+  .info span.milk { color: var(--gold); font-weight: 600; }
   li.done .info strong, li.done .info time { color: var(--faint); }
   .chip {
     height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer;
@@ -279,7 +280,7 @@
     </div>
   </section>
 
-  <p class="version">Âncora v1.5.1 · same menu as @BeachCoffeeIslandBot</p>
+  <p class="version">Âncora v1.6.0 · same menu as @BeachCoffeeIslandBot</p>
 </div>
 
 <nav class="dock" aria-label="Sections">
@@ -516,6 +517,7 @@
             <div class="info">
               <time>${formatTime(o.time)}</time>
               <strong>${drinkById(o.drink).name}</strong>
+              ${o.milk ? `<span class="milk">🥛 ${escapeHtml(o.milk)}</span>` : ""}
               ${o.customer ? `<span>${escapeHtml(o.customer)}</span>` : ""}
             </div>
             <button class="chip ${o.done ? "" : "go"}" data-toggle="${o.id}">${o.done ? "Undo" : "Ready"}</button>
@@ -554,7 +556,7 @@
     const header = ["day", "time", "drink", "customer", "status"];
     const lines = [...orders]
       .sort((a, b) => a.time.localeCompare(b.time))
-      .map(o => [formatDay(o.day), formatTime(o.time), drinkById(o.drink).name, o.customer || "", o.done ? "ready" : "pending"]
+      .map(o => [formatDay(o.day), formatTime(o.time), drinkById(o.drink).name + (o.milk ? ` (${o.milk})` : ""), o.customer || "", o.done ? "ready" : "pending"]
         .map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
     const filename = `coffee-orders-${localDay()}.csv`;
     const csv = "\ufeff" + [header.join(","), ...lines].join("\n");
