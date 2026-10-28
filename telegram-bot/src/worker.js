@@ -39,7 +39,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.3.1";
+const VERSION = "1.3.2";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -398,7 +398,7 @@ async function health(env, withRpc = false) {
     ).bind(localDay()).first();
     return json({ ok: true, version: VERSION, day: localDay(), open: await isOpen(env), barista_set: !!(await getSetting(env, "barista_chat")),
       orders_today: today.orders, waiting: today.waiting || 0, payments: paymentsOn(env),
-      ...(withRpc && paymentsOn(env) ? { rpc: await rpcStatus(env) } : {}) });
+      ...(withRpc && paymentsOn(env) ? { rpc: await rpcStatus(env), last_payment_check: JSON.parse(await getSetting(env, "last_payment_check") || "null") } : {}) });
   } catch (e) {
     return json({ ok: false, error: String(e && e.message || e) }, 500);
   }
@@ -583,13 +583,18 @@ async function checkPayment(env, p) {
   if (p.status !== "pending" || !paymentsOn(env)) return p;
   await env.DB.prepare("UPDATE payments SET checked_at = ? WHERE id = ?").bind(new Date().toISOString(), p.id).run();
   let found;
+  const trace = [];
+  const note = info => setSetting(env, "last_payment_check", JSON.stringify({ id: p.id, at: new Date().toISOString(), ...info }));
   try {
-    found = await findPayment(env, p);
+    found = await findPayment(env, p, trace);
   } catch (e) {
-    console.log("payment check failed", JSON.stringify({ id: p.id, error: String(e && e.message || e) }));
+    const error = String(e && e.message || e).slice(0, 300);
+    console.log("payment check failed", JSON.stringify({ id: p.id, error }));
+    await note({ error });
     return p;
   }
-  if (!found) return p;
+  if (!found) { await note({ found: false, trace }); return p; }
+  await note({ found: true, signature: found.signature });
   let paid;
   try {
     paid = await env.DB.prepare(

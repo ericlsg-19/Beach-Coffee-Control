@@ -67,6 +67,7 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 |---|---|---|
 | Cliente pagou e nada aconteceu | `payment check failed … 429` ou `403` | Nenhum RPC respondeu. Abrir `/health?rpc=1` para ver quais falham; criar `SOLANA_RPC_URL` (Helius etc.) e fazer deploy. |
 | "The Solana network didn't answer" na página | — | Mesma causa: nenhum RPC deu o *blockhash*. `/health?rpc=1` e `SOLANA_RPC_URL`. |
+| Cliente pagou e nada aconteceu | — | Abrir `/health?rpc=1`: `last_payment_check` mostra a última conferência (erro do RPC, "no transaction with this reference yet", ou quanto USDC chegou). |
 | Cliente pagou e nada aconteceu | nenhum `payment created` | Pagou copiando o endereço (sem *reference*): conferir na carteira; não é reconhecido sozinho. |
 | "Couldn't send" na página | — | Falta USDC na Solana ou um pouco de SOL para a taxa na carteira do cliente. |
 
