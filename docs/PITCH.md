@@ -44,7 +44,7 @@ GM! We're Beach Coffee Co. We run the coffee bar here at the Island DAO Vila, an
 Picture a coffee bar at a builders' event. Everyone wants coffee in the same break. Orders get shouted and lost. Nobody carries cash. And crypto still breaks: our first Solana QR didn't even open in a phone camera.
 
 **Slide 3 · Tap. Sip. Tip. + live demo (60 s)**
-So we built this: tap, sip, tip. Scan the QR and order with me: iced coffee is on us today. *(phone)* I open our bot on Telegram, tap Order, pick an Iced Latte, choose the milk and confirm. It lands on the barista panel right away. I keep building; the barista taps Ready, and I get the ping. We timed it: people used to wait about five minutes in line. Now it's zero. Then the app asks if I want to tip. I tap 2 USDC, Phantom opens, I confirm, and the tip lands in the barista's chat, confirmed onchain.
+So we built this: tap, sip, tip. Scan the QR and order with me: 10 iced coffees and 10 iced lattes are on us today, and in the same app you can buy one of our 20 Island DAO Edition coffee bags. *(phone)* I open our bot on Telegram, tap Order, pick an Iced Latte, choose the milk and confirm. It lands on the barista panel right away. I keep building; the barista taps Ready, and I get the ping. We timed it: people used to wait about five minutes in line. Now it's zero. Then the app asks if I want to tip. I tap 2 USDC, Phantom opens, I confirm, and the tip lands in the barista's chat, confirmed onchain.
 
 **Slide 4 · Payments on Solana (25 s)**
 How does it work? Every checkout carries a Solana Pay reference. The bot finds that exact transaction onchain and only accepts it if the full USDC amount reached our wallet. Fees in cents, confirmed in seconds, and we never hold anyone's money.
