@@ -20,7 +20,7 @@ Cada cliente pode ter no máximo 3 bebidas esperando ao mesmo tempo.
 **Barista** (no chat configurado com `/barista`)
 - Cada pedido chega com número, bebida, nome do cliente e hora, e os botões **Ready** / **Cancel**.
 - `/today` e `/report AAAA-MM-DD`: relatório do dia (Telegram × barra, cada bebida, horário de pico, maior cliente). Às 23:00 o bot manda o do dia sozinho.
-- `/demoday`: modo de evento **só para hoje**: o mini app mostra só Iced Coffee (10) e Iced Latte (10), com quantos restam, e cada pessoa pede no máximo 3 no dia. Amanhã o cardápio completo volta sozinho; `/demoday off` desliga antes. Para mudar: `/demoday icedcoffee=15 icedlatte=10 max=2`.
+- `/demoday`: modo de evento **só para hoje**: o mini app mostra só Iced Coffee (10) e Iced Latte (10), com quantos restam, e cada pessoa pede só 1 no dia. Amanhã o cardápio completo volta sozinho; `/demoday off` desliga antes. Para mudar: `/demoday icedcoffee=15 icedlatte=10 max=2`.
 - `/total`: o evento todo até agora, com o tempo devolvido para buildar (pedidos pelo Telegram × 5 min de fila, cronometrados na Vila) e, para os pedidos marcados prontos desde a v1.7.0, o tempo médio do pedido até o Ready, somando todos os dias (bebidas, Telegram × barra, melhor dia, cada bebida, clientes, gorjetas e pacotes).
 - `/queue`: lista das bebidas esperando.
 - `/ranking`: quem mais pediu pelo Telegram no evento todo.

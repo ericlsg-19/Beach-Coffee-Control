@@ -40,7 +40,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.0";
+const VERSION = "1.7.1";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -101,7 +101,8 @@ async function isOpen(env) {
 // For one day only: a short menu with a stock per drink and at most `max` drinks per guest that day.
 // It's stored with the day it was turned on, so the next day the full menu is back by itself.
 
-const EVENT_DEFAULT = { stock: { icedcoffee: 10, icedlatte: 10 }, max: 3 };
+const EVENT_DEFAULT = { stock: { icedcoffee: 10, icedlatte: 10 }, max: 1 };
+const drinksWord = n => (n === 1 ? "1 drink" : `${n} drinks`);
 // Minutes a guest used to stand in line at the bar (timed at the Vila), now spent building instead.
 const LINE_MINUTES = 5;
 
@@ -129,12 +130,12 @@ async function eventText(env) {
   const s = await eventStatus(env);
   if (!s) return "Event day is off: the full menu is on.";
   const name = id => (drinkById(id) || { name: id }).name;
-  return [`🎤 <b>Event day</b> · today only, max ${s.max} drinks per guest`,
+  return [`🎤 <b>Event day</b> · today only, max ${drinksWord(s.max)} per guest`,
     ...s.drinks.map(d => `${name(d.id)}: <b>${d.left}</b> left of ${d.stock}`),
     "", "The full menu comes back tomorrow, or now with /demoday off."].join("\n");
 }
 
-// /demoday → Iced Coffee 10 and Iced Latte 10, max 3. /demoday icedcoffee=15 icedlatte=10 max=2 to change it. /demoday off.
+// /demoday → Iced Coffee 10 and Iced Latte 10, max 1 per guest. /demoday icedcoffee=15 icedlatte=10 max=2 to change it. /demoday off.
 async function demoDayCommand(env, args) {
   if ((args[0] || "").toLowerCase() === "off") { await setSetting(env, "event_day", ""); return eventText(env); }
   const stock = {}; let max = EVENT_DEFAULT.max;
@@ -198,7 +199,7 @@ async function createOrder(env, chatId, from, drink, milk = "") {
       return { error: `Today it's ${names} only. Pick one of those ☕` };
     }
     if (await ordersToday(env, "drink", drink.id) >= event.stock[drink.id]) return { error: `${drink.name} is sold out for today 🙏` };
-    if (await ordersToday(env, "customer_chat", chatId) >= event.max) return { error: `That's your ${event.max} drinks for today 🙌 See you tomorrow!` };
+    if (await ordersToday(env, "customer_chat", chatId) >= event.max) return { error: `That's your ${event.max === 1 ? "drink" : drinksWord(event.max)} for today 🙌 See you tomorrow!` };
   } else if (EVENT_ONLY.includes(drink.id)) {
     return { error: "Pick a drink from the menu." };
   }
@@ -373,7 +374,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 3 per guest (/demoday off to stop)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
