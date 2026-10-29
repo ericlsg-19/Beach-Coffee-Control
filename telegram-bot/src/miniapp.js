@@ -13,6 +13,7 @@ const ICONS = {
   flatwhite:  '<path d="M3 10h14v1a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6z"/><path d="M17 11h1a2 2 0 0 1 0 4h-2M10 13.5c-1.2-.9-2-1.5-2-2.3a1 1 0 0 1 2-.4 1 1 0 0 1 2 .4c0 .8-.8 1.4-2 2.3zM3 20h15"/>',
   latte:      '<path d="M7 4h10l-1.5 16h-7z"/><path d="M7.6 10h8.8"/>',
   icedlatte:  '<path d="M7 4h10l-1.5 16h-7z"/><path d="M7.5 8.5h9"/><rect x="9" y="11" width="3" height="3" rx=".5"/><rect x="12.2" y="14.4" width="2.8" height="2.8" rx=".5"/>',
+  icedcoffee: '<path d="M7 5h10l-1.6 15h-6.8z"/><path d="M14.5 2l-1.5 7"/><rect x="9" y="11" width="3" height="3" rx=".5"/><rect x="12.4" y="13.8" width="2.6" height="2.6" rx=".5"/>',
   mocha:      '<path d="M7 10h10l-1.5 10h-7z"/><path d="M6.5 10c0-2 1.5-3 3-3 .4-1.6 1.4-2.5 2.5-2.5s2.1.9 2.5 2.5c1.5 0 3 1 3 3M8 14h8"/>',
   matcha:     '<path d="M12 21c-5-2-7-6-7-10 4 0 7 2 7 6 0-4 3-6 7-6 0 4-2 8-7 10z"/><path d="M12 17V5"/>',
   chocolate:  '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 9h12M6 15h12M12 3v18"/>',
@@ -23,10 +24,12 @@ const ICONS = {
 export const MILK_DRINKS = ["cappuccino", "flatwhite", "latte", "icedlatte", "mocha", "matcha", "chocolate"];
 export const MILKS = { lactosefree: "Lactose-free milk", plant: "Plant-based milk" };
 export const MILK_CHOICES = ["regular", ...Object.keys(MILKS)];
+// Only on the menu on an event day (/demoday).
+export const EVENT_ONLY = ["icedcoffee"];
 
 // pay: { recipient, bagPrice, bagStock, bagsLeft } when tips and bags are on, null otherwise.
 export function miniAppHtml(drinks, pay = null) {
-  const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "", milk: MILK_DRINKS.includes(d.id) })));
+  const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "", milk: MILK_DRINKS.includes(d.id), eventOnly: EVENT_ONLY.includes(d.id) })));
   const payConfig = JSON.stringify(pay && { ...pay, presets: TIP_PRESETS, products: PRODUCTS });
   return `<!doctype html>
 <html lang="en"><head>
@@ -74,6 +77,8 @@ export function miniAppHtml(drinks, pay = null) {
   .drink.selected .ico { background: rgba(168,230,184,.16); }
   .drink svg { width: 26px; height: 26px; stroke: var(--mint); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .drink .name { font: 600 .95rem/1.2 var(--body); }
+  .drink .left { display: block; margin-top: 3px; font: 500 .78rem/1 var(--mono); color: var(--gold); }
+  .drink.soldout { opacity: .45; cursor: default; }
   .note { color: var(--muted); font-size: .9rem; margin: 0; }
   .center { text-align: center; padding: 40px 10px; display: grid; gap: 10px; justify-items: center; }
   .center h2 { margin: 0; font: 800 1.4rem/1.1 var(--display); font-stretch: 125%; text-transform: uppercase; }
@@ -150,6 +155,7 @@ export function miniAppHtml(drinks, pay = null) {
     <div class="card" id="orders"></div>
   </section>
   <section id="pick">
+    <p class="note" id="eventNote" hidden style="margin-bottom:12px"></p>
     <p class="eyebrow" style="margin-bottom:10px">Step 1 · Pick your drink</p>
     <div class="drinks" id="drinks"></div>
     <div id="milkPick" hidden>
@@ -226,7 +232,7 @@ export function miniAppHtml(drinks, pay = null) {
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg ? tg.initData : "";
   const $ = id => document.getElementById(id);
-  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = null;
+  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = null, event = null;
 
   if (tg) {
     tg.ready(); tg.expand();
@@ -243,11 +249,18 @@ export function miniAppHtml(drinks, pay = null) {
     return name ? g + ", " + name : g;
   }
 
+  // On an event day only that day's drinks show, each with what's left; otherwise the full menu.
+  const leftOf = id => { const e = event && event.drinks.find(x => x.id === id); return e ? e.left : null; };
+  function visibleMenu() {
+    return event ? event.drinks.map(e => MENU.find(d => d.id === e.id)).filter(Boolean) : MENU.filter(d => !d.eventOnly);
+  }
   function renderDrinks() {
-    $("drinks").innerHTML = MENU.map(d =>
-      '<button class="drink' + (selected === d.id ? " selected" : "") + '" data-id="' + d.id + '">' +
-      '<span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + d.icon + '</svg></span>' +
-      '<span class="name">' + esc(d.name) + '</span></button>').join("");
+    $("drinks").innerHTML = visibleMenu().map(d => {
+      const left = leftOf(d.id);
+      return '<button class="drink' + (selected === d.id ? " selected" : "") + (left === 0 ? " soldout" : "") + '" data-id="' + d.id + '">' +
+        '<span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + d.icon + '</svg></span>' +
+        '<span class="name">' + esc(d.name) + (left === null ? "" : '<span class="left">' + (left ? left + " left" : "Sold out") + '</span>') + '</span></button>';
+    }).join("");
   }
 
   function renderMilk() {
@@ -338,6 +351,16 @@ export function miniAppHtml(drinks, pay = null) {
       $("pick").hidden = true;
       $("msg").textContent = "The bar is closed right now 🌙 Come back soon!";
     }
+    event = s.event || null;
+    if (event) {
+      $("eventNote").hidden = false;
+      $("eventNote").innerHTML = "🎤 <b>Demo Day</b>: up to " + event.max + " drinks per person today" + (event.used ? " · you've had " + event.used : "") + ".";
+      if (event.used >= event.max && open) {
+        $("pick").hidden = true;
+        $("msg").textContent = "That's your " + event.max + " drinks for today 🙌 See you tomorrow!";
+      }
+    }
+    renderDrinks();
     renderOrders(s.orders);
     renderRanking(s.ranking);
     updateButton();
@@ -376,7 +399,7 @@ export function miniAppHtml(drinks, pay = null) {
 
   $("drinks").addEventListener("click", e => {
     const b = e.target.closest("[data-id]");
-    if (!b) return;
+    if (!b || leftOf(b.dataset.id) === 0) return;
     selected = selected === b.dataset.id ? null : b.dataset.id;
     milk = null;
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();

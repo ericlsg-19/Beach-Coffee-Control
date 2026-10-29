@@ -1,35 +1,38 @@
-<section id="solution" data-transition="fade" style="background:#071110;color:#eef3ee;font-family:'Figtree', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:space-between;gap:56px">
+<section id="solution" data-transition="fade" style="background:#071110;color:#eef3ee;font-family:'Figtree', Arial, sans-serif;padding:128px;display:flex;flex-direction:row;align-items:center;gap:96px">
+<div style="flex:1;display:flex;flex-direction:column;gap:48px">
 <div style="display:flex;flex-direction:column;gap:24px">
 <p style="font-size:24px;letter-spacing:6px;text-transform:uppercase;color:#e8b86a;font-weight:600">How it works</p>
 <h2 style="font-family:'Archivo', 'Arial Black', sans-serif;font-size:72px;font-weight:900;line-height:1.1;text-transform:uppercase">Tap. Sip. <span style="color:#a8e6b8">Tip.</span></h2>
 </div>
-<div style="display:flex;flex-direction:row;align-items:center;gap:24px">
-<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#0c1a17;border:2px solid #1f3a32;border-radius:24px;padding:48px">
-<div style="display:flex;flex-direction:row;align-items:center;justify-content:space-between">
-<x-icon name="Chat" style="color:#a8e6b8;width:72px;height:72px"></x-icon>
-<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#e8b86a">01</p>
-</div>
-<h3 style="font-size:44px;font-weight:600;color:#eef3ee">Order</h3>
-<p style="font-size:32px;color:#a9bdb1;line-height:1.35">Free drinks from a Telegram Mini App, where the event already lives.</p>
-</div>
-<x-shape kind="arrow-right" style="background:#e8b86a;width:64px;height:36px"></x-shape>
-<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#0c1a17;border:2px solid #1f3a32;border-radius:24px;padding:48px">
-<div style="display:flex;flex-direction:row;align-items:center;justify-content:space-between">
-<x-icon name="CheckCircle" style="color:#a8e6b8;width:72px;height:72px"></x-icon>
-<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#e8b86a">02</p>
-</div>
-<h3 style="font-size:44px;font-weight:600;color:#eef3ee">Ready</h3>
-<p style="font-size:32px;color:#a9bdb1;line-height:1.35">One panel for every order; one tap on Ready pings the guest.</p>
-</div>
-<x-shape kind="arrow-right" style="background:#e8b86a;width:64px;height:36px"></x-shape>
-<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#0c1a17;border:2px solid #e8b86a;border-radius:24px;padding:48px">
-<div style="display:flex;flex-direction:row;align-items:center;justify-content:space-between">
-<x-icon name="Lightning" style="color:#e8b86a;width:72px;height:72px"></x-icon>
-<p style="font-family:'JetBrains Mono', 'Courier New', monospace;font-size:32px;color:#e8b86a">03</p>
-</div>
-<h3 style="font-size:44px;font-weight:600;color:#eef3ee">Tip</h3>
-<p style="font-size:32px;color:#a9bdb1;line-height:1.35">An optional tip in USDC on Solana, confirmed onchain in seconds.</p>
+<div style="display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:28px">
+<x-icon name="Chat" style="color:#a8e6b8;width:64px;height:64px"></x-icon>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<h3 style="font-size:36px;font-weight:600;color:#eef3ee"><span style="color:#e8b86a">01</span> Order from your seat</h3>
+<p style="font-size:28px;color:#a9bdb1;line-height:1.4">A Telegram Mini App: pick the drink and the milk, confirm.</p>
 </div>
 </div>
-<aside>Tap, sip, tip. The guest orders a free drink from a Telegram Mini App, where the event already lives. The barista runs every order, Telegram and walk-up, from one panel, and one tap on Ready pings the guest. Then, optionally, the guest tips in USDC on Solana, and the bot confirms it onchain in seconds. LIVE DEMO on the phone, about 60 seconds, leave this slide up: open the bot, tap Order, pick a Latte; it appears on the barista panel; tap Ready and show the ping. Then the tip pop-up: tap 5 USDC, Pay with Phantom, confirm; show the 💛 Tip in the barista’s chat and the transaction on Solscan.</aside>
+<div style="display:flex;flex-direction:row;align-items:center;gap:28px">
+<x-icon name="CheckCircle" style="color:#a8e6b8;width:64px;height:64px"></x-icon>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<h3 style="font-size:36px;font-weight:600;color:#eef3ee"><span style="color:#e8b86a">02</span> Keep building, get pinged</h3>
+<p style="font-size:28px;color:#a9bdb1;line-height:1.4">The barista taps Ready; you only walk over to pick it up.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:28px">
+<x-icon name="Lightning" style="color:#e8b86a;width:64px;height:64px"></x-icon>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px">
+<h3 style="font-size:36px;font-weight:600;color:#eef3ee"><span style="color:#e8b86a">03</span> Tip in USDC, if you like</h3>
+<p style="font-size:28px;color:#a9bdb1;line-height:1.4">Phantom or Solflare, confirmed onchain in seconds.</p>
+</div>
+</div>
+</div>
+<p style="font-size:32px;line-height:1.35;color:#c9d6cd;border-left:6px solid #a8e6b8;padding:8px 0 8px 32px"><b style="color:#a8e6b8">~5 min in line → 0.</b> No more standing at the bar.</p>
+</div>
+<div style="width:560px;display:flex;flex-direction:column;align-items:center;gap:24px;background:#0c1a17;border:2px solid #e8b86a;border-radius:32px;padding:40px">
+<img src="/_blob/060367c4cfb762610882a7012ca74810" alt="QR code that opens the Beach Coffee bot on Telegram" style="width:420px;height:420px;object-fit:contain;border-radius:20px">
+<h3 style="font-family:'Archivo', 'Arial Black', sans-serif;font-size:44px;font-weight:900;line-height:1.1;text-transform:uppercase;color:#e8b86a;text-align:center">Try it now</h3>
+<p style="font-size:28px;line-height:1.4;color:#c9d6cd;text-align:center">Iced Coffee or Iced Latte, on us. Up to 3 per person today.</p>
+</div>
+<aside>Tap, sip, tip. Ask the room to scan the QR and order with you. You order from your seat in a Telegram Mini App: pick the drink and the milk, confirm. You keep building; the barista taps Ready and you get the ping, so you only walk over to pick it up. We timed it: people used to wait about five minutes in line. Now it’s zero. Then, if you like, tip in USDC: Phantom or Solflare, confirmed onchain in seconds. LIVE DEMO, about 60 seconds, leave this slide up: open the bot, tap Order, pick an Iced Latte and the milk, confirm; it appears on the barista panel; tap Ready and show the ping. Then the tip pop-up: tap 2 USDC, Pay with Phantom (from a wallet that isn’t the bar’s), confirm; show the 💛 Tip in the barista’s chat.</aside>
 </section>

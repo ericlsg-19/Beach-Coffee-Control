@@ -135,6 +135,60 @@ test("/total adds up every day of the event, Telegram and bar", async () => {
   assert.match(text, /Telegram customers: 1/);
 });
 
+test("/demoday: today only, a short menu with stock and max 3 drinks per guest; off again the next day", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  const order = (initData, drink, milk) => apiCall(env, "/api/order", { initData, drink, milk }).then(r => r.json());
+
+  // Normal day: Iced Coffee isn't on the menu.
+  assert.equal((await order(ana, "icedcoffee")).ok, false);
+
+  await post(msg(BARISTA, "/demoday icedcoffee=2 icedlatte=10"));
+  assert.match(calls.at(-1).body.text, /Iced Coffee: <b>2<\/b> left of 2[\s\S]*Iced Latte: <b>10<\/b> left of 10/);
+  const session = await (await apiCall(env, "/api/session", { initData: ana })).json();
+  assert.deepEqual(session.event, { drinks: [{ id: "icedcoffee", stock: 2, left: 2 }, { id: "icedlatte", stock: 10, left: 10 }], max: 3, used: 0 });
+
+  assert.match((await order(ana, "latte", "regular")).error, /Iced Coffee or Iced Latte only/);
+  assert.equal((await order(ana, "icedcoffee")).ok, true);
+  assert.equal((await order(ana, "icedlatte", "regular")).ok, true);
+  // Someone else takes the last Iced Coffee; then it's sold out.
+  const leo = signedInitData("t", { id: 7, first_name: "Leo" });
+  assert.equal((await order(leo, "icedcoffee")).ok, true);
+  assert.match((await order(ana, "icedcoffee")).error, /sold out/);
+
+  // Ana's drinks get made; the cap is per day, not per waiting drink.
+  const { orders } = await (await panel(env, "GET", "/api/panel/orders")).json();
+  for (const o of orders) await panel(env, "POST", `/api/panel/orders/${o.id}`, { done: true });
+  assert.equal((await order(ana, "icedlatte", "regular")).ok, true);
+  assert.match((await order(ana, "icedlatte", "regular")).error, /your 3 drinks for today/);
+
+  // The next day (or /demoday off) the full menu is back.
+  await env.DB.prepare("UPDATE settings SET value = ? WHERE key = 'event_day'").bind(JSON.stringify({ day: "2000-01-01", stock: { icedcoffee: 2 }, max: 3 })).run();
+  assert.equal((await (await apiCall(env, "/api/session", { initData: leo })).json()).event, null);
+  assert.equal((await order(leo, "latte", "regular")).ok, true);
+  assert.equal((await order(leo, "icedcoffee")).ok, false);
+  await post(msg(BARISTA, "/demoday off"));
+  assert.match(calls.at(-1).body.text, /full menu is on/);
+});
+
+test("/total shows the time back to build and, once timed, tap to ready", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  await apiCall(env, "/api/order", { initData: ana, drink: "espresso" });
+  await post(msg(BARISTA, "/total"));
+  assert.match(calls.at(-1).body.text, /Time back to build: ~0\.1 h \(1 Telegram orders × 5 min not spent in line\)/);
+  assert.doesNotMatch(calls.at(-1).body.text, /Tap → ready/);
+
+  const { orders } = await (await panel(env, "GET", "/api/panel/orders")).json();
+  await post(tap(BARISTA, `r:${orders[0].id}`));
+  const t = await env.DB.prepare("SELECT ready_at FROM order_times WHERE order_id = ?").bind(Number(orders[0].id)).first();
+  assert.ok(t && t.ready_at);
+  await post(msg(BARISTA, "/total"));
+  assert.match(calls.at(-1).body.text, /Tap → ready: 0 min on average \(1 timed\)/);
+});
+
 test("limits pending drinks per customer and respects /close", async () => {
   const { calls, post } = setup();
   await post(msg(BARISTA, "/barista beach123"));
@@ -190,7 +244,7 @@ const apiCall = (env, path, body) => worker.fetch(new Request(`https://bot${path
   method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body),
 }), env);
 
-test("serves the Mini App page with all 12 drinks", async () => {
+test("serves the Mini App page with the whole menu", async () => {
   const { env } = setup();
   const res = await worker.fetch(new Request("https://bot/app"), env);
   assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
@@ -265,7 +319,7 @@ test("Âncora and the bot share the same menu and version", async () => {
   const bot = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
   const menu = src => [...src.matchAll(/\{ id: "([a-z]+)",\s*name: "([^"]+)" \}/g)].map(m => `${m[1]}=${m[2]}`);
   assert.deepEqual(menu(ancora), menu(bot));
-  assert.equal(menu(bot).length, 12);
+  assert.equal(menu(bot).length, 13);
   const botVersion = bot.match(/const VERSION = "([^"]+)"/)[1];
   assert.ok(ancora.includes(`Âncora v${botVersion}`), `Âncora should show v${botVersion}`);
   const h = await (await worker.fetch(new Request("https://bot/health"), setup().env)).json();
