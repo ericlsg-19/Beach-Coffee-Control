@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS orders_day ON orders (day);
 CREATE INDEX IF NOT EXISTS orders_customer ON orders (customer_chat, status);
 
+-- When an order was marked ready (Telegram button or panel), for the time from tap to ready.
+CREATE TABLE IF NOT EXISTS order_times (
+  order_id INTEGER PRIMARY KEY,
+  ready_at TEXT NOT NULL
+);
+
 -- Optional extras of an order, today only the milk (lactose-free or plant-based). No row = regular.
 CREATE TABLE IF NOT EXISTS order_extras (
   order_id INTEGER PRIMARY KEY,

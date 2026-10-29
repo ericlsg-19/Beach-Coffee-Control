@@ -15,7 +15,7 @@
 //         GET  /pay      tip / coffee bag page (printed QR), /pay/<reference> checkout
 //         /api/pay/...   payments, open to the web
 
-import { miniAppHtml, MILK_DRINKS, MILKS, MILK_CHOICES } from "./miniapp.js";
+import { miniAppHtml, MILK_DRINKS, MILKS, MILK_CHOICES, EVENT_ONLY } from "./miniapp.js";
 import { verifyInitData } from "./initdata.js";
 import { HOW_TO_ORDER_JPG } from "./howto.js";
 import { ANCORA_HTML } from "./ancora-html.js";
@@ -33,13 +33,14 @@ const DRINKS = [
   { id: "flatwhite",  name: "Flat White" },
   { id: "latte",      name: "Latte" },
   { id: "icedlatte",  name: "Iced Latte" },
+  { id: "icedcoffee", name: "Iced Coffee" },
   { id: "mocha",      name: "Mocha" },
   { id: "matcha",     name: "Matcha" },
   { id: "chocolate",  name: "Hot Chocolate" },
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.6.2";
+const VERSION = "1.7.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -95,6 +96,58 @@ async function isOpen(env) {
   return (await getSetting(env, "open")) !== "0";
 }
 
+// ---------- Event day (/demoday) ----------
+//
+// For one day only: a short menu with a stock per drink and at most `max` drinks per guest that day.
+// It's stored with the day it was turned on, so the next day the full menu is back by itself.
+
+const EVENT_DEFAULT = { stock: { icedcoffee: 10, icedlatte: 10 }, max: 3 };
+// Minutes a guest used to stand in line at the bar (timed at the Vila), now spent building instead.
+const LINE_MINUTES = 5;
+
+async function eventDay(env) {
+  try {
+    const e = JSON.parse((await getSetting(env, "event_day")) || "null");
+    return e && e.day === localDay() ? e : null;
+  } catch { return null; }
+}
+
+const ordersToday = (env, column, value) => env.DB.prepare(
+  `SELECT COUNT(*) AS n FROM orders WHERE day = ? AND status != 'cancelled' AND ${column} = ?`
+).bind(localDay(), value).first().then(r => r.n);
+
+// What the Mini App needs on an event day: each drink with what's left, and how many this guest has had.
+async function eventStatus(env, chatId) {
+  const e = await eventDay(env);
+  if (!e) return null;
+  const drinks = [];
+  for (const [id, stock] of Object.entries(e.stock)) drinks.push({ id, stock, left: Math.max(0, stock - await ordersToday(env, "drink", id)) });
+  return { drinks, max: e.max, used: chatId ? await ordersToday(env, "customer_chat", chatId) : 0 };
+}
+
+async function eventText(env) {
+  const s = await eventStatus(env);
+  if (!s) return "Event day is off: the full menu is on.";
+  const name = id => (drinkById(id) || { name: id }).name;
+  return [`🎤 <b>Event day</b> · today only, max ${s.max} drinks per guest`,
+    ...s.drinks.map(d => `${name(d.id)}: <b>${d.left}</b> left of ${d.stock}`),
+    "", "The full menu comes back tomorrow, or now with /demoday off."].join("\n");
+}
+
+// /demoday → Iced Coffee 10 and Iced Latte 10, max 3. /demoday icedcoffee=15 icedlatte=10 max=2 to change it. /demoday off.
+async function demoDayCommand(env, args) {
+  if ((args[0] || "").toLowerCase() === "off") { await setSetting(env, "event_day", ""); return eventText(env); }
+  const stock = {}; let max = EVENT_DEFAULT.max;
+  for (const a of args) {
+    const [k, v] = a.toLowerCase().split("=");
+    if (k === "max" && /^\d+$/.test(v || "")) max = Number(v);
+    else if (drinkById(k) && /^\d+$/.test(v || "")) stock[k] = Number(v);
+  }
+  const e = { day: localDay(), stock: Object.keys(stock).length ? stock : EVENT_DEFAULT.stock, max };
+  await setSetting(env, "event_day", JSON.stringify(e));
+  return eventText(env);
+}
+
 // ---------- Customer flow ----------
 
 async function showMenu(env, chatId, messageId) {
@@ -136,6 +189,18 @@ async function createOrder(env, chatId, from, drink, milk = "") {
     .bind(chatId).first();
   if (pending.n >= MAX_PENDING_PER_CUSTOMER) {
     return { error: `You already have ${pending.n} drinks on the way. We'll message you as soon as they're ready ☕` };
+  }
+
+  const event = await eventDay(env);
+  if (event) {
+    if (!(drink.id in event.stock)) {
+      const names = Object.keys(event.stock).map(id => (drinkById(id) || { name: id }).name).join(" or ");
+      return { error: `Today it's ${names} only. Pick one of those ☕` };
+    }
+    if (await ordersToday(env, "drink", drink.id) >= event.stock[drink.id]) return { error: `${drink.name} is sold out for today 🙏` };
+    if (await ordersToday(env, "customer_chat", chatId) >= event.max) return { error: `That's your ${event.max} drinks for today 🙌 See you tomorrow!` };
+  } else if (EVENT_ONLY.includes(drink.id)) {
+    return { error: "Pick a drink from the menu." };
   }
 
   const day = localDay();
@@ -182,6 +247,12 @@ async function isBaristaChat(env, chatId) {
   return String(chatId) === (await getSetting(env, "barista_chat"));
 }
 
+// The time an order was marked ready (none when it's set back to pending).
+async function markReadyTime(env, orderId, ready) {
+  if (ready) await env.DB.prepare("INSERT OR REPLACE INTO order_times (order_id, ready_at) VALUES (?, ?)").bind(orderId, new Date().toISOString()).run();
+  else await env.DB.prepare("DELETE FROM order_times WHERE order_id = ?").bind(orderId).run();
+}
+
 async function finishOrder(env, chatId, messageId, orderId, status) {
   const order = await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(orderId).first();
   if (!order) return;
@@ -191,6 +262,7 @@ async function finishOrder(env, chatId, messageId, orderId, status) {
     return edit(env, chatId, messageId, `${order.status === "ready" ? "✅" : "❌"} <b>#${order.num} · ${drink.name}</b>\n👤 ${escapeHtml(order.customer_name)}`);
   }
   await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ? AND status = 'pending'").bind(status, orderId).run();
+  if (status === "ready") await markReadyTime(env, orderId, true);
   console.log(`order ${status}`, JSON.stringify({ num: order.num, drink: order.drink }));
 
   if (status === "ready") {
@@ -260,6 +332,11 @@ async function eventReport(env) {
   const dayLabel = day => new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" })
     .format(new Date(`${day}T12:00:00Z`));
   const [top] = await ranking(env);
+  const timed = await env.DB.prepare(
+    `SELECT COUNT(*) AS n, AVG((julianday(t.ready_at) - julianday(o.created_at)) * 1440) AS minutes
+     FROM orders o JOIN order_times t ON t.order_id = o.id WHERE o.customer_chat != 0 AND o.status = 'ready'`
+  ).first();
+  const backHours = telegram.length * LINE_MINUTES / 60;
 
   return [
     `📈 <b>Event so far</b> · since ${dayLabel(days[0])} (${days.length} day${days.length === 1 ? "" : "s"})`,
@@ -271,6 +348,9 @@ async function eventReport(env) {
     `⭐ Top drink: ${name(byDrink[0][0])}`,
     `👥 Telegram customers: ${new Set(telegram.map(o => o.customer_chat)).size}`,
     ...(top ? [`🏆 Top customer: ${escapeHtml(top.name)} (${top.drinks})`] : []),
+    "",
+    `🕐 Time back to build: ~${backHours.toFixed(1)} h (${telegram.length} Telegram orders × ${LINE_MINUTES} min not spent in line)`,
+    ...(timed.n ? [`⏱️ Tap → ready: ${Math.round(timed.minutes)} min on average (${timed.n} timed)`] : []),
     ...(sales.length ? ["", ...sales] : []),
   ].join("\n");
 }
@@ -293,7 +373,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 3 per guest (/demoday off to stop)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -313,6 +393,7 @@ async function onMessage(env, message) {
 
   if (await isBaristaChat(env, chatId)) {
     if (cmd === "/today") return send(env, chatId, await dayReport(env, localDay()));
+    if (cmd === "/demoday") return send(env, chatId, await demoDayCommand(env, args));
     if (cmd === "/total") return send(env, chatId, await eventReport(env));
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
@@ -517,6 +598,7 @@ async function handlePanelApi(request, env, path) {
       await finishOrder(env, baristaChat, order.barista_message_id, order.id, "ready");
     } else {
       await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ?").bind(body.done ? "ready" : "pending", order.id).run();
+      await markReadyTime(env, order.id, !!body.done);
     }
     return json({ ok: true });
   }
@@ -545,6 +627,7 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
+      event: await eventStatus(env, user.id),
       ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
