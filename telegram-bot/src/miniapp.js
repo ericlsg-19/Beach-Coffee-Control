@@ -354,10 +354,11 @@ export function miniAppHtml(drinks, pay = null) {
     event = s.event || null;
     if (event) {
       $("eventNote").hidden = false;
-      $("eventNote").innerHTML = "🎤 <b>Demo Day</b>: up to " + event.max + " drinks per person today" + (event.used ? " · you've had " + event.used : "") + ".";
+      $("eventNote").innerHTML = "🎤 <b>Demo Day</b>: " + (event.max === 1 ? "one drink per person today"
+        : "up to " + event.max + " drinks per person today" + (event.used ? " · you've had " + event.used : "")) + ".";
       if (event.used >= event.max && open) {
         $("pick").hidden = true;
-        $("msg").textContent = "That's your " + event.max + " drinks for today 🙌 See you tomorrow!";
+        $("msg").textContent = "That's your " + (event.max === 1 ? "drink" : event.max + " drinks") + " for today 🙌 See you tomorrow!";
       }
     }
     renderDrinks();

@@ -135,7 +135,7 @@ test("/total adds up every day of the event, Telegram and bar", async () => {
   assert.match(text, /Telegram customers: 1/);
 });
 
-test("/demoday: today only, a short menu with stock and max 3 drinks per guest; off again the next day", async () => {
+test("/demoday: today only, a short menu with stock and a daily cap per guest; off again the next day", async () => {
   const { env, calls, post } = setup();
   await post(msg(BARISTA, "/barista beach123"));
   const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
@@ -144,7 +144,15 @@ test("/demoday: today only, a short menu with stock and max 3 drinks per guest; 
   // Normal day: Iced Coffee isn't on the menu.
   assert.equal((await order(ana, "icedcoffee")).ok, false);
 
-  await post(msg(BARISTA, "/demoday icedcoffee=2 icedlatte=10"));
+  // By default: Iced Coffee 10 + Iced Latte 10, one drink per guest.
+  await post(msg(BARISTA, "/demoday"));
+  assert.match(calls.at(-1).body.text, /max 1 drink per guest[\s\S]*Iced Coffee: <b>10<\/b> left of 10[\s\S]*Iced Latte: <b>10<\/b> left of 10/);
+  const mia = signedInitData("t", { id: 9, first_name: "Mia" });
+  assert.equal((await order(mia, "icedcoffee")).ok, true);
+  assert.equal((await order(mia, "icedlatte", "regular")).error, "That's your drink for today 🙌 See you tomorrow!");
+  await env.DB.prepare("DELETE FROM orders").run();
+
+  await post(msg(BARISTA, "/demoday icedcoffee=2 icedlatte=10 max=3"));
   assert.match(calls.at(-1).body.text, /Iced Coffee: <b>2<\/b> left of 2[\s\S]*Iced Latte: <b>10<\/b> left of 10/);
   const session = await (await apiCall(env, "/api/session", { initData: ana })).json();
   assert.deepEqual(session.event, { drinks: [{ id: "icedcoffee", stock: 2, left: 2 }, { id: "icedlatte", stock: 10, left: 10 }], max: 3, used: 0 });

@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 28/10/2026, bot e Âncora na **v1.7.0** (no ar desde 29/10, PR #14).
+Atualizado em 29/10/2026, bot e Âncora na **v1.7.1** (demo day: 1 bebida por pessoa).
 
 ## O que existe e onde
 
@@ -31,6 +31,7 @@ Atualizado em 28/10/2026, bot e Âncora na **v1.7.0** (no ar desde 29/10, PR #14
 - 27/10: bot no Cloudflare (Workers + D1), mini app, incidente do webhook após `/revoke` (ver OPERATIONS), Âncora dentro do bot (`/panel`), 301 pedidos do Âncora importados, relatórios e ranking (v1.2.0).
 - 28/10: v1.3.0 gorjeta + pacote em USDC (Solana Pay, 20 pacotes a 10 USDC); v1.3.1 RPC reserva (o `api.mainnet-beta` bloqueia a Cloudflare com 403); v1.3.2 diagnóstico em `/health?rpc=1`; deck do pitch (8 slides); banner com QR para o notebook; v1.4.0 gorjeta opcional logo depois do pedido no mini app; v1.5.0 `/total` com o relatório do evento todo; v1.5.1 pop-up de gorjeta depois do pedido; v1.6.0 leite sem lactose ou vegetal e correção do bloqueio da Phantom na primeira tentativa (blockhash `finalized`, transação só com a transferência); v1.6.1 escolha do leite obrigatória nas bebidas com leite; v1.6.2 passos escritos na tela (Step 1, 2, 3).
 - 29/10 (demo day): v1.7.0 `/demoday` (só Iced Coffee 10 + Iced Latte 10, máx. 3 por pessoa no dia, volta ao normal amanhã), Iced Coffee no cardápio (só em dia de evento), hora do Ready gravada e tempo devolvido no `/total` (5 min de fila cronometrados → 0).
+- 29/10 (demo day): v1.7.1 `/demoday` passa a ser **1 bebida por pessoa** ("One drink per person" no mini app). Se o `/demoday` já tinha sido mandado antes do deploy, mandar de novo para valer o novo limite. Para outro limite: `/demoday max=2`.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
