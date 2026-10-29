@@ -44,13 +44,13 @@ GM! We're Beach Coffee Co. We run the coffee bar here at the Island DAO Vila, an
 Picture a coffee bar at a builders' event. Everyone wants coffee in the same break. Orders get shouted and lost. Nobody carries cash. And crypto still breaks: our first Solana QR didn't even open in a phone camera.
 
 **Slide 3 · Tap. Sip. Tip. + live demo (60 s)**
-So we built this: tap, sip, tip. *(phone)* I open our bot on Telegram, tap Order, pick a Latte, choose the milk and confirm. It lands on the barista panel right away, next to the walk-up orders. The barista taps Ready, and I get the ping: "Your Latte is ready." Then the app asks if I want to tip. I tap 5 USDC, Phantom opens, I confirm, and the tip lands in the barista's chat, confirmed onchain.
+So we built this: tap, sip, tip. Scan the QR and order with me: iced coffee is on us today. *(phone)* I open our bot on Telegram, tap Order, pick an Iced Latte, choose the milk and confirm. It lands on the barista panel right away. I keep building; the barista taps Ready, and I get the ping. We timed it: people used to wait about five minutes in line. Now it's zero. Then the app asks if I want to tip. I tap 2 USDC, Phantom opens, I confirm, and the tip lands in the barista's chat, confirmed onchain.
 
 **Slide 4 · Payments on Solana (25 s)**
 How does it work? Every checkout carries a Solana Pay reference. The bot finds that exact transaction onchain and only accepts it if the full USDC amount reached our wallet. Fees in cents, confirmed in seconds, and we never hold anyone's money.
 
 **Slide 5 · The event so far (35 s)**
-And this isn't a prototype. It runs the bar every day: 356 drinks in five days, 100 on our best day. Telegram ordering started on the 27th, and by day two four out of five orders came through it, from 33 different guests. These numbers come straight from the bot.
+And this isn't a prototype. It runs the bar every day: 356 drinks in five days. Telegram ordering started on the 27th, and by day two four out of five orders came through it, from 33 different guests. That's three and a half hours given back to building instead of waiting in line. These numbers come straight from the bot.
 
 **Slide 6 · What's next (20 s)**
 What's next: from one bar to every event. Menu, brand and wallet are just settings, so we want to bring specialty coffee and onchain ordering to web3 events across Brazil. Proof of brew: this was built from zero, at the bar. On the island, anyone can build. Thank you!

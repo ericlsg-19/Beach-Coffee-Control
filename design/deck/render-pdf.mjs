@@ -12,6 +12,7 @@ const dataUri = path => "data:image/png;base64," + readFileSync(new URL(path, im
 const BLOBS = {
   ac28aae1d9e631b6fe1b5e0032361e7c: dataUri("../logo/beach-coffee-logo-badge.png"),
   d9ca6dc20f4d67fb1a3fc7f00f77f0c0: dataUri("../sticker/bag-mockup-transparent.png"),
+  "060367c4cfb762610882a7012ca74810": dataUri("../banner/bot-qr.png"),
 };
 const ICONS = {
   Clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
