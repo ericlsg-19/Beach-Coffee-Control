@@ -28,7 +28,7 @@ Our special Arabica, 250 g bags, only 20 of them.
 
 Once they're gone, they're gone.
 
-beach-coffee-bot.beachcoffeeco.workers.dev/pay
+drinkbeachcoffee.com/pay
 ```
 
 ## Como pedir (`telegram-how-to-order.png`)
@@ -51,5 +51,5 @@ Pick 2, 5 or 10 USDC, pay with Phantom or Solflare. It lands onchain in seconds 
 
 Thanks for keeping the bar running ☕
 
-beach-coffee-bot.beachcoffeeco.workers.dev/pay
+drinkbeachcoffee.com/pay
 ```

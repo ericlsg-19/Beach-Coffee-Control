@@ -1,6 +1,6 @@
 # Bot de pedidos — operação, incidentes e deploy
 
-Bot: [@BeachCoffeeIslandBot](https://t.me/BeachCoffeeIslandBot) · Worker: `https://beach-coffee-bot.beachcoffeeco.workers.dev`
+Bot: [@BeachCoffeeIslandBot](https://t.me/BeachCoffeeIslandBot) · Worker: `https://drinkbeachcoffee.com`
 Conta Cloudflare: `b3854321ef7301985156cc9101001859` · Banco D1: `beach-coffee-bot` (`27fa6662-7253-4d3b-b9b2-ca84f776ae0f`)
 
 Horários em UTC. Florianópolis = UTC−3.
@@ -49,7 +49,7 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 
 ## Âncora no bot e relatórios (v1.1.0)
 
-- **Painel da barista:** `https://beach-coffee-bot.beachcoffeeco.workers.dev/panel`, ou mande `/panel` no chat da barista (o botão já leva o código). Pede o `BARISTA_CODE` uma vez por aparelho. Mostra os pedidos do Telegram e da barra juntos, atualiza a cada 5 segundos, e Ready/✕ num pedido do Telegram avisa o cliente.
+- **Painel da barista:** `https://drinkbeachcoffee.com/panel`, ou mande `/panel` no chat da barista (o botão já leva o código). Pede o `BARISTA_CODE` uma vez por aparelho. Mostra os pedidos do Telegram e da barra juntos, atualiza a cada 5 segundos, e Ready/✕ num pedido do Telegram avisa o cliente.
 - **Pedidos da barra** ficam no mesmo banco, com `customer_chat = 0`.
 - **Relatórios:** `/today` (hoje), `/report AAAA-MM-DD` (outro dia) e, todo dia às 23:00 de Floripa (`0 2 * * *` UTC), o resumo automático no chat da barista: total, Telegram × barra, cada bebida, a mais pedida, horário de pico, clientes do Telegram e quantos ficaram esperando.
 - **CSV:** botão **Download CSV** no painel, com todos os pedidos.
@@ -57,7 +57,7 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 
 ## Gorjetas e pacote de café em USDC (v1.3.0)
 
-- **Onde:** aba **Tip & Bag** no mini app e `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` (QR impresso). Bebidas continuam grátis.
+- **Onde:** aba **Tip & Bag** no mini app e `https://drinkbeachcoffee.com/pay` (QR impresso). Bebidas continuam grátis.
 - **Como o bot confirma:** cada checkout tem uma *reference* (Solana Pay) guardada na tabela `payments`. O cron de cada minuto chama `getSignaturesForAddress(reference)` para os checkouts das últimas 2 horas e confere com `getTransaction` que `SOLANA_ADDRESS` recebeu o valor inteiro em USDC (mint `EPjFWdd5…Dt1v`). Uma mesma transação não paga dois checkouts (`signature` é única). Checkouts sem pagamento viram `expired` depois de 24 h.
 - **Logs:** `payment created`, `payment paid`, `payment check failed` (RPC fora do ar ou limitado), `payment signature reused`.
 - **RPC:** `SOLANA_RPC_URL` (se existir), depois `solana-rpc.publicnode.com`, depois `api.mainnet-beta.solana.com`. Em 28/10 o primeiro pagamento real falhou com `failed to get recent blockhash: 403 Access forbidden`: o `api.mainnet-beta` recusa a Cloudflare e páginas web. A v1.3.1 passou a tentar os outros RPCs antes.
@@ -73,7 +73,7 @@ Cron (a cada minuto) ──► getWebhookInfo / setWebhook / setChatMenuButton
 
 ## Verificar se está tudo bem
 
-1. Abra **`https://beach-coffee-bot.beachcoffeeco.workers.dev/health`**. Esperado:
+1. Abra **`https://drinkbeachcoffee.com/health`**. Esperado:
    ```json
    {"ok":true,"version":"1.3.0","day":"2026-10-28","open":true,"barista_set":true,"orders_today":11,"waiting":3,"payments":true}
    ```

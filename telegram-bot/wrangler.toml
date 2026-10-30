@@ -11,7 +11,7 @@ BAG_PRICE_USDC = "10"
 # How many Limited Edition bags there are. Sales stop when they're sold; remove the line for no limit.
 BAG_STOCK = "20"
 # Where Telegram delivers updates; the scheduled check re-registers it if lost.
-WEBHOOK_URL = "https://beach-coffee-bot.beachcoffeeco.workers.dev"
+WEBHOOK_URL = "https://drinkbeachcoffee.com"
 
 [[d1_databases]]
 binding = "DB"
