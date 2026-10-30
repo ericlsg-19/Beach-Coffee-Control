@@ -40,7 +40,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.3";
+const VERSION = "1.7.4";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -94,6 +94,38 @@ async function setSetting(env, key, value) {
 }
 async function isOpen(env) {
   return (await getSetting(env, "open")) !== "0";
+}
+
+// ---------- Lunch break (/lunch) ----------
+//
+// Every day the barista stops for lunch (13:00–14:00 bar time unless /lunch changes it). Orders still come
+// in: the guest confirms the drink will be ready after lunch, and the barista sees it marked that way.
+
+const LUNCH_DEFAULT = "13:00-14:00";
+const nowHHMM = (date = new Date()) => new Intl.DateTimeFormat("en-GB", { timeZone: TIME_ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+// "14:00" → "2 pm", "13:30" → "1:30 pm"
+const clockLabel = hhmm => { const [h, m] = hhmm.split(":").map(Number); return `${h % 12 || 12}${m ? ":" + String(m).padStart(2, "0") : ""} ${h < 12 ? "am" : "pm"}`; };
+
+async function lunchSetting(env) {
+  const v = (await getSetting(env, "lunch")) || LUNCH_DEFAULT;
+  const m = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(v);
+  return m ? { from: m[1], until: m[2] } : null; // "off" or anything else: no break
+}
+// { from, until, label } while the break is on, null otherwise.
+async function lunchBreak(env, now = nowHHMM()) {
+  const l = await lunchSetting(env);
+  return l && now >= l.from && now < l.until ? { ...l, label: clockLabel(l.until) } : null;
+}
+
+// /lunch → shows it. /lunch 12:30-13:30 to move it, /lunch off to stop it.
+async function lunchCommand(env, args) {
+  const a = (args[0] || "").toLowerCase();
+  if (a === "off") await setSetting(env, "lunch", "off");
+  else if (/^\d{1,2}:\d{2}-\d{1,2}:\d{2}$/.test(a)) await setSetting(env, "lunch", a.split("-").map(t => t.padStart(5, "0")).join("-"));
+  else if (a) return "Use /lunch 13:00-14:00, or /lunch off.";
+  const l = await lunchSetting(env);
+  if (!l) return "🍽️ No lunch break: orders are made right away.";
+  return `🍽️ Lunch break every day ${l.from}–${l.until}.\nOrders still come in; guests confirm they'll be ready from ${l.until}.\n/lunch 12:30-13:30 to change it, /lunch off to stop it.`;
 }
 
 // ---------- Event day (/demoday) ----------
@@ -218,8 +250,11 @@ async function createOrder(env, chatId, from, drink, milk = "") {
     await env.DB.prepare("INSERT INTO order_extras (order_id, milk) VALUES (?, ?)").bind(order.id, milk).run();
   }
 
+  const lunch = await lunchBreak(env);
+  if (lunch) order.lunch = lunch.until;
   const msg = await send(env, baristaChat,
-    `🆕 <b>#${order.num} · ${drink.name}</b>${milk ? `\n🥛 <b>${MILKS[milk]}</b>` : ""}\n👤 ${escapeHtml(name)}\n🕐 ${localTime(createdAt)}`,
+    `🆕 <b>#${order.num} · ${drink.name}</b>${milk ? `\n🥛 <b>${MILKS[milk]}</b>` : ""}\n👤 ${escapeHtml(name)}\n🕐 ${localTime(createdAt)}` +
+      (lunch ? `\n🍽️ <b>After lunch</b> · from ${lunch.until}` : ""),
     { inline_keyboard: [[
       { text: "✅ Ready", callback_data: `r:${order.id}` },
       { text: "❌ Cancel", callback_data: `k:${order.id}` },
@@ -233,7 +268,9 @@ async function createOrder(env, chatId, from, drink, milk = "") {
 
 // No payment details here: drinks are free.
 function receiptText(order, drink) {
-  return `🧾 <b>Order #${order.num}</b> · ${drink.name}${order.milk ? ` · ${MILKS[order.milk]}` : ""}\nGot it! We'll message you here when it's ready.`;
+  return `🧾 <b>Order #${order.num}</b> · ${drink.name}${order.milk ? ` · ${MILKS[order.milk]}` : ""}\n` + (order.lunch
+    ? `Got it! The barista is on lunch break 🍽️ Your drink will be ready from ${clockLabel(order.lunch)}. We'll message you here.`
+    : "Got it! We'll message you here when it's ready.");
 }
 
 // Order placed from the chat buttons: the menu message turns into the receipt.
@@ -374,7 +411,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -395,6 +432,7 @@ async function onMessage(env, message) {
   if (await isBaristaChat(env, chatId)) {
     if (cmd === "/today") return send(env, chatId, await dayReport(env, localDay()));
     if (cmd === "/demoday") return send(env, chatId, await demoDayCommand(env, args));
+    if (cmd === "/lunch") return send(env, chatId, await lunchCommand(env, args));
     if (cmd === "/total") return send(env, chatId, await eventReport(env));
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
@@ -628,7 +666,7 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
-      event: await eventStatus(env, user.id),
+      event: await eventStatus(env, user.id), lunch: await lunchBreak(env),
       ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
@@ -637,13 +675,16 @@ async function handleApi(request, env, path) {
     if (MILK_DRINKS.includes(drink.id) && !MILK_CHOICES.includes(body.milk)) {
       return json({ ok: false, error: "Choose your milk first: regular, lactose-free or plant-based." }, 400);
     }
+    // During lunch the guest must have seen and accepted "ready from 2 pm" first.
+    const lunch = await lunchBreak(env);
+    if (lunch && !body.afterLunch) return json({ ok: false, lunch, error: `The barista is on lunch break until ${lunch.label}.` });
     const { order, error } = await createOrder(env, user.id, user, drink, body.milk);
     if (error) {
       console.log("order refused", JSON.stringify({ chat: user.id, drink: drink.id, error }));
       return json({ ok: false, error });
     }
     await send(env, user.id, receiptText(order, drink));
-    return json({ ok: true, order: { num: order.num, drink: drink.id, ...(order.milk ? { milk: order.milk } : {}) }, orders: await todaysOrders(env, user.id) });
+    return json({ ok: true, order: { num: order.num, drink: drink.id, ...(order.milk ? { milk: order.milk } : {}), ...(order.lunch ? { lunch: clockLabel(order.lunch) } : {}) }, orders: await todaysOrders(env, user.id) });
   }
   return json({ ok: false, error: "Not found" }, 404);
 }

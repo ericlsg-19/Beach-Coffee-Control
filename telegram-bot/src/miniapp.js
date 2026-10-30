@@ -160,6 +160,7 @@ export function miniAppHtml(drinks, pay = null) {
     <div class="card" id="orders"></div>
   </section>
   <section id="pick">
+    <p class="note" id="lunchNote" hidden style="margin-bottom:12px"></p>
     <p class="note" id="eventNote" hidden style="margin-bottom:12px"></p>
     <p class="eyebrow" style="margin-bottom:10px">Step 1 · Pick your drink</p>
     <div class="drinks" id="drinks"></div>
@@ -239,7 +240,7 @@ export function miniAppHtml(drinks, pay = null) {
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg ? tg.initData : "";
   const $ = id => document.getElementById(id);
-  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = null, event = null;
+  let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = null, event = null, lunch = null;
 
   if (tg) {
     tg.ready(); tg.expand();
@@ -358,6 +359,9 @@ export function miniAppHtml(drinks, pay = null) {
       $("pick").hidden = true;
       $("msg").textContent = "The bar is closed right now 🌙 Come back soon!";
     }
+    lunch = s.lunch || null;
+    $("lunchNote").hidden = !lunch;
+    if (lunch) $("lunchNote").innerHTML = "🍽️ <b>Lunch break</b> until " + esc(lunch.label) + ". You can still order: it'll be ready from " + esc(lunch.label) + ".";
     event = s.event || null;
     if (event) {
       $("eventNote").hidden = false;
@@ -374,10 +378,19 @@ export function miniAppHtml(drinks, pay = null) {
     updateButton();
   }
 
+  // Telegram's own pop-up when there is one, the browser's otherwise.
+  const ask = text => new Promise(ok => tg && tg.showConfirm ? tg.showConfirm(text, ok) : ok(confirm(text)));
+  const lunchQuestion = l => "🍽️ The barista is on lunch break until " + l.label + ".\\n\\nYour " + drinkName(selected) + " will be ready from " + l.label + ". Order it?";
   async function order() {
     if (!selected || needsMilk() || busy) return;
+    if (lunch && !(await ask(lunchQuestion(lunch)))) return;
     busy = true; updateButton();
-    const r = await api("/api/order", { drink: selected, milk });
+    let r = await api("/api/order", { drink: selected, milk, afterLunch: !!lunch });
+    // Lunch started while the menu was open: ask now, then send it again.
+    if (!r.ok && r.lunch) {
+      lunch = r.lunch;
+      r = (await ask(lunchQuestion(lunch))) ? await api("/api/order", { drink: selected, milk, afterLunch: true }) : { ok: false, error: "" };
+    }
     busy = false;
     if (!r.ok) {
       tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("error");
@@ -391,7 +404,7 @@ export function miniAppHtml(drinks, pay = null) {
     $("done").innerHTML =
       '<p class="eyebrow">Order #' + r.order.num + (r.order.milk ? ' · ' + esc(MILKS[r.order.milk]) : '') + '</p>' +
       '<h2>' + esc(drinkName(r.order.drink)) + '<br><b>on the way</b></h2>' +
-      '<p class="note">We\\'ll message you in the chat when it\\'s ready ☕</p>' +
+      '<p class="note">' + (r.order.lunch ? '🍽️ Ready from ' + esc(r.order.lunch) + ', after the barista\\'s lunch. We\\'ll message you in the chat ☕' : 'We\\'ll message you in the chat when it\\'s ready ☕') + '</p>' +
       '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
       (PAY ? '<div class="pay-card tip-after"><h3>💛 Tip the barista?</h3><p class="note">Optional, in USDC on Solana. Drinks stay on the house.</p>' +
         '<div class="chips">' + PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") +
