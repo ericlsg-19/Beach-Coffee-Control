@@ -240,16 +240,38 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     throw Object.assign(new Error("no blockhash"), { network: true });
   }
 
-  // Whether the barista's USDC account already exists; unknown counts as no.
-  async function accountExists(address) {
+  // One JSON-RPC call against the public RPCs, first answer wins. Returns the whole reply (result or error), or null.
+  async function rpcCall(method, params) {
     for (const url of C.rpcs) {
       const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getAccountInfo", params: [address, { encoding: "base64", commitment: "finalized" }] }) })
-        .then(r => r.json()).catch(() => null);
-      if (r && r.result) return !!r.result.value;
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }).then(r => r.json()).catch(() => null);
+      if (r && (r.result !== undefined || r.error)) return r;
     }
-    return false;
+    return null;
   }
+  // Whether the barista's USDC account already exists; unknown counts as no.
+  async function accountExists(address) {
+    const r = await rpcCall("getAccountInfo", [address, { encoding: "base64", commitment: "finalized" }]);
+    return !!(r && r.result && r.result.value);
+  }
+  // Before the wallet opens: a clear message when this wallet can't pay (no USDC, or no SOL for the fee).
+  // Unknown (RPC down) lets the wallet decide.
+  async function checkFunds(payer, from, micro, needsRent) {
+    const [usdc, sol] = await Promise.all([
+      rpcCall("getTokenAccountBalance", [from, { commitment: "confirmed" }]),
+      rpcCall("getBalance", [payer, { commitment: "confirmed" }]),
+    ]);
+    const amount = C.payment.amount;
+    if (usdc && usdc.error) throw { friendly: "This wallet has no USDC on Solana yet. Add at least " + amount + " USDC (Solana network) and try again." };
+    if (usdc && usdc.result && Number(usdc.result.value.amount) < micro) {
+      throw { friendly: "This wallet has " + usdc.result.value.uiAmountString + " USDC on Solana; you need " + amount + "." };
+    }
+    if (sol && sol.result && sol.result.value < (needsRent ? 2100000 : 10000)) {
+      throw { friendly: "This wallet needs a little SOL for the network fee (" + (needsRent ? "about 0.0021 SOL" : "0.0001 SOL is plenty") + ")." };
+    }
+  }
+  const b64 = bytes => btoa(String.fromCharCode.apply(null, bytes));
+  const rejected = err => err && (err.code === 4001 || /reject|cancel|denied|declined|closed/i.test(String(err.message || "")));
 
   // Builds the USDC transfer with the payment's reference attached and asks the wallet to send it.
   async function payInWallet(p) {
@@ -273,10 +295,21 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
       key(from, false, true), key(mint, false, false), key(to, false, true), key(payer, true, false), key(reference, false, false)] });
     // Only the transfer when the account is there: a plain "send USDC" is what wallets simulate best.
     const [bh, exists] = await Promise.all([recentBlockhash(), accountExists(to.toBase58())]);
+    await checkFunds(payer.toBase58(), from.toBase58(), p.micro, !exists);
     const tx = new W.Transaction({ feePayer: payer, blockhash: bh.blockhash, lastValidBlockHeight: bh.lastValidBlockHeight });
     if (!exists) tx.add(create);
     tx.add(transfer);
-    return wallet.signAndSendTransaction(tx);
+    try {
+      return await wallet.signAndSendTransaction(tx);
+    } catch (err) {
+      // Some wallets (Solflare in its browser) fail on sign-and-send but can sign; then the page sends it.
+      if (rejected(err) || !wallet.signTransaction) throw err;
+      const signed = await wallet.signTransaction(tx);
+      const r = await rpcCall("sendTransaction", [b64(signed.serialize({ verifySignatures: false })), { encoding: "base64", preflightCommitment: "confirmed" }]);
+      if (!r) throw Object.assign(new Error("no RPC"), { network: true });
+      if (r.error) throw new Error(r.error.message || "the network refused the transaction");
+      return { signature: r.result };
+    }
   }
   $("payNow").addEventListener("click", async () => {
     $("payNow").disabled = true; $("payErr").textContent = "";
@@ -285,8 +318,9 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
       $("payNow").textContent = "Sent ✓ confirming…";
     } catch (err) {
       const msg = String(err && err.message || "");
-      $("payErr").textContent = err && err.network ? "The Solana network didn't answer. Wait a few seconds and tap Pay again."
-        : /reject|cancel|denied/i.test(msg) ? "Payment cancelled."
+      $("payErr").textContent = err && err.friendly ? err.friendly
+        : err && err.network ? "The Solana network didn't answer. Wait a few seconds and tap Pay again."
+        : rejected(err) ? "Payment cancelled."
         : "Couldn't send: " + msg + ". Check you have " + C.payment.amount + " USDC on Solana and a little SOL for the fee.";
       $("payNow").disabled = false;
     }
