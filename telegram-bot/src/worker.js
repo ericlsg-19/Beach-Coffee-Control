@@ -852,6 +852,12 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
     const base = env.WEBHOOK_URL || url.origin;
+    // Pages opened on the old workers.dev address (printed cards, old links) move to our own domain, where
+    // wallets don't flag the site. The fragment (Telegram's initData, the panel key) survives the redirect.
+    if (request.method === "GET" && url.hostname.endsWith(".workers.dev") && base !== url.origin
+      && (path === "/app" || path === "/panel" || path === "/pay" || path.startsWith("/pay/"))) {
+      return Response.redirect(base + path + url.search, 301);
+    }
     if (path === "/app") {
       const pay = paymentsOn(env) ? await payConfig(env) : null;
       return new Response(miniAppHtml(DRINKS, pay), { headers: { "content-type": "text/html; charset=utf-8" } });

@@ -56,4 +56,5 @@ jobs:
         run: npm run deploy
       - name: Health check
         if: env.HAS_TOKEN == 'true'
-        run: curl --fail --silent --show-error --retry 5 --retry-delay 5 https://beach-coffee-bot.beachcoffeeco.workers.dev/health
+        # The public address is WEBHOOK_URL in wrangler.toml (our own domain once it's set).
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 5 "$(sed -n 's/^WEBHOOK_URL = "\(.*\)"/\1/p' wrangler.toml)/health"

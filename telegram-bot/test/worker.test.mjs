@@ -261,6 +261,19 @@ test("serves the Mini App page with the whole menu", async () => {
   for (const name of ["Freddo Espresso", "Iced Latte", "Hot Chocolate"]) assert.ok(html.includes(name), name);
 });
 
+test("pages on the old workers.dev address move to WEBHOOK_URL; the API and webhook keep working there", async () => {
+  const { env } = setup();
+  env.WEBHOOK_URL = "https://beachcoffee.example";
+  const old = "https://beach-coffee-bot.beachcoffeeco.workers.dev";
+  for (const path of ["/app", "/pay", "/pay/abc", "/panel"]) {
+    const res = await worker.fetch(new Request(old + path), env);
+    assert.equal(res.status, 301, path);
+    assert.equal(res.headers.get("location"), "https://beachcoffee.example" + path);
+  }
+  assert.equal((await worker.fetch(new Request(old + "/health"), env)).status, 200);
+  assert.equal((await worker.fetch(new Request("https://beachcoffee.example/app"), env)).status, 200);
+});
+
 test("Mini App rejects forged or expired initData", async () => {
   const { env } = setup();
   const forged = signedInitData("some-other-token", { id: ANA, first_name: "Ana" });
