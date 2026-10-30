@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.7.5**, no domínio próprio **drinkbeachcoffee.com**.
+Atualizado em 29/10/2026, bot e Âncora na **v1.7.6**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -36,6 +36,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.7.5**, no domínio próprio **dr
 - 30/10: v1.7.3: depois do pedido, o cartão e o pop-up oferecem também o **pacote Island DAO Edition** (10 USDC, quantos restam); um toque vai direto ao pagamento. Some quando esgota.
 - 30/10: v1.7.4: **pausa de almoço todo dia 13:00–14:00** (horário de Floripa). Os pedidos continuam entrando: antes de confirmar, o cliente vê "The barista is on lunch break until 2 pm… will be ready from 2 pm. Order it?"; a barista recebe o pedido com "🍽️ After lunch · from 14:00". `/lunch 12:30-13:30` muda o horário, `/lunch off` desliga. Também pronto para domínio próprio: com `WEBHOOK_URL` apontando para outro domínio, `/app`, `/panel` e `/pay` no workers.dev redirecionam para ele.
 - 30/10: v1.7.5: o bot passa para **https://drinkbeachcoffee.com** (`WEBHOOK_URL`), para as carteiras pararem de marcar o site como golpe. O webhook e o botão "Order ☕" se movem sozinhos pelo cron; `/app`, `/panel` e `/pay` no endereço antigo redirecionam. Pedir revisão do domínio novo à Phantom e à Solflare. O card impresso de `/pay` com o endereço antigo continua funcionando (redireciona).
+- 30/10: v1.7.6: **Solflare é o botão principal** (quase todos na Vila usam Solflare); Phantom fica como segunda opção e o Solana Pay como plano B ("Blocked by your wallet?").
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

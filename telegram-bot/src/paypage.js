@@ -104,10 +104,10 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     </div>
 
     <div id="openWallet" hidden style="display:grid;gap:10px">
-      <a class="btn" id="phantom" rel="noopener">Pay with Phantom</a>
-      <a class="btn ghost" id="solflare" rel="noopener">Pay with Solflare</a>
+      <a class="btn" id="solflare" rel="noopener">Pay with Solflare</a>
+      <a class="btn ghost" id="phantom" rel="noopener">Pay with Phantom</a>
       <a class="btn ghost" id="solanaPay" rel="noopener">Open my wallet app (Solana Pay)</a>
-      <p class="note">If Phantom blocks the payment, use Solana Pay: your wallet opens with the tip filled in, you just confirm.</p>
+      <p class="note">If your wallet blocks the payment, use Solana Pay: your wallet opens with the tip filled in, you just confirm.</p>
     </div>
 
     <div class="card">
@@ -119,7 +119,7 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
       <details id="qrBox">
         <summary>Scan with a wallet app</summary>
         <div class="qr" id="qr"></div>
-        <p class="note" style="text-align:center">Open the scanner inside Phantom or Solflare, not the phone camera.</p>
+        <p class="note" style="text-align:center">Open the scanner inside Solflare or Phantom, not the phone camera.</p>
       </details>
     </div>
 
