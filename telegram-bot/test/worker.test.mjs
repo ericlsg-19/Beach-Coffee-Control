@@ -11,6 +11,7 @@ import { PUBLIC_RPCS } from "../src/pay.js";
 function d1() {
   const db = new DatabaseSync(":memory:");
   db.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+  db.exec("INSERT INTO settings (key, value) VALUES ('lunch', 'off')"); // the real clock must not land tests in the lunch break
   return {
     prepare(sql) {
       let params = [];
@@ -180,6 +181,36 @@ test("/demoday: today only, a short menu with stock and a daily cap per guest; o
   assert.match(calls.at(-1).body.text, /full menu is on/);
 });
 
+test("lunch break: guests confirm 'ready from 2 pm', the barista sees it, /lunch moves or stops it", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  const order = body => apiCall(env, "/api/order", { initData: ana, ...body }).then(r => r.json());
+  const hhmm = ms => new Intl.DateTimeFormat("en-GB", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(Date.now() + ms));
+  // A break that started a minute ago and ends in an hour.
+  const until = hhmm(60 * 60 * 1000);
+  await post(msg(BARISTA, `/lunch ${hhmm(-60 * 1000)}-${until}`));
+  assert.match(calls.at(-1).body.text, /Lunch break every day/);
+  if (until < hhmm(-60 * 1000)) return; // the hour crosses midnight: nothing to check
+
+  const session = await (await apiCall(env, "/api/session", { initData: ana })).json();
+  assert.equal(session.lunch.until, until);
+  // Without the guest's OK the order waits; with it, it goes through marked for after lunch.
+  const asked = await order({ drink: "espresso" });
+  assert.equal(asked.ok, false);
+  assert.equal(asked.lunch.until, until);
+  calls.length = 0;
+  const r = await order({ drink: "espresso", afterLunch: true });
+  assert.equal(r.ok, true);
+  assert.ok(r.order.lunch);
+  assert.match(calls.find(c => c.body.chat_id === String(BARISTA)).body.text, new RegExp(`After lunch</b> · from ${until}`));
+  assert.match(calls.find(c => c.body.chat_id === ANA).body.text, /on lunch break 🍽️ Your drink will be ready from/);
+
+  await post(msg(BARISTA, "/lunch off"));
+  assert.match(calls.at(-1).body.text, /No lunch break/);
+  assert.equal((await (await apiCall(env, "/api/session", { initData: ana })).json()).lunch, null);
+});
+
 test("/total shows the time back to build and, once timed, tap to ready", async () => {
   const { env, calls, post } = setup();
   await post(msg(BARISTA, "/barista beach123"));
@@ -259,6 +290,19 @@ test("serves the Mini App page with the whole menu", async () => {
   const html = await res.text();
   assert.match(html, /telegram-web-app\.js/);
   for (const name of ["Freddo Espresso", "Iced Latte", "Hot Chocolate"]) assert.ok(html.includes(name), name);
+});
+
+test("pages on the old workers.dev address move to WEBHOOK_URL; the API and webhook keep working there", async () => {
+  const { env } = setup();
+  env.WEBHOOK_URL = "https://beachcoffee.example";
+  const old = "https://beach-coffee-bot.beachcoffeeco.workers.dev";
+  for (const path of ["/app", "/pay", "/pay/abc", "/panel"]) {
+    const res = await worker.fetch(new Request(old + path), env);
+    assert.equal(res.status, 301, path);
+    assert.equal(res.headers.get("location"), "https://beachcoffee.example" + path);
+  }
+  assert.equal((await worker.fetch(new Request(old + "/health"), env)).status, 200);
+  assert.equal((await worker.fetch(new Request("https://beachcoffee.example/app"), env)).status, 200);
 });
 
 test("Mini App rejects forged or expired initData", async () => {
