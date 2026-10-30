@@ -205,9 +205,9 @@ export function miniAppHtml(drinks, pay = null) {
         <div class="amount" id="payAmount"></div>
         <p class="note">USDC on the Solana network.</p>
       </div>
-      <button class="btn wide" id="payPhantom">Pay with Phantom</button>
-      <button class="btn ghost wide" id="paySolflare">Pay with Solflare</button>
-      <button class="btn ghost wide" id="paySolanaPay">Blocked by Phantom? Use Solana Pay</button>
+      <button class="btn wide" id="paySolflare">Pay with Solflare</button>
+      <button class="btn ghost wide" id="payPhantom">Pay with Phantom</button>
+      <button class="btn ghost wide" id="paySolanaPay">Blocked by your wallet? Use Solana Pay</button>
       <div class="pay-card">
         <h3>Other wallet or exchange</h3>
         <p class="note">Send exactly this amount of <b>USDC</b> on <b>Solana</b> to:</p>
