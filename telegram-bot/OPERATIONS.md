@@ -140,3 +140,9 @@ Cobrem: webhook com e sem segredo, pedido completo pelo chat, Ready/Cancel, limi
 Se continuar aparecendo, o domínio pode estar marcado: subdomínios `*.workers.dev` são muito usados por golpes. O caminho é um domínio próprio no Cloudflare (Workers → Custom Domains) e pedir revisão à Phantom (lista de bloqueio em github.com/phantom/blocklist).
 
 30/10: virou bloqueio fixo, "Scam site detected · We blocked the transaction to protect your assets". O domínio não está em `github.com/phantom/blocklist`: é o scanner em tempo real da Phantom (Blowfish) marcando o site, não a transação. Desde a v1.7.2 há um caminho que não passa por ele: **"Blocked by Phantom? Use Solana Pay"** (mini app) abre o checkout no navegador do celular, e **"Open my wallet app (Solana Pay)"** entrega à carteira um link `solana:` com valor, USDC e reference. A carteira monta a transferência sozinha e o bot confirma pela reference como sempre. Dentro do navegador da Phantom o mesmo link aparece como "Blocked? Pay with Solana Pay".
+
+## Solflare: "Couldn't send: Failed to sign transaction"
+
+30/10, já em drinkbeachcoffee.com (sem alerta de golpe). Desde a v1.7.7 a página de pagamento:
+- confere o saldo antes de abrir a carteira e diz o que falta: "no USDC on Solana yet", "has 0.5 USDC; you need 1", "needs a little SOL for the network fee";
+- se `signAndSendTransaction` falhar (sem ser cancelamento), pede só `signTransaction` e envia a transação assinada pelo RPC público. A mensagem de erro da rede, se houver, aparece na tela.
