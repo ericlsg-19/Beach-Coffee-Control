@@ -11,7 +11,7 @@
 |---|---|
 | Pagamento real na rede, de outra carteira, com link do Solscan | **Falta** (pendência nº 1 em `docs/STATE.md`) |
 | Repositório no GitHub com README | Pronto. Está privado: tornar público ou dar acesso aos jurados. O histórico não tem tokens. |
-| Demo ao vivo | Pronto: [@BeachCoffeeIslandBot](https://t.me/BeachCoffeeIslandBot) e `https://beach-coffee-bot.beachcoffeeco.workers.dev/pay` |
+| Demo ao vivo | Pronto: [@BeachCoffeeIslandBot](https://t.me/BeachCoffeeIslandBot) e `https://drinkbeachcoffee.com/pay` |
 | Vídeo de pitch (até ~3 min) | Falta |
 | Vídeo de demo técnica (~2–3 min): pedido → barista → Ready; gorjeta/pacote → Solscan → aviso | Falta |
 | Deck (6–8 slides) | Pronto: https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (6 slides, notas do apresentador em inglês, cópia em `design/deck/`). Números do `/total` em 28/10 12:33: 356 bebidas em 5 dias, 47 pelo Telegram de 33 pessoas. Está privado: compartilhar pelo menu Share. |
