@@ -119,6 +119,11 @@ export function miniAppHtml(drinks, pay = null) {
   .amount small { font: 600 1rem/1 var(--body); color: var(--muted); letter-spacing: .1em; margin-left: 6px; }
   .wide { width: 100%; }
   .tip-after { justify-self: stretch; text-align: left; margin-top: 18px; }
+  .bag-offer { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; text-align: left; padding: 14px 16px; border-radius: 18px;
+    border: 1px solid var(--gold); color: var(--text); font: 500 .95rem/1.3 var(--body); cursor: pointer;
+    background: radial-gradient(120% 140% at 100% 0%, rgba(232,184,106,.22), transparent 60%), var(--card-2); }
+  .bag-offer .ic { font-size: 1.6rem; } .bag-offer b { display: block; font-weight: 600; } .bag-offer small { color: var(--muted); font-size: .8rem; }
+  .bag-offer .price { white-space: nowrap; }
   .sheet { position: fixed; inset: 0; z-index: 10; display: flex; align-items: flex-end; justify-content: center; background: rgba(3,8,7,.62); animation: fade .2s ease-out; }
   .sheet-card { width: 100%; max-width: 560px; border: 1px solid var(--line); border-bottom: 0; border-radius: 28px 28px 0 0; padding: 22px 18px calc(22px + env(safe-area-inset-bottom, 0px));
     background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.16), transparent 60%), var(--card); display: grid; gap: 14px; animation: rise .25s ease-out; }
@@ -221,8 +226,9 @@ export function miniAppHtml(drinks, pay = null) {
   <div class="sheet-card">
     <p class="eyebrow">Drinks are on the house ☕</p>
     <h3 id="tipSheetTitle">Tip the <b>barista?</b></h3>
-    <p class="note">Optional. Paid in USDC on Solana, straight to the barista.</p>
+    <p class="note">Optional. Paid in USDC on Solana, straight to the barista. Or take home our limited coffee bag.</p>
     <div class="chips" id="sheetChips"></div>
+    <div id="sheetBag"></div>
     <button class="btn ghost wide" id="sheetLater">Maybe later</button>
   </div>
 </div>
@@ -389,7 +395,7 @@ export function miniAppHtml(drinks, pay = null) {
       '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
       (PAY ? '<div class="pay-card tip-after"><h3>💛 Tip the barista?</h3><p class="note">Optional, in USDC on Solana. Drinks stay on the house.</p>' +
         '<div class="chips">' + PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") +
-        '<button class="chip" data-tip="other">Other</button></div></div>' : '');
+        '<button class="chip" data-tip="other">Other</button></div>' + bagOffer() + '</div>' : '');
     $("done").hidden = false;
     $("close").onclick = () => tg ? tg.close() : null;
     $("again").onclick = () => { selected = null; milk = null; renderMilk(); $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
@@ -423,6 +429,12 @@ export function miniAppHtml(drinks, pay = null) {
 
   // ----- Tip & Bag -----
   let payPick = null, payPoll = null;
+  // The limited-edition bag, offered next to the tip right after an order (card and pop-up).
+  function bagOffer() {
+    if (!PAY || PAY.bagsLeft === 0) return "";
+    return '<button class="bag-offer" data-bag><span class="ic">🛍️</span><span><b>Island DAO Edition coffee bag</b><small>Limited edition' +
+      (PAY.bagsLeft != null ? ' · only ' + PAY.bagsLeft + ' left' : '') + '</small></span><span class="price">' + PAY.bagPrice + ' USDC</span></button>';
+  }
   function payAmountPicked() {
     if (!payPick) return null;
     if (payPick.kind === "bag") return PAY.bagPrice;
@@ -490,13 +502,14 @@ export function miniAppHtml(drinks, pay = null) {
     const closeSheet = () => { $("tipSheet").hidden = true; };
     $("sheetLater").addEventListener("click", closeSheet);
     $("tipSheet").addEventListener("click", e => { if (e.target === $("tipSheet")) closeSheet(); });
+    $("sheetBag").innerHTML = bagOffer();
     const tipFromChip = e => {
-      const b = e.target.closest("[data-tip]"); if (!b) return;
+      const b = e.target.closest("[data-tip], [data-bag]"); if (!b) return;
       closeSheet();
       clearInterval(payPoll);
       $("payDone").hidden = true; $("payBox").hidden = true; $("payPick").hidden = false;
       showTab("pay");
-      payPick = { kind: "tip", v: b.dataset.tip }; renderPayPick();
+      payPick = b.hasAttribute("data-bag") ? { kind: "bag" } : { kind: "tip", v: b.dataset.tip }; renderPayPick();
       if (payPick.v === "other") $("custom").focus(); else startPay();
     };
     $("done").addEventListener("click", tipFromChip);
