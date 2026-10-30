@@ -100,11 +100,14 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     <div id="inWallet" hidden style="display:grid;gap:10px">
       <button class="btn" id="payNow"></button>
       <p class="note">You'll confirm it in your wallet. A tiny bit of SOL pays the network fee.</p>
+      <a class="btn ghost" id="solanaPayIn" rel="noopener">Blocked? Pay with Solana Pay</a>
     </div>
 
     <div id="openWallet" hidden style="display:grid;gap:10px">
       <a class="btn" id="phantom" rel="noopener">Pay with Phantom</a>
       <a class="btn ghost" id="solflare" rel="noopener">Pay with Solflare</a>
+      <a class="btn ghost" id="solanaPay" rel="noopener">Open my wallet app (Solana Pay)</a>
+      <p class="note">If Phantom blocks the payment, use Solana Pay: your wallet opens with the tip filled in, you just confirm.</p>
     </div>
 
     <div class="card">
@@ -188,6 +191,8 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     $("qrBox").open = matchMedia("(min-width: 760px)").matches;
     $("phantom").href = p.phantom;
     $("solflare").href = p.solflare;
+    // Solana Pay: the wallet builds the transfer itself (with the reference), so no web page asks it to sign.
+    $("solanaPay").href = $("solanaPayIn").href = p.solanaPay;
     $("payNow").textContent = "Pay " + p.amount + " USDC";
     $("checkout").hidden = false;
     const showWallet = () => { const inside = !!provider(); $("inWallet").hidden = !inside; $("openWallet").hidden = inside; };

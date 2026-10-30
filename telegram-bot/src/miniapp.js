@@ -201,6 +201,7 @@ export function miniAppHtml(drinks, pay = null) {
       </div>
       <button class="btn wide" id="payPhantom">Pay with Phantom</button>
       <button class="btn ghost wide" id="paySolflare">Pay with Solflare</button>
+      <button class="btn ghost wide" id="paySolanaPay">Blocked by Phantom? Use Solana Pay</button>
       <div class="pay-card">
         <h3>Other wallet or exchange</h3>
         <p class="note">Send exactly this amount of <b>USDC</b> on <b>Solana</b> to:</p>
@@ -450,6 +451,8 @@ export function miniAppHtml(drinks, pay = null) {
     $("payAmt").textContent = p.amount;
     $("payPhantom").onclick = () => openLink(p.phantom);
     $("paySolflare").onclick = () => openLink(p.solflare);
+    // Opens the checkout in the phone's browser, where "Open my wallet app" hands the wallet a Solana Pay link.
+    $("paySolanaPay").onclick = () => openLink(p.page);
     $("payBox").hidden = false;
     clearInterval(payPoll);
     payPoll = setInterval(async () => {
