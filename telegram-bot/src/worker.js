@@ -40,7 +40,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.7";
+const VERSION = "1.7.8";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -92,8 +92,18 @@ async function setSetting(env, key, value) {
   await env.DB.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
     .bind(key, String(value)).run();
 }
+// The bar is closed on weekends (Saturday and Sunday, bar time) unless /open opens that day (or the
+// "weekends" setting is "open"), and any day after /close. closedText says why, for the guest; isOpen is the yes/no.
+const WEEKEND_TEXT = "The barista is off touching sand 🏝️ Orders open again Monday. Keep building ☕";
+const CLOSED_TEXT = "The bar is closed right now 🌙 Come back soon!";
+const isWeekend = (date = new Date()) => ["Sat", "Sun"].includes(new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, weekday: "short" }).format(date));
+async function closedText(env) {
+  if ((await getSetting(env, "open")) === "0") return CLOSED_TEXT;
+  if (isWeekend() && (await getSetting(env, "weekends")) !== "open" && (await getSetting(env, "open_day")) !== localDay()) return WEEKEND_TEXT;
+  return null;
+}
 async function isOpen(env) {
-  return (await getSetting(env, "open")) !== "0";
+  return !(await closedText(env));
 }
 
 // ---------- Lunch break (/lunch) ----------
@@ -184,8 +194,9 @@ async function demoDayCommand(env, args) {
 // ---------- Customer flow ----------
 
 async function showMenu(env, chatId, messageId) {
-  if (!(await isOpen(env))) {
-    const text = "The bar is closed right now 🌙 Come back soon!";
+  const closed = await closedText(env);
+  if (closed) {
+    const text = closed;
     return messageId ? edit(env, chatId, messageId, text) : send(env, chatId, text);
   }
   // Ordering happens in the Mini App, opened from the "Order ☕" button next to the message box.
@@ -213,7 +224,8 @@ async function askConfirm(env, chatId, messageId, drink) {
 // milk: a key of MILKS for a drink made with milk; anything else means regular.
 async function createOrder(env, chatId, from, drink, milk = "") {
   if (!MILKS[milk] || !MILK_DRINKS.includes(drink.id)) milk = "";
-  if (!(await isOpen(env))) return { error: "The bar is closed right now 🌙 Come back soon!" };
+  const closed = await closedText(env);
+  if (closed) return { error: closed };
 
   const baristaChat = await getSetting(env, "barista_chat");
   if (!baristaChat) return { error: "Orders aren't open yet. Please order at the bar 🙏" };
@@ -411,7 +423,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -445,8 +457,15 @@ async function onMessage(env, message) {
     if (cmd === "/queue") return queue(env, chatId);
     if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
     if (cmd === "/bags") return send(env, chatId, await bagsText(env));
-    if (cmd === "/close") { await setSetting(env, "open", "0"); return send(env, chatId, "🌙 Closed. New orders are paused."); }
-    if (cmd === "/open") { await setSetting(env, "open", "1"); return send(env, chatId, "☀️ Open. Taking orders."); }
+    if (cmd === "/close") {
+      await setSetting(env, "open", "0"); await setSetting(env, "open_day", "");
+      return send(env, chatId, "🌙 Closed. New orders are paused until /open.");
+    }
+    if (cmd === "/open") {
+      // On a weekend /open opens just today; the next weekend day is closed again by itself.
+      await setSetting(env, "open", "1"); await setSetting(env, "open_day", isWeekend() ? localDay() : "");
+      return send(env, chatId, isWeekend() ? "☀️ Open today (weekend). Taking orders." : "☀️ Open. Taking orders.");
+    }
     if (message.chat.type !== "private") return; // stay quiet in a group
     if (cmd === "/help") return send(env, chatId, BARISTA_HELP);
   }
@@ -667,7 +686,7 @@ async function handleApi(request, env, path) {
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
       event: await eventStatus(env, user.id), lunch: await lunchBreak(env),
-      ranking: await rankingForCustomer(env, user.id) });
+      closed: await closedText(env), ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
     const drink = drinkById(body.drink);

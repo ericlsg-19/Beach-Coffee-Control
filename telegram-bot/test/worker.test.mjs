@@ -11,7 +11,8 @@ import { PUBLIC_RPCS } from "../src/pay.js";
 function d1() {
   const db = new DatabaseSync(":memory:");
   db.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
-  db.exec("INSERT INTO settings (key, value) VALUES ('lunch', 'off')"); // the real clock must not land tests in the lunch break
+  // The real clock must not land tests in the lunch break or on a closed weekend.
+  db.exec("INSERT INTO settings (key, value) VALUES ('lunch', 'off'), ('weekends', 'open')");
   return {
     prepare(sql) {
       let params = [];
@@ -179,6 +180,34 @@ test("/demoday: today only, a short menu with stock and a daily cap per guest; o
   assert.equal((await order(leo, "icedcoffee")).ok, false);
   await post(msg(BARISTA, "/demoday off"));
   assert.match(calls.at(-1).body.text, /full menu is on/);
+});
+
+test("weekends: closed Saturday and Sunday with a friendly note, /open opens just that day, Monday opens by itself", async t => {
+  const { env, calls, post } = setup();
+  await env.DB.prepare("DELETE FROM settings WHERE key = 'weekends'").run();
+  await post(msg(BARISTA, "/barista beach123"));
+  // Each simulated day signs Ana's Mini App data again: Telegram's signature carries the time.
+  const at = iso => { t.mock.timers.reset(); t.mock.timers.enable({ apis: ["Date"], now: new Date(iso) }); return signedInitData("t", { id: ANA, first_name: "Ana" }); };
+  const session = initData => apiCall(env, "/api/session", { initData }).then(r => r.json());
+  const order = initData => apiCall(env, "/api/order", { initData, drink: "espresso" }).then(r => r.json());
+
+  let ana = at("2026-10-31T15:00:00Z"); // Saturday, 12:00 in Floripa
+  const sat = await session(ana);
+  assert.equal(sat.open, false);
+  assert.equal(sat.closed, "The barista is off touching sand 🏝️ Orders open again Monday. Keep building ☕");
+  assert.match((await order(ana)).error, /off touching sand/);
+  await post(msg(BARISTA, "/open"));
+  assert.match(calls.at(-1).body.text, /Open today \(weekend\)/);
+  assert.equal((await order(ana)).ok, true);
+
+  ana = at("2026-11-01T15:00:00Z"); // Sunday: /open was for Saturday only
+  assert.equal((await session(ana)).open, false);
+
+  ana = at("2026-11-02T12:00:00Z"); // Monday, 9:00 in Floripa
+  const mon = await session(ana);
+  assert.equal(mon.open, true);
+  assert.equal(mon.closed, null);
+  t.mock.timers.reset();
 });
 
 test("lunch break: guests confirm 'ready from 2 pm', the barista sees it, /lunch moves or stops it", async () => {

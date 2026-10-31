@@ -53,3 +53,29 @@ Thanks for keeping the bar running ☕
 
 drinkbeachcoffee.com/pay
 ```
+
+## Recap de sexta, 30/10 (`beach-coffee-day-30-oct.png`)
+
+Post do perfil da Beach Coffee, com o card:
+
+```
+GM from the island 🏝️
+
+Friday at the bar: 86 cups poured.
+81 of them ordered from Telegram, 94% of the day ☕
+
+Hot Chocolate took the crown 🍫
+43 builders ordered from their seat, no line, no shouting names 🙌
+
+t.me/BeachCoffeeIslandBot
+```
+
+Quote do perfil pessoal, repostando o post acima:
+
+```
+A week ago this bar ran on shouting names.
+
+Yesterday 94% of the orders came through a Telegram bot I vibecoded between shifts.
+
+Proof of brew: on the island, anyone can build ☕🏝️
+```

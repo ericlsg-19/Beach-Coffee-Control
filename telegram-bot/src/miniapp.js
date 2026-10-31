@@ -357,7 +357,7 @@ export function miniAppHtml(drinks, pay = null) {
     if (!open) {
       $("live").textContent = "Closed for now";
       $("pick").hidden = true;
-      $("msg").textContent = "The bar is closed right now 🌙 Come back soon!";
+      $("msg").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
     }
     lunch = s.lunch || null;
     $("lunchNote").hidden = !lunch;
@@ -379,7 +379,8 @@ export function miniAppHtml(drinks, pay = null) {
   }
 
   // Telegram's own pop-up when there is one, the browser's otherwise.
-  const ask = text => new Promise(ok => tg && tg.showConfirm ? tg.showConfirm(text, ok) : ok(confirm(text)));
+  // Older Telegram apps throw on showConfirm: then the browser's confirm.
+  const ask = text => new Promise(ok => { try { tg.showConfirm(text, ok); } catch (e) { ok(confirm(text)); } });
   const lunchQuestion = l => "🍽️ The barista is on lunch break until " + l.label + ".\\n\\nYour " + drinkName(selected) + " will be ready from " + l.label + ". Order it?";
   async function order() {
     if (!selected || needsMilk() || busy) return;
