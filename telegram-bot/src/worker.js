@@ -40,7 +40,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.9";
+const VERSION = "1.7.10";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -98,9 +98,12 @@ const WEEKEND_TEXT = "The barista is off touching sand 🏝️ Orders open again
 const CLOSED_TEXT = "The bar is closed right now 🌙 Come back soon!";
 const isWeekend = (date = new Date()) => ["Sat", "Sun"].includes(new Intl.DateTimeFormat("en-US", { timeZone: TIME_ZONE, weekday: "short" }).format(date));
 async function closedText(env) {
-  if ((await getSetting(env, "open")) === "0") return CLOSED_TEXT;
-  if (isWeekend() && (await getSetting(env, "weekends")) !== "open" && (await getSetting(env, "open_day")) !== localDay()) return WEEKEND_TEXT;
-  return null;
+  const manual = (await getSetting(env, "open")) === "0";
+  // On a weekend the guest always gets the weekend note, also after /close.
+  if (isWeekend() && (await getSetting(env, "weekends")) !== "open") {
+    return manual || (await getSetting(env, "open_day")) !== localDay() ? WEEKEND_TEXT : null;
+  }
+  return manual ? CLOSED_TEXT : null;
 }
 async function isOpen(env) {
   return !(await closedText(env));

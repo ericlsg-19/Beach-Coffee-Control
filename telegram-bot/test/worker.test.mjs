@@ -202,6 +202,10 @@ test("weekends: closed Saturday and Sunday with a friendly note, /open opens jus
 
   ana = at("2026-11-01T15:00:00Z"); // Sunday: /open was for Saturday only
   assert.equal((await session(ana)).open, false);
+  // A /close on a weekend still shows the weekend note, not the generic one.
+  await post(msg(BARISTA, "/close"));
+  assert.equal((await session(ana)).closed, "The barista is off touching sand 🏝️ Orders open again Monday. Keep building ☕");
+  await post(msg(BARISTA, "/open"));
 
   ana = at("2026-11-02T12:00:00Z"); // Monday, 9:00 in Floripa
   const mon = await session(ana);

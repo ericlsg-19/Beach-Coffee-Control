@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.7.9**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 29/10/2026, bot e Âncora na **v1.7.10**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -40,6 +40,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.7.9**, no domínio próprio **dr
 - 30/10: no domínio novo a Solflare já não mostra "Scam site detected", mas deu "Failed to sign transaction". v1.7.7: antes de abrir a carteira, a página confere o saldo (USDC e SOL) e diz com clareza o que falta; se a carteira falhar no "assinar e enviar", ela só assina e a página envia a transação pela rede. Falta confirmar com um tip real.
 - 31/10: v1.7.8: **fecha sozinho no sábado e no domingo** (horário de Floripa) com "The barista is off touching sand 🏝️ Orders open again Monday. Keep building ☕", no mini app e no chat. `/open` num fim de semana abre só aquele dia; na segunda abre sozinho. `/close` continua fechando até o próximo `/open`.
 - 31/10: v1.7.9: com o bar fechado o mini app **continua aberto para ver o cardápio, o ranking, dar tip e comprar o pacote**; só o pedido espera, com o aviso ("off touching sand" no fim de semana) logo abaixo das bebidas. `/bags 17` diz quantos pacotes restam (os vendidos no balcão saem do estoque): restam **17 de 20**, mandar `/bags 17` no chat da barista.
+- 31/10: v1.7.10: no fim de semana o aviso é sempre "off touching sand", mesmo depois de um `/close`. Atenção: o `/close` manual continua valendo depois do fim de semana; se foi usado, mandar `/open` na segunda de manhã.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
