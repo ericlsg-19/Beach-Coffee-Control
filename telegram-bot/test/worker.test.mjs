@@ -768,6 +768,21 @@ test("the Mini App and payment page scripts are valid JavaScript", async () => {
   }
 });
 
+test("/bags 17: bags sold at the bar come off the stock the app shows", async () => {
+  const { env, calls, post } = setupPay({ BAG_STOCK: "20" });
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(msg(BARISTA, "/bags 17"));
+  assert.match(calls.at(-1).body.text, /Sold at the bar: <b>3<\/b>[\s\S]*Left: <b>17<\/b> of 20/);
+  const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.ok(app.includes('"bagStock":20,"bagsLeft":17'));
+  await post(msg(BARISTA, "/bags 25"));
+  assert.match(calls.at(-1).body.text, /at most 20/);
+  // A customer can't change it.
+  calls.length = 0;
+  await post(msg(ANA, "/bags 0"));
+  assert.ok(!calls.some(c => /Left:/.test(c.body.text || "")));
+});
+
 test("limited edition: bags stop selling at BAG_STOCK, unpaid checkouts hold one for 15 minutes", async () => {
   const { env, calls, post, chain } = setupPay({ BAG_STOCK: "2" });
   await post(msg(BARISTA, "/barista beach123"));
@@ -796,7 +811,7 @@ test("limited edition: bags stop selling at BAG_STOCK, unpaid checkouts hold one
 
   calls.length = 0;
   await post(msg(BARISTA, "/bags"));
-  assert.match(calls.at(-1).body.text, /Sold: <b>2<\/b>[\s\S]*Left: <b>0<\/b> of 2/);
+  assert.match(calls.at(-1).body.text, /Sold in the app: <b>2<\/b>[\s\S]*Left: <b>0<\/b> of 2/);
   await post(msg(BARISTA, "/today"));
   assert.match(calls.at(-1).body.text, /🛍️ Coffee bags: 2 · 20 USDC \(0 left\)/);
   assert.equal((await (await panel(env, "GET", "/api/panel/payments")).json()).bags_left, 0);

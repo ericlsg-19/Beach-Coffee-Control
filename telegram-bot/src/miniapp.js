@@ -80,6 +80,8 @@ export function miniAppHtml(drinks, pay = null) {
   .drink .left { display: block; margin-top: 3px; font: 500 .78rem/1 var(--mono); color: var(--gold); }
   .drink.soldout { opacity: .45; cursor: default; }
   .note { color: var(--muted); font-size: .9rem; margin: 0; }
+  .closed-note { margin-top: 18px; padding: 16px 18px; border-color: var(--gold); }
+  .closed-note p { margin: 0; color: var(--text); font-size: .95rem; line-height: 1.45; }
   .center { text-align: center; padding: 40px 10px; display: grid; gap: 10px; justify-items: center; }
   .center h2 { margin: 0; font: 800 1.4rem/1.1 var(--display); font-stretch: 125%; text-transform: uppercase; }
   .center h2 b { color: var(--mint); }
@@ -162,7 +164,7 @@ export function miniAppHtml(drinks, pay = null) {
   <section id="pick">
     <p class="note" id="lunchNote" hidden style="margin-bottom:12px"></p>
     <p class="note" id="eventNote" hidden style="margin-bottom:12px"></p>
-    <p class="eyebrow" style="margin-bottom:10px">Step 1 · Pick your drink</p>
+    <p class="eyebrow" style="margin-bottom:10px" id="pickTitle">Step 1 · Pick your drink</p>
     <div class="drinks" id="drinks"></div>
     <div id="milkPick" hidden>
       <p class="eyebrow" style="margin:18px 0 10px">Step 2 · Choose your milk</p>
@@ -172,6 +174,8 @@ export function miniAppHtml(drinks, pay = null) {
       <p class="eyebrow" style="margin:18px 0 10px" id="confirmTitle"></p>
       <div class="card" style="padding:14px 18px"><p class="note" id="confirmText" style="color:var(--text)"></p></div>
     </div>
+    <!-- When the bar is closed the menu stays up to browse; this is where ordering would be. -->
+    <div class="card closed-note" id="closedNote" hidden><p id="closedText"></p></div>
   </section>
   <section id="done" class="center" hidden></section>
   <p class="note" id="msg"></p>
@@ -273,7 +277,7 @@ export function miniAppHtml(drinks, pay = null) {
 
   function renderMilk() {
     const d = MENU.find(x => x.id === selected);
-    $("milkPick").hidden = !(d && d.milk);
+    $("milkPick").hidden = !open || !(d && d.milk);
     const opts = [["regular", "Regular"], ["lactosefree", "Lactose-free"], ["plant", "Plant-based"]];
     $("milkChips").innerHTML = opts.map(([id, label]) =>
       '<button class="chip' + (milk === id ? " on" : "") + '" data-milk="' + id + '">' + label + '</button>').join("");
@@ -324,7 +328,7 @@ export function miniAppHtml(drinks, pay = null) {
     const ready = !!selected && !needsMilk();
     // The last step: what's about to be ordered, then the Order button.
     const d = MENU.find(x => x.id === selected);
-    $("confirmStep").hidden = !ready;
+    $("confirmStep").hidden = !ready || !open;
     if (ready) {
       $("confirmTitle").textContent = "Step " + (d.milk ? 3 : 2) + " · Confirm your order";
       $("confirmText").innerHTML = "<b>" + esc(d.name) + "</b>" + (d.milk ? " · " + esc(MILKS[milk] || "Regular milk") : "") + ". Tap <b>Order</b> below.";
@@ -354,11 +358,11 @@ export function miniAppHtml(drinks, pay = null) {
     if (!s.ok) { $("msg").textContent = s.error || "Couldn't load the menu."; return; }
     $("greet").textContent = greeting(s.user && s.user.first_name);
     open = s.open;
-    if (!open) {
-      $("live").textContent = "Closed for now";
-      $("pick").hidden = true;
-      $("msg").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
-    }
+    // Closed: the menu, ranking, tips and the bag stay open; only ordering waits, with the reason under the drinks.
+    if (!open) $("live").textContent = "Closed for now";
+    $("pickTitle").textContent = open ? "Step 1 · Pick your drink" : "Our menu";
+    $("closedNote").hidden = open;
+    $("closedText").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
     lunch = s.lunch || null;
     $("lunchNote").hidden = !lunch;
     if (lunch) $("lunchNote").innerHTML = "🍽️ <b>Lunch break</b> until " + esc(lunch.label) + ". You can still order: it'll be ready from " + esc(lunch.label) + ".";
@@ -427,7 +431,8 @@ export function miniAppHtml(drinks, pay = null) {
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     $("msg").textContent = "";
     renderDrinks(); renderMilk(); updateButton();
-    if (!$("milkPick").hidden) $("milkPick").scrollIntoView({ behavior: "smooth", block: "center" });
+    if (!open) $("closedNote").scrollIntoView({ behavior: "smooth", block: "center" });
+    else if (!$("milkPick").hidden) $("milkPick").scrollIntoView({ behavior: "smooth", block: "center" });
     else if (selected) $("confirmStep").scrollIntoView({ behavior: "smooth", block: "center" });
   });
   // Nothing is preselected: for a drink with milk the order button waits for this choice.

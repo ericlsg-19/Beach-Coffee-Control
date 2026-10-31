@@ -40,7 +40,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.8";
+const VERSION = "1.7.9";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -423,7 +423,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -456,7 +456,7 @@ async function onMessage(env, message) {
     }
     if (cmd === "/queue") return queue(env, chatId);
     if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
-    if (cmd === "/bags") return send(env, chatId, await bagsText(env));
+    if (cmd === "/bags") return send(env, chatId, await bagsCommand(env, args));
     if (cmd === "/close") {
       await setSetting(env, "open", "0"); await setSetting(env, "open_day", "");
       return send(env, chatId, "🌙 Closed. New orders are paused until /open.");
@@ -685,7 +685,7 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
-      event: await eventStatus(env, user.id), lunch: await lunchBreak(env),
+      event: await eventStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
       closed: await closedText(env), ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
@@ -721,16 +721,30 @@ const BAG_HOLD_MS = 15 * 60 * 1000; // an unpaid bag checkout holds one bag for 
 
 // Limited edition: BAG_STOCK bags in total. null when no stock is set (no limit).
 const bagStock = env => (/^\d+$/.test(String(env.BAG_STOCK ?? "")) ? Number(env.BAG_STOCK) : null);
+// Bags sold outside the app (cash, at the bar) count too: /bags 17 says how many are left right now.
+const bagsSoldInApp = env => env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'paid'").first().then(r => r.n);
+const bagsSoldOffline = async env => Number(await getSetting(env, "bags_sold_offline")) || 0;
 async function bagsLeft(env) {
   const stock = bagStock(env);
   if (stock === null) return null;
-  const sold = await env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'paid'").first();
-  return Math.max(0, stock - sold.n);
+  return Math.max(0, stock - await bagsSoldInApp(env) - await bagsSoldOffline(env));
+}
+async function bagsCommand(env, args) {
+  const stock = bagStock(env), n = args[0];
+  if (n !== undefined) {
+    if (stock === null) return "No stock limit is set (BAG_STOCK).";
+    const inApp = await bagsSoldInApp(env);
+    if (!/^\d+$/.test(n) || Number(n) > stock - inApp) return `Use /bags N, the bags left now (at most ${stock - inApp}: ${inApp} were sold in the app).`;
+    await setSetting(env, "bags_sold_offline", String(stock - inApp - Number(n)));
+  }
+  return bagsText(env);
 }
 async function bagsText(env) {
   const stock = bagStock(env), left = await bagsLeft(env);
   const sold = await env.DB.prepare("SELECT COUNT(*) AS n, SUM(handed_over) AS handed FROM payments WHERE kind = 'bag' AND status = 'paid'").first();
-  return [`🛍️ <b>Island DAO coffee bags</b> · ${bagPrice(env)} USDC`, `Sold: <b>${sold.n}</b> · handed over: ${sold.handed || 0}`,
+  const offline = await bagsSoldOffline(env);
+  return [`🛍️ <b>Island DAO coffee bags</b> · ${bagPrice(env)} USDC`,
+    `Sold in the app: <b>${sold.n}</b> · handed over: ${sold.handed || 0}` + (offline ? `\nSold at the bar: <b>${offline}</b>` : ""),
     stock === null ? "No stock limit set." : `Left: <b>${left}</b> of ${stock}`].join("\n");
 }
 const payConfig = async env => ({ recipient: env.SOLANA_ADDRESS, bagPrice: bagPrice(env), bagStock: bagStock(env), bagsLeft: await bagsLeft(env) });
