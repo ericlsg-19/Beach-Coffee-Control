@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.7.7**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 29/10/2026, bot e Âncora na **v1.7.8**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -38,6 +38,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.7.7**, no domínio próprio **dr
 - 30/10: v1.7.5: o bot passa para **https://drinkbeachcoffee.com** (`WEBHOOK_URL`), para as carteiras pararem de marcar o site como golpe. O webhook e o botão "Order ☕" se movem sozinhos pelo cron; `/app`, `/panel` e `/pay` no endereço antigo redirecionam. Pedir revisão do domínio novo à Phantom e à Solflare. O card impresso de `/pay` com o endereço antigo continua funcionando (redireciona).
 - 30/10: v1.7.6: **Solflare é o botão principal** (quase todos na Vila usam Solflare); Phantom fica como segunda opção e o Solana Pay como plano B ("Blocked by your wallet?").
 - 30/10: no domínio novo a Solflare já não mostra "Scam site detected", mas deu "Failed to sign transaction". v1.7.7: antes de abrir a carteira, a página confere o saldo (USDC e SOL) e diz com clareza o que falta; se a carteira falhar no "assinar e enviar", ela só assina e a página envia a transação pela rede. Falta confirmar com um tip real.
+- 31/10: v1.7.8: **fecha sozinho no sábado e no domingo** (horário de Floripa) com "The barista is off touching sand 🏝️ Orders open again Monday. Keep building ☕", no mini app e no chat. `/open` num fim de semana abre só aquele dia; na segunda abre sozinho. `/close` continua fechando até o próximo `/open`.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
