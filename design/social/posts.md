@@ -65,7 +65,7 @@ Friday at the bar: 86 cups poured.
 81 of them ordered from Telegram, 94% of the day ☕
 
 Hot Chocolate took the crown 🍫
-43 builders ordered from their seat, and 3 tips landed onchain in USDC 💛
+43 builders ordered from their seat, no line, no shouting names 🙌
 
 t.me/BeachCoffeeIslandBot
 ```
@@ -75,7 +75,7 @@ Quote do perfil pessoal, repostando o post acima:
 ```
 A week ago this bar ran on shouting names.
 
-Yesterday 94% of the orders came through a Telegram bot I vibecoded between shifts, and tips settled on Solana.
+Yesterday 94% of the orders came through a Telegram bot I vibecoded between shifts.
 
 Proof of brew: on the island, anyone can build ☕🏝️
 ```
