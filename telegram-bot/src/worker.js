@@ -21,6 +21,7 @@ import { HOW_TO_ORDER_JPG } from "./howto.js";
 import { ANCORA_HTML } from "./ancora-html.js";
 import { WEB3_IIFE } from "./vendor/web3-iife.js";
 import { payPageHtml } from "./paypage.js";
+import { eventsHtml } from "./eventspage.js";
 import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus } from "./pay.js";
 
 const DRINKS = [
@@ -40,7 +41,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.10";
+const VERSION = "1.7.11";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -932,8 +933,11 @@ export default {
     // Pages opened on the old workers.dev address (printed cards, old links) move to our own domain, where
     // wallets don't flag the site. The fragment (Telegram's initData, the panel key) survives the redirect.
     if (request.method === "GET" && url.hostname.endsWith(".workers.dev") && base !== url.origin
-      && (path === "/app" || path === "/panel" || path === "/pay" || path.startsWith("/pay/"))) {
+      && (path === "/app" || path === "/panel" || path === "/eventos" || path === "/pay" || path.startsWith("/pay/"))) {
       return Response.redirect(base + path + url.search, 301);
+    }
+    if (path === "/eventos" || path === "/eventos/") {
+      return new Response(eventsHtml(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
     }
     if (path === "/app") {
       const pay = paymentsOn(env) ? await payConfig(env) : null;
