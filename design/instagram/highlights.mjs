@@ -5,7 +5,11 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 const { chromium } = createRequire(import.meta.url)("playwright");
 const here = fileURLToPath(new URL(".", import.meta.url));
-const BG = "#0f1714", INK = "#edd5b9";
+const INK = "#edd5b9";
+// The profile picture's gradient: lighter green at the top right, near black at the bottom left.
+// On the 1080 × 1920 cover it is centered on the square Instagram crops the circle from (y 420–1500).
+const BG = "radial-gradient(1150px circle at 820px 640px, #21392f 0%, #11201b 42%, #0a1311 70%, #080f0e 100%)";
+const BG_ROUND = "radial-gradient(circle at 76% 22%, #21392f 0%, #11201b 42%, #0a1311 70%, #080f0e 100%)";
 const icons = {
   // A cup on its saucer, steam and two sparkles: the bar at events.
   eventos: `<path d="M29 46h38v12a19 19 0 0 1-19 19a19 19 0 0 1-19-19z"/><path d="M67 50h4a7 7 0 0 1 0 14h-5"/><path d="M22 85h56"/>
@@ -30,7 +34,7 @@ await p.setViewportSize({ width: 900, height: 360 });
 await p.setContent(`<!doctype html><html><head><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@500&display=swap"></head>
 <body style="margin:0;background:#000;display:flex;gap:60px;justify-content:center;align-items:center;height:360px;font-family:Figtree;color:#fff">
 ${Object.entries(icons).map(([n, svg]) => `<div style="text-align:center"><div style="width:190px;height:190px;border-radius:50%;border:3px solid #3a3a3a;padding:6px;box-sizing:border-box">
-<div style="width:100%;height:100%;border-radius:50%;background:${BG};display:grid;place-items:center"><svg viewBox="0 0 100 100" width="96" height="96" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg></div></div>
+<div style="width:100%;height:100%;border-radius:50%;background:${BG_ROUND};display:grid;place-items:center"><svg viewBox="0 0 100 100" width="96" height="96" fill="none" stroke="${INK}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${svg}</svg></div></div>
 <div style="margin-top:14px;font-size:22px;letter-spacing:.02em">${labels[n]}</div></div>`).join("")}</body></html>`, { waitUntil: "networkidle" });
 await p.screenshot({ path: here + "highlights-preview.png" });
 await b.close();
