@@ -349,6 +349,7 @@ test("/eventos: the events page in Portuguese, with the estimate and a ready Wha
   assert.match(html, /"instagram":"beachcoffee.co"/);
   assert.match(html, /wa\.me\//);
   assert.ok(!html.includes("/*CONFIG*/") && !html.includes("<!--WORDMARK-->"));
+  assert.match(html, /50% do valor na reserva da data e 50% ao final do evento/);
 });
 
 test("/eventos estimate: set-up fixed, hours scale the per-guest part, R$ 1,500 minimum, R$ 50 favors", async () => {

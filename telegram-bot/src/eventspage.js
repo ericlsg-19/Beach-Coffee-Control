@@ -229,7 +229,7 @@ const PAGE = String.raw`<!doctype html>
       <div class="send">
         <a class="btn wa full" id="sendWa" href="#" target="_blank" rel="noopener">Solicitar orçamento pelo WhatsApp</a>
         <button class="btn ghost full" id="sendIg" type="button">Prefiro o Instagram</button>
-        <p class="note">Valor estimado. O orçamento final é confirmado na conversa, de acordo com a data e o local.</p>
+        <p class="note">Valor estimado. O orçamento final é confirmado na conversa, de acordo com a data e o local. Pagamento: 50% na reserva e 50% ao final do evento.</p>
       </div>
     </form>
   </div>
@@ -242,8 +242,8 @@ const PAGE = String.raw`<!doctype html>
     <div class="steps" style="margin-top:22px">
       <div class="card"><div><h3>Simulação</h3><p>Escolha o tipo de evento, o número de convidados e a duração.</p></div></div>
       <div class="card"><div><h3>Solicitação</h3><p>Envie o pedido pelo WhatsApp, já com todos os detalhes.</p></div></div>
-      <div class="card"><div><h3>Proposta</h3><p>Confirmamos a disponibilidade da data e enviamos a proposta final.</p></div></div>
-      <div class="card"><div><h3>O evento</h3><p>No dia, montamos o bar e servimos durante todo o período contratado.</p></div></div>
+      <div class="card"><div><h3>Proposta e reserva</h3><p>Confirmamos a disponibilidade e enviamos a proposta final. A data fica reservada com o pagamento de 50% do valor.</p></div></div>
+      <div class="card"><div><h3>O evento</h3><p>No dia, montamos o bar e servimos durante todo o período contratado. Os 50% restantes são pagos ao final do evento.</p></div></div>
     </div>
   </div>
 </section>
@@ -257,6 +257,7 @@ const PAGE = String.raw`<!doctype html>
       <details><summary>Vocês atendem fora de Florianópolis?</summary><p>Atendemos Florianópolis e região. Para outras cidades, o deslocamento é incluído no orçamento.</p></details>
       <details><summary>Há opção de leite sem lactose ou vegetal?</summary><p>Todas as bebidas são preparadas com leite integral. Leite sem lactose ou vegetal pode ser incluído, com custo adicional.</p></details>
       <details><summary>Como funcionam as lembrancinhas?</summary><p>São pacotes de 250 g de café especial, feitos sob encomenda. Informe a quantidade na sua solicitação para garantirmos a produção a tempo.</p></details>
+      <details><summary>Como funciona o pagamento?</summary><p>50% do valor na reserva da data e 50% ao final do evento.</p></details>
       <details><summary>Com quanta antecedência devo reservar?</summary><p>Recomendamos reservar o quanto antes, principalmente para sábados e datas de alta temporada. Envie a data e confirmamos a disponibilidade.</p></details>
     </div>
   </div>
