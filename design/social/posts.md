@@ -79,3 +79,28 @@ Yesterday 94% of the orders came through a Telegram bot I vibecoded between shif
 
 Proof of brew: on the island, anyone can build ☕🏝️
 ```
+
+## Spooky week, 26–30/10 (`beach-coffee-week-26-30-oct.png`)
+
+Post do perfil da Beach Coffee, com o card:
+
+```
+halloween week at the @IslandDAO bar 🎃🏝️
+
+ghosts? fine.
+vampires? whatever.
+the 2pm coffee rush? absolutely terrifying ☕💀
+
+385 cups poured this week.
+Monday: 0% ordered from Telegram. Friday: 94%.
+Latte haunted the top of the menu 🦇
+```
+
+Quote do perfil pessoal, repostando o post acima:
+
+```
+Monday the bar had zero Telegram orders.
+Friday, 94% came through a bot I vibecoded between shifts.
+
+Scariest thing this week: how fast builders stopped waiting in line 👻☕
+```
