@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.7.11**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 29/10/2026, bot e Âncora na **v1.7.12**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -41,7 +41,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.7.11**, no domínio próprio **d
 - 31/10: v1.7.8: **fecha sozinho no sábado e no domingo** (horário de Floripa) com "The barista is off touching sand 🏝️ Orders open again Monday. Keep building ☕", no mini app e no chat. `/open` num fim de semana abre só aquele dia; na segunda abre sozinho. `/close` continua fechando até o próximo `/open`.
 - 31/10: v1.7.9: com o bar fechado o mini app **continua aberto para ver o cardápio, o ranking, dar tip e comprar o pacote**; só o pedido espera, com o aviso ("off touching sand" no fim de semana) logo abaixo das bebidas. `/bags 17` diz quantos pacotes restam (os vendidos no balcão saem do estoque): restam **17 de 20**, mandar `/bags 17` no chat da barista.
 - 31/10: v1.7.10: no fim de semana o aviso é sempre "off touching sand", mesmo depois de um `/close`. Atenção: o `/close` manual continua valendo depois do fim de semana; se foi usado, mandar `/open` na segunda de manhã.
-- 01/11: v1.7.11: **página de eventos** em https://drinkbeachcoffee.com/eventos (casamentos, aniversários, corporativos; português). Simulador de orçamento: R$ 500 de montagem e deslocamento (fixo) + R$ 15 por convidado para 3 h (2 h 85%, 4 h +15%, 5 h+ +30%, só na parte por convidado), mínimo R$ 1.500, lembrancinha R$ 50 por pacote de 250 g, faixa de ±10%. Envia a mensagem pronta para o WhatsApp +55 48 99830-0443 ou copia para a DM do @beachcoffee.co. Preços em `PRICING` em `telegram-bot/src/eventspage.js`. Base de custo medida no Island DAO: R$ 2,14 de insumos por bebida, R$ 60/h, R$ 40 de deslocamento; R$ 15 por convidado supõe 1,5 bebida por convidado (medir no primeiro evento). Falta: prazo de antecedência das lembrancinhas (FAQ sem número por enquanto).
+- 01/11: v1.7.11: **página de eventos** em https://drinkbeachcoffee.com/eventos (casamentos, aniversários, corporativos; português). Simulador de orçamento: R$ 500 de montagem e deslocamento (fixo) + R$ 15 por convidado para 3 h (2 h 85%, 4 h +15%, 5 h+ +30%, só na parte por convidado), mínimo R$ 1.500, lembrancinha R$ 50 por pacote de 250 g, faixa de ±10%. Envia a mensagem pronta para o WhatsApp +55 48 99830-0443 ou copia para a DM do @beachcoffee.co. Preços em `PRICING` em `telegram-bot/src/eventspage.js`. Base de custo medida no Island DAO: R$ 2,14 de insumos por bebida, R$ 60/h, R$ 40 de deslocamento; R$ 15 por convidado supõe 1,5 bebida por convidado (medir no primeiro evento). Falta: prazo de antecedência das lembrancinhas (FAQ sem número por enquanto). v1.7.12: pagamento na página de eventos: 50% na reserva da data e 50% ao final do evento (passo a passo, FAQ e nota do simulador).
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
