@@ -351,6 +351,14 @@ test("/eventos: the events page in Portuguese, with the estimate and a ready Wha
   assert.ok(!html.includes("/*CONFIG*/") && !html.includes("<!--WORDMARK-->"));
 });
 
+test("/eventos estimate: set-up fixed, hours scale the per-guest part, R$ 1,500 minimum, R$ 50 favors", async () => {
+  const { estimate } = await import("../src/eventspage.js");
+  assert.deepEqual(estimate({ guests: 100, hours: 3 }), { total: 2000, low: 1800, high: 2200 });
+  assert.equal(estimate({ guests: 100, hours: 5 }).total, 500 + 15 * 100 * 1.3);   // the R$ 500 isn't scaled
+  assert.equal(estimate({ guests: 20, hours: 2 }).total, 1500);                     // the minimum
+  assert.equal(estimate({ guests: 100, hours: 3, favors: 40 }).total, 2000 + 40 * 50);
+});
+
 test("Mini App rejects forged or expired initData", async () => {
   const { env } = setup();
   const forged = signedInitData("some-other-token", { id: ANA, first_name: "Ana" });

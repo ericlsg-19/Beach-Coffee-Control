@@ -5,23 +5,33 @@ import { WORDMARK_SVG } from "./wordmark.js";
 
 export const CONTACT = { whatsapp: "5548998300443", instagram: "beachcoffee.co" };
 
-// Prices in R$ for the estimate: change them here. The page shows a range (± RANGE around the value),
+// Prices in R$ for the estimate: change them here. The page shows a range (± range around the value),
 // never a closed price: the final quote comes in the chat.
+// Cost basis measured at Island DAO (Oct 2026): R$ 2.14 per drink in supplies, R$ 60/h of the barista's
+// time, R$ 40 travel in Floripa. perGuest assumes 1.5 drinks per guest: check it after the first event.
 export const PRICING = {
-  base: 500,          // set-up, equipment and travel in Floripa
+  base: 500,          // set-up and travel in Floripa: the same for 2 h or 5 h, so hours don't scale it
   perGuest: 15,       // per guest, for a 3-hour service
-  hours: { 2: 0.85, 3: 1, 4: 1.15, 5: 1.3 },
-  minimum: 1200,
-  favor: 25,          // per 250 g bag of coffee as a party favor (lembrancinha)
+  hours: { 2: 0.85, 3: 1, 4: 1.15, 5: 1.3 },   // applied to the per-guest part only
+  minimum: 1500,
+  favor: 50,          // per 250 g bag of coffee as a party favor (lembrancinha)
   range: 0.1,
 };
 
 const EVENT_TYPES = [
-  ["casamento", "💍", "Casamento"],
-  ["aniversario", "🎂", "Aniversário"],
-  ["corporativo", "💼", "Corporativo"],
-  ["outro", "✨", "Outro evento"],
+  ["casamento", "Casamento"],
+  ["aniversario", "Aniversário"],
+  ["corporativo", "Corporativo"],
+  ["outro", "Outro evento"],
 ];
+
+// The estimate the page shows (same formula as the page's script), for tests and checks.
+export function estimate({ guests, hours, favors = 0 }) {
+  const p = PRICING;
+  const total = Math.max(p.minimum, p.base + p.perGuest * guests * p.hours[hours]) + favors * p.favor;
+  const round50 = n => Math.round(n / 50) * 50;
+  return { total, low: round50(total * (1 - p.range)), high: round50(total * (1 + p.range)) };
+}
 
 export function eventsHtml() {
   const config = JSON.stringify({ pricing: PRICING, contact: CONTACT, types: EVENT_TYPES });
@@ -35,15 +45,15 @@ const PAGE = String.raw`<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Coffee bar para eventos · Beach Coffee Co.</title>
-<meta name="description" content="Coffee bar de café especial para casamentos, aniversários e eventos em Florianópolis. Simule o orçamento e fale com a gente no WhatsApp.">
-<meta property="og:title" content="Coffee bar para o seu evento · Beach Coffee Co.">
-<meta property="og:description" content="Café especial, barista e cardápio completo para casamentos, aniversários e eventos em Floripa.">
+<meta name="description" content="Coffee bar de café especial para casamentos, aniversários e eventos corporativos em Florianópolis. Simule o orçamento e fale com a gente pelo WhatsApp.">
+<meta property="og:title" content="Coffee bar para eventos · Beach Coffee Co.">
+<meta property="og:description" content="Café especial, barista e estrutura completa para casamentos, aniversários e eventos corporativos em Florianópolis.">
 <meta name="theme-color" content="#f6efe4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
   :root { --bg: #f6efe4; --card: #fffaf2; --ink: #3a2412; --brown: #4d2e17; --muted: #7a6450; --line: #e6d6bf;
-    --gold: #b8792b; --gold-soft: #f1dfc0; --green: #2f5d50; --wa: #1f9d55; }
+    --gold: #b8792b; --gold-soft: #f1dfc0; --wa: #1f9d55; }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.55 Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
@@ -71,12 +81,12 @@ const PAGE = String.raw`<!doctype html>
   .proof span { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); line-height: 1.35; }
   section { padding: 34px 0; }
   section h2 { font-size: clamp(32px, 6vw, 44px); line-height: 1.05; }
-  section > .wrap > p.sub { color: var(--muted); margin: 10px 0 22px; }
+  section > .wrap > p.sub, .simwrap p.sub { color: var(--muted); margin: 10px 0 22px; }
   .grid { display: grid; gap: 12px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 20px; }
-  .card h3 { font-size: 24px; margin-bottom: 6px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 22px; }
+  .card h3 { font-size: 26px; margin-bottom: 6px; }
   .card p { margin: 0; color: var(--muted); }
-  .icon { font-size: 26px; margin-bottom: 10px; display: block; }
+  .rule { width: 32px; height: 2px; background: var(--gold); margin-bottom: 16px; }
   .menu { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
   .menu span { background: var(--gold-soft); color: var(--brown); border-radius: 999px; padding: 8px 12px; font: 600 14px/1 Figtree; }
   /* Simulator */
@@ -108,6 +118,7 @@ const PAGE = String.raw`<!doctype html>
   details { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; }
   details + details { margin-top: 10px; }
   summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 10px; }
+  summary::-webkit-details-marker { display: none; }
   summary::after { content: "+"; color: var(--gold); font-size: 22px; line-height: 1; }
   details[open] summary::after { content: "–"; }
   details p { margin: 10px 0 0; color: var(--muted); }
@@ -137,31 +148,31 @@ const PAGE = String.raw`<!doctype html>
 
   <div class="hero">
     <div>
-      <p class="eyebrow">Coffee bar para eventos · Floripa</p>
+      <p class="eyebrow">Coffee bar para eventos · Florianópolis</p>
       <h1>Café especial no seu <em>grande dia</em></h1>
-      <p class="lead">Casamentos, aniversários e celebrações. Levamos barista, máquina de espresso e um cardápio completo de café especial: você e seus convidados só aproveitam.</p>
+      <p class="lead">Coffee bar completo para casamentos, aniversários e eventos corporativos. Levamos barista, máquina de espresso e café especial, e cuidamos de tudo, da montagem ao último café.</p>
       <div class="ctas">
         <a class="btn primary" href="#orcamento">Simular orçamento</a>
-        <a class="btn wa" id="heroWa" href="#" target="_blank" rel="noopener">Falar no WhatsApp</a>
+        <a class="btn wa" id="heroWa" href="#" target="_blank" rel="noopener">Falar pelo WhatsApp</a>
       </div>
     </div>
     <div class="proof">
-      <div><b>460+</b><span>cafés servidos em 7 dias num evento internacional</span></div>
+      <div><b>460+</b><span>cafés servidos em sete dias de um evento internacional em Florianópolis</span></div>
       <div><b>13</b><span>bebidas no cardápio, quentes e geladas</span></div>
-      <div><b>3</b><span>opções de leite: integral, sem lactose e vegetal</span></div>
+      <div><b>100%</b><span>montagem, serviço e desmontagem por nossa conta</span></div>
     </div>
   </div>
 </div>
 
 <section>
   <div class="wrap">
-    <p class="eyebrow">Para cada celebração</p>
-    <h2>Um coffee bar que vira parte da festa</h2>
-    <p class="sub">A gente monta, serve e desmonta. Você escolhe o momento: recepção, depois do jantar ou a festa inteira.</p>
+    <p class="eyebrow">Eventos que atendemos</p>
+    <h2>Um coffee bar à altura da sua celebração</h2>
+    <p class="sub">Montamos, servimos e desmontamos. O serviço pode acompanhar a recepção, o pós-jantar ou a festa inteira.</p>
     <div class="grid three">
-      <div class="card"><span class="icon">💍</span><h3>Casamentos</h3><p>Espresso, cappuccino e drinks de café para acompanhar o bolo e a pista. Um toque de carinho que os convidados lembram.</p></div>
-      <div class="card"><span class="icon">🎂</span><h3>Aniversários</h3><p>De 15 anos a 80 anos: um bar de café especial que faz fila (do jeito bom) e combina com qualquer tema.</p></div>
-      <div class="card"><span class="icon">💼</span><h3>Corporativos</h3><p>Lançamentos, workshops e confraternizações. Café de verdade para manter todo mundo animado.</p></div>
+      <div class="card"><div class="rule"></div><h3>Casamentos</h3><p>Espresso, cappuccino e bebidas geladas para acompanhar a recepção, o bolo e a pista de dança.</p></div>
+      <div class="card"><div class="rule"></div><h3>Aniversários</h3><p>Um bar de café especial que se adapta ao tema e ao estilo da festa, dos 15 aos 80 anos.</p></div>
+      <div class="card"><div class="rule"></div><h3>Corporativos</h3><p>Lançamentos, workshops e confraternizações, com café de qualidade do início ao fim.</p></div>
     </div>
   </div>
 </section>
@@ -169,15 +180,16 @@ const PAGE = String.raw`<!doctype html>
 <section>
   <div class="wrap">
     <p class="eyebrow">O que está incluído</p>
-    <h2>Tudo pronto, do grão à xícara</h2>
+    <h2>Tudo o que o bar precisa</h2>
     <div class="grid two" style="margin-top:22px">
-      <div class="card"><span class="icon">☕</span><h3>Café especial e barista</h3><p>Grãos selecionados, moídos na hora, e um barista dedicado ao seu evento.</p></div>
-      <div class="card"><span class="icon">🧉</span><h3>Estrutura completa</h3><p>Máquina de espresso, moedor, copos e tudo o que o bar precisa.</p></div>
+      <div class="card"><div class="rule"></div><h3>Equipe e equipamento</h3><p>Barista dedicado ao seu evento e máquina de espresso profissional.</p></div>
+      <div class="card"><div class="rule"></div><h3>Insumos e descartáveis</h3><p>Café especial em grão, leite integral, açúcar e adoçante, copos, tampas, mexedores e guardanapos.</p></div>
     </div>
     <div class="card" style="margin-top:12px">
+      <div class="rule"></div>
       <h3>Cardápio</h3>
-      <p>Bebidas quentes e geladas, com opções sem lactose e vegetal.</p>
-      <div class="menu"><span>Espresso</span><span>Espresso duplo</span><span>Americano</span><span>Carioca</span><span>Cappuccino</span><span>Latte</span><span>Flat White</span><span>Mocha</span><span>Chocolate quente</span><span>Matcha latte</span><span>Latte gelado</span><span>Café gelado</span><span>Freddo espresso</span></div>
+      <p>Bebidas quentes e geladas, preparadas com leite integral. Leite sem lactose ou vegetal disponível com custo adicional.</p>
+      <div class="menu"><span>Espresso</span><span>Espresso duplo</span><span>Americano</span><span>Carioca</span><span>Cappuccino</span><span>Latte</span><span>Flat white</span><span>Mocha</span><span>Chocolate quente</span><span>Matcha latte</span><span>Latte gelado</span><span>Café gelado</span><span>Freddo espresso</span></div>
     </div>
   </div>
 </section>
@@ -186,8 +198,8 @@ const PAGE = String.raw`<!doctype html>
   <div class="wrap simwrap">
     <div>
       <p class="eyebrow">Orçamento em 30 segundos</p>
-      <h2>Simule e mande pelo WhatsApp</h2>
-      <p class="sub">Escolha o tipo de evento, quantos convidados e por quantas horas. Você vê uma estimativa na hora e manda tudo pronto para a gente confirmar a data.</p>
+      <h2>Simule o seu orçamento</h2>
+      <p class="sub">Informe o tipo de evento, o número de convidados e a duração do serviço. A estimativa aparece na hora e pode ser enviada pelo WhatsApp para confirmarmos a data.</p>
     </div>
     <form class="sim" id="sim" onsubmit="return false">
       <div class="field">
@@ -199,24 +211,25 @@ const PAGE = String.raw`<!doctype html>
         <div class="guests"><input type="range" id="guests" min="20" max="300" step="10" value="100"><output id="guestsOut">100</output></div>
       </div>
       <div class="field">
-        <span class="label">Duração do coffee bar</span>
+        <span class="label">Duração do serviço</span>
         <div class="hours" id="hours"></div>
       </div>
       <div class="row2">
         <div class="field"><label for="date">Data</label><input type="date" id="date"></div>
         <div class="field"><label for="city">Local</label><input type="text" id="city" placeholder="Florianópolis"></div>
       </div>
-      <label class="check"><input type="checkbox" id="favors"><span><b>Lembrancinhas de café</b><small>Pacotinhos de café especial (250 g) para os convidados levarem.</small></span></label>
-      <div class="field" id="favorsQtyWrap" hidden><label for="favorsQty">Quantos pacotes?</label><input type="number" id="favorsQty" min="10" step="10" value="50"></div>
+      <label class="check"><input type="checkbox" id="favors"><span><b>Lembrancinhas</b><small>Pacotes de café especial de 250 g para os convidados, sob encomenda.</small></span></label>
+      <div class="field" id="favorsQtyWrap" hidden><label for="favorsQty">Quantidade de pacotes</label><input type="number" id="favorsQty" min="10" step="10" value="50"></div>
+      <label class="check"><input type="checkbox" id="milk"><span><b>Leite sem lactose ou vegetal</b><small>Custo adicional, confirmado na proposta.</small></span></label>
       <div class="result">
         <div class="k">Estimativa</div>
         <div class="v" id="estimate">R$ –</div>
         <p id="estimateNote"></p>
       </div>
       <div class="send">
-        <a class="btn wa full" id="sendWa" href="#" target="_blank" rel="noopener">Pedir este orçamento no WhatsApp</a>
-        <button class="btn ghost full" id="sendIg" type="button">Prefiro pelo Instagram</button>
-        <p class="note">Valor aproximado. O orçamento final a gente confirma na conversa, com data e local.</p>
+        <a class="btn wa full" id="sendWa" href="#" target="_blank" rel="noopener">Solicitar orçamento pelo WhatsApp</a>
+        <button class="btn ghost full" id="sendIg" type="button">Prefiro o Instagram</button>
+        <p class="note">Valor estimado. O orçamento final é confirmado na conversa, de acordo com a data e o local.</p>
       </div>
     </form>
   </div>
@@ -224,13 +237,13 @@ const PAGE = String.raw`<!doctype html>
 
 <section>
   <div class="wrap">
-    <p class="eyebrow">Como funciona</p>
-    <h2>Simples assim</h2>
+    <p class="eyebrow">Passo a passo</p>
+    <h2>Como funciona</h2>
     <div class="steps" style="margin-top:22px">
-      <div class="card"><div><h3>Simule o orçamento</h3><p>Escolha o tipo de evento, convidados e duração.</p></div></div>
-      <div class="card"><div><h3>Mande pelo WhatsApp</h3><p>A mensagem já vai pronta, com todos os detalhes.</p></div></div>
-      <div class="card"><div><h3>Confirmamos a data</h3><p>Ajustamos o cardápio e a proposta ao seu evento.</p></div></div>
-      <div class="card"><div><h3>Aproveite</h3><p>No dia, a gente chega, monta o bar e serve. Você só curte.</p></div></div>
+      <div class="card"><div><h3>Simulação</h3><p>Escolha o tipo de evento, o número de convidados e a duração.</p></div></div>
+      <div class="card"><div><h3>Solicitação</h3><p>Envie o pedido pelo WhatsApp, já com todos os detalhes.</p></div></div>
+      <div class="card"><div><h3>Proposta</h3><p>Confirmamos a disponibilidade da data e enviamos a proposta final.</p></div></div>
+      <div class="card"><div><h3>O evento</h3><p>No dia, montamos o bar e servimos durante todo o período contratado.</p></div></div>
     </div>
   </div>
 </section>
@@ -240,10 +253,11 @@ const PAGE = String.raw`<!doctype html>
     <p class="eyebrow">Dúvidas</p>
     <h2>Perguntas frequentes</h2>
     <div style="margin-top:22px">
-      <details><summary>Do que vocês precisam no local?</summary><p>Um ponto de energia perto do bar e um espaço para a bancada. O resto a gente leva.</p></details>
-      <details><summary>Atendem fora de Florianópolis?</summary><p>Sim, Floripa e região. Para outras cidades, fale com a gente: o deslocamento entra no orçamento.</p></details>
-      <details><summary>Com quanto tempo de antecedência devo reservar?</summary><p>Quanto antes, melhor, principalmente para sábados e datas de alta temporada. Mande a data e a gente confirma se está livre.</p></details>
-      <details><summary>Tem opção sem lactose e vegetal?</summary><p>Sim. Todas as bebidas com leite podem ser feitas com leite sem lactose ou vegetal.</p></details>
+      <details><summary>O que é necessário no local?</summary><p>Precisamos de um ponto de energia próximo ao local do bar.</p></details>
+      <details><summary>Vocês atendem fora de Florianópolis?</summary><p>Atendemos Florianópolis e região. Para outras cidades, o deslocamento é incluído no orçamento.</p></details>
+      <details><summary>Há opção de leite sem lactose ou vegetal?</summary><p>Todas as bebidas são preparadas com leite integral. Leite sem lactose ou vegetal pode ser incluído, com custo adicional.</p></details>
+      <details><summary>Como funcionam as lembrancinhas?</summary><p>São pacotes de 250 g de café especial, feitos sob encomenda. Informe a quantidade na sua solicitação para garantirmos a produção a tempo.</p></details>
+      <details><summary>Com quanta antecedência devo reservar?</summary><p>Recomendamos reservar o quanto antes, principalmente para sábados e datas de alta temporada. Envie a data e confirmamos a disponibilidade.</p></details>
     </div>
   </div>
 </section>
@@ -265,12 +279,14 @@ const PAGE = String.raw`<!doctype html>
   const brl = n => "R$ " + Math.round(n).toLocaleString("pt-BR");
   const round50 = n => Math.round(n / 50) * 50;
   const state = { type: "casamento", guests: 100, hours: 3 };
-  const typeName = id => (C.types.find(t => t[0] === id) || [, , "Evento"])[2];
+  const typeName = id => (C.types.find(t => t[0] === id) || [, "Evento"])[1];
+  const hoursText = h => h === 5 ? "5 horas ou mais" : h + " horas";
   const wa = text => "https://wa.me/" + C.contact.whatsapp + "?text=" + encodeURIComponent(text);
 
-  $("types").innerHTML = C.types.map(t => '<button type="button" data-type="' + t[0] + '">' + t[1] + " " + t[2] + "</button>").join("");
+  $("types").innerHTML = C.types.map(t => '<button type="button" data-type="' + t[0] + '">' + t[1] + "</button>").join("");
   $("hours").innerHTML = Object.keys(C.pricing.hours).map(h => '<button type="button" data-hours="' + h + '">' + h + (h === "5" ? "h+" : "h") + "</button>").join("");
 
+  // Set-up and travel are fixed; the hours only scale the per-guest part.
   function estimate() {
     const p = C.pricing;
     const favors = $("favors").checked ? Math.max(0, Number($("favorsQty").value) || 0) : 0;
@@ -281,16 +297,17 @@ const PAGE = String.raw`<!doctype html>
   function message(e) {
     const d = $("date").value ? $("date").value.split("-").reverse().join("/") : "a definir";
     const lines = [
-      "Olá, Beach Coffee! Quero um orçamento de coffee bar ☕",
+      "Olá! Gostaria de solicitar um orçamento de coffee bar.",
       "",
-      "• Evento: " + typeName(state.type),
-      "• Data: " + d,
-      "• Local: " + ($("city").value.trim() || "a definir"),
-      "• Convidados: " + state.guests,
-      "• Duração: " + state.hours + (state.hours === 5 ? "h ou mais" : " horas"),
+      "Evento: " + typeName(state.type),
+      "Data: " + d,
+      "Local: " + ($("city").value.trim() || "a definir"),
+      "Convidados: " + state.guests,
+      "Duração: " + hoursText(state.hours),
     ];
-    if (e.favors) lines.push("• Lembrancinhas: " + e.favors + " pacotes de café");
-    lines.push("", "Estimativa do site: " + brl(e.low) + " – " + brl(e.high));
+    if (e.favors) lines.push("Lembrancinhas: " + e.favors + " pacotes de 250 g");
+    if ($("milk").checked) lines.push("Leite sem lactose ou vegetal: sim");
+    lines.push("", "Estimativa do site: " + brl(e.low) + " a " + brl(e.high));
     return lines.join("\n");
   }
   function render() {
@@ -300,25 +317,26 @@ const PAGE = String.raw`<!doctype html>
     $("favorsQtyWrap").hidden = !$("favors").checked;
     const e = estimate();
     $("estimate").textContent = brl(e.low) + " – " + brl(e.high);
-    $("estimateNote").textContent = typeName(state.type) + " · " + state.guests + " convidados · " + state.hours + (state.hours === 5 ? "h ou mais" : " horas") +
-      (e.favors ? " · " + e.favors + " lembrancinhas" : "");
+    $("estimateNote").textContent = typeName(state.type) + " · " + state.guests + " convidados · " + hoursText(state.hours) +
+      (e.favors ? " · " + e.favors + " lembrancinhas" : "") + ($("milk").checked ? " · leite sem lactose ou vegetal à parte" : "");
     $("sendWa").href = wa(message(e));
   }
 
   $("types").addEventListener("click", e => { const b = e.target.closest("[data-type]"); if (b) { state.type = b.dataset.type; render(); } });
   $("hours").addEventListener("click", e => { const b = e.target.closest("[data-hours]"); if (b) { state.hours = Number(b.dataset.hours); render(); } });
   $("guests").addEventListener("input", e => { state.guests = Number(e.target.value); render(); });
-  ["date", "city", "favors", "favorsQty"].forEach(id => $(id).addEventListener("input", render));
+  ["date", "city", "favors", "favorsQty", "milk"].forEach(id => $(id).addEventListener("input", render));
 
   // Instagram can't take a prefilled message: copy it, then open the DM.
   const toast = t => { $("toast").textContent = t; $("toast").classList.add("on"); setTimeout(() => $("toast").classList.remove("on"), 2600); };
   $("sendIg").addEventListener("click", async () => {
     const text = message(estimate());
-    try { await navigator.clipboard.writeText(text); toast("Mensagem copiada! É só colar na DM 💬"); } catch (err) { toast("Abra a DM e conte data, convidados e duração 💬"); }
+    try { await navigator.clipboard.writeText(text); toast("Mensagem copiada. Cole na conversa do Instagram."); }
+    catch (err) { toast("Envie na conversa a data, o número de convidados e a duração."); }
     setTimeout(() => window.open("https://ig.me/m/" + C.contact.instagram, "_blank"), 600);
   });
 
-  const hello = wa("Olá, Beach Coffee! Quero saber mais sobre o coffee bar para o meu evento ☕");
+  const hello = wa("Olá! Gostaria de saber mais sobre o coffee bar da Beach Coffee para o meu evento.");
   ["heroWa", "footWa", "floatWa"].forEach(id => { $(id).href = hello; });
   render();
 </script>
