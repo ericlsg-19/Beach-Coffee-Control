@@ -22,6 +22,8 @@ import { ANCORA_HTML } from "./ancora-html.js";
 import { WEB3_IIFE } from "./vendor/web3-iife.js";
 import { payPageHtml } from "./paypage.js";
 import { eventsHtml } from "./eventspage.js";
+import { web3Html } from "./web3page.js";
+import { WEB3_BAG_WEBP } from "./web3bag.js";
 import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus } from "./pay.js";
 
 const DRINKS = [
@@ -41,7 +43,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.13";
+const VERSION = "1.7.14";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -108,6 +110,21 @@ async function closedText(env) {
 }
 async function isOpen(env) {
   return !(await closedText(env));
+}
+
+// ---------- Sponsor (/sponsor) ----------
+//
+// When a sponsor covers the coffee, guests see it in the Mini App and on every order receipt.
+
+const sponsorName = async env => (await getSetting(env, "sponsor")) || "";
+// /sponsor → shows it. /sponsor @Brand (or a name) sets it, /sponsor off removes it.
+async function sponsorCommand(env, args) {
+  const name = args.join(" ").trim().slice(0, 40);
+  if (name.toLowerCase() === "off") await setSetting(env, "sponsor", "");
+  else if (name) await setSetting(env, "sponsor", name);
+  const now = await sponsorName(env);
+  return now ? `☕ Sponsor: <b>${escapeHtml(now)}</b>\nGuests see "This coffee is on ${escapeHtml(now)}" in the Mini App and on every receipt.\n/sponsor off to remove it.`
+    : "No sponsor set. /sponsor @Brand to show one to guests.";
 }
 
 // ---------- Lunch break (/lunch) ----------
@@ -268,6 +285,8 @@ async function createOrder(env, chatId, from, drink, milk = "") {
 
   const lunch = await lunchBreak(env);
   if (lunch) order.lunch = lunch.until;
+  const sponsor = await sponsorName(env);
+  if (sponsor) order.sponsor = sponsor;
   const msg = await send(env, baristaChat,
     `🆕 <b>#${order.num} · ${drink.name}</b>${milk ? `\n🥛 <b>${MILKS[milk]}</b>` : ""}\n👤 ${escapeHtml(name)}\n🕐 ${localTime(createdAt)}` +
       (lunch ? `\n🍽️ <b>After lunch</b> · from ${lunch.until}` : ""),
@@ -286,7 +305,7 @@ async function createOrder(env, chatId, from, drink, milk = "") {
 function receiptText(order, drink) {
   return `🧾 <b>Order #${order.num}</b> · ${drink.name}${order.milk ? ` · ${MILKS[order.milk]}` : ""}\n` + (order.lunch
     ? `Got it! The barista is on lunch break 🍽️ Your drink will be ready from ${clockLabel(order.lunch)}. We'll message you here.`
-    : "Got it! We'll message you here when it's ready.");
+    : "Got it! We'll message you here when it's ready.") + (order.sponsor ? `\n☕ This coffee is on <b>${escapeHtml(order.sponsor)}</b>` : "");
 }
 
 // Order placed from the chat buttons: the menu message turns into the receipt.
@@ -427,7 +446,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/sponsor: show a sponsor to guests (/sponsor @Brand, /sponsor off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -449,6 +468,7 @@ async function onMessage(env, message) {
     if (cmd === "/today") return send(env, chatId, await dayReport(env, localDay()));
     if (cmd === "/demoday") return send(env, chatId, await demoDayCommand(env, args));
     if (cmd === "/lunch") return send(env, chatId, await lunchCommand(env, args));
+    if (cmd === "/sponsor") return send(env, chatId, await sponsorCommand(env, args));
     if (cmd === "/total") return send(env, chatId, await eventReport(env));
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
@@ -689,7 +709,7 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
-      event: await eventStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
+      event: await eventStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null, sponsor: (await sponsorName(env)) || null,
       closed: await closedText(env), ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
@@ -707,7 +727,7 @@ async function handleApi(request, env, path) {
       return json({ ok: false, error });
     }
     await send(env, user.id, receiptText(order, drink));
-    return json({ ok: true, order: { num: order.num, drink: drink.id, ...(order.milk ? { milk: order.milk } : {}), ...(order.lunch ? { lunch: clockLabel(order.lunch) } : {}) }, orders: await todaysOrders(env, user.id) });
+    return json({ ok: true, order: { num: order.num, drink: drink.id, ...(order.milk ? { milk: order.milk } : {}), ...(order.lunch ? { lunch: clockLabel(order.lunch) } : {}), ...(order.sponsor ? { sponsor: order.sponsor } : {}) }, orders: await todaysOrders(env, user.id) });
   }
   return json({ ok: false, error: "Not found" }, 404);
 }
@@ -933,8 +953,15 @@ export default {
     // Pages opened on the old workers.dev address (printed cards, old links) move to our own domain, where
     // wallets don't flag the site. The fragment (Telegram's initData, the panel key) survives the redirect.
     if (request.method === "GET" && url.hostname.endsWith(".workers.dev") && base !== url.origin
-      && (path === "/app" || path === "/panel" || path === "/eventos" || path === "/pay" || path.startsWith("/pay/"))) {
+      && (path === "/app" || path === "/panel" || path === "/eventos" || path === "/web3" || path === "/pay" || path.startsWith("/pay/"))) {
       return Response.redirect(base + path + url.search, 301);
+    }
+    if (path === "/web3" || path === "/web3/") {
+      return new Response(web3Html(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
+    }
+    if (path === "/web3/bag.webp") {
+      const bytes = Uint8Array.from(atob(WEB3_BAG_WEBP), c => c.charCodeAt(0));
+      return new Response(bytes, { headers: { "content-type": "image/webp", "cache-control": "public, max-age=86400" } });
     }
     if (path === "/eventos" || path === "/eventos/") {
       return new Response(eventsHtml(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });

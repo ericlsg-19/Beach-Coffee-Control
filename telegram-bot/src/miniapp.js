@@ -80,6 +80,8 @@ export function miniAppHtml(drinks, pay = null) {
   .drink .left { display: block; margin-top: 3px; font: 500 .78rem/1 var(--mono); color: var(--gold); }
   .drink.soldout { opacity: .45; cursor: default; }
   .note { color: var(--muted); font-size: .9rem; margin: 0; }
+  .note.sponsor { margin-bottom: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; color: var(--text); }
+  .note.sponsor b { color: var(--gold); }
   .closed-note { margin-top: 18px; padding: 16px 18px; border-color: var(--gold); }
   .closed-note p { margin: 0; color: var(--text); font-size: .95rem; line-height: 1.45; }
   .center { text-align: center; padding: 40px 10px; display: grid; gap: 10px; justify-items: center; }
@@ -165,6 +167,7 @@ export function miniAppHtml(drinks, pay = null) {
     <div class="card" id="orders"></div>
   </section>
   <section id="pick">
+    <p class="note sponsor" id="sponsorNote" hidden></p>
     <p class="note" id="lunchNote" hidden style="margin-bottom:12px"></p>
     <p class="note" id="eventNote" hidden style="margin-bottom:12px"></p>
     <p class="eyebrow" style="margin-bottom:10px" id="pickTitle">Step 1 · Pick your drink</p>
@@ -366,6 +369,8 @@ export function miniAppHtml(drinks, pay = null) {
     $("pickTitle").textContent = open ? "Step 1 · Pick your drink" : "Our menu";
     $("closedNote").hidden = open;
     $("closedText").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
+    $("sponsorNote").hidden = !s.sponsor;
+    if (s.sponsor) $("sponsorNote").innerHTML = "☕ This coffee is on <b>" + esc(s.sponsor) + "</b>";
     lunch = s.lunch || null;
     $("lunchNote").hidden = !lunch;
     if (lunch) $("lunchNote").innerHTML = "🍽️ <b>Lunch break</b> until " + esc(lunch.label) + ". You can still order: it'll be ready from " + esc(lunch.label) + ".";
@@ -413,6 +418,7 @@ export function miniAppHtml(drinks, pay = null) {
       '<p class="eyebrow">Order #' + r.order.num + (r.order.milk ? ' · ' + esc(MILKS[r.order.milk]) : '') + '</p>' +
       '<h2>' + esc(drinkName(r.order.drink)) + '<br><b>on the way</b></h2>' +
       '<p class="note">' + (r.order.lunch ? '🍽️ Ready from ' + esc(r.order.lunch) + ', after the barista\\'s lunch. We\\'ll message you in the chat ☕' : 'We\\'ll message you in the chat when it\\'s ready ☕') + '</p>' +
+      (r.order.sponsor ? '<p class="note sponsor" style="margin:4px 0 0">☕ This coffee is on <b>' + esc(r.order.sponsor) + '</b></p>' : '') +
       '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
       (PAY ? '<div class="pay-card tip-after"><h3>💛 Tip the barista?</h3><p class="note">Optional, in USDC on Solana. Drinks stay on the house.</p>' +
         '<div class="chips">' + PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") +
