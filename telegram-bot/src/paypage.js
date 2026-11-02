@@ -44,6 +44,9 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
   .price { font: 500 1.1rem/1 var(--mono); color: var(--gold); }
   .btn { height: 52px; width: 100%; border-radius: 999px; border: 0; background: var(--gold); color: var(--gold-ink); font: 600 1.02rem/1 var(--body); cursor: pointer; display: grid; place-items: center; text-decoration: none; }
   .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  /* Each wallet in its own colors: Solflare yellow and black, Phantom lavender and white. */
+  .btn.solflare { background: #fbee64; color: #111; }
+  .btn.phantom { background: #a99eec; color: #fff; }
   .btn[disabled] { opacity: .5; cursor: default; }
   .amount { font: 900 2.6rem/1 var(--display); font-stretch: 125%; color: var(--gold); }
   .amount small { font: 600 1rem/1 var(--body); color: var(--muted); letter-spacing: .1em; margin-left: 6px; }
@@ -104,8 +107,8 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     </div>
 
     <div id="openWallet" hidden style="display:grid;gap:10px">
-      <a class="btn" id="solflare" rel="noopener">Pay with Solflare</a>
-      <a class="btn ghost" id="phantom" rel="noopener">Pay with Phantom</a>
+      <a class="btn solflare" id="solflare" rel="noopener">Pay with Solflare</a>
+      <a class="btn phantom" id="phantom" rel="noopener">Pay with Phantom</a>
       <a class="btn ghost" id="solanaPay" rel="noopener">Open my wallet app (Solana Pay)</a>
       <p class="note">If your wallet blocks the payment, use Solana Pay: your wallet opens with the tip filled in, you just confirm.</p>
     </div>
