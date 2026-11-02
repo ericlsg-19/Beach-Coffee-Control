@@ -182,6 +182,26 @@ test("/demoday: today only, a short menu with stock and a daily cap per guest; o
   assert.match(calls.at(-1).body.text, /full menu is on/);
 });
 
+test("/sponsor: guests see the sponsor in the Mini App and on the receipt; only the barista sets it", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  await post(msg(ANA, "/sponsor @Hacker"));
+  assert.equal((await (await apiCall(env, "/api/session", { initData: ana })).json()).sponsor, null);
+
+  await post(msg(BARISTA, "/sponsor @SuperteamBR"));
+  assert.match(calls.at(-1).body.text, /Sponsor: <b>@SuperteamBR<\/b>/);
+  assert.equal((await (await apiCall(env, "/api/session", { initData: ana })).json()).sponsor, "@SuperteamBR");
+  calls.length = 0;
+  const r = await (await apiCall(env, "/api/order", { initData: ana, drink: "espresso" })).json();
+  assert.equal(r.order.sponsor, "@SuperteamBR");
+  assert.match(calls.find(c => c.body.chat_id === ANA).body.text, /This coffee is on <b>@SuperteamBR<\/b>/);
+
+  await post(msg(BARISTA, "/sponsor off"));
+  assert.match(calls.at(-1).body.text, /No sponsor set/);
+  assert.equal((await (await apiCall(env, "/api/session", { initData: ana })).json()).sponsor, null);
+});
+
 test("weekends: closed Saturday and Sunday with a friendly note, /open opens just that day, Monday opens by itself", async t => {
   const { env, calls, post } = setup();
   await env.DB.prepare("DELETE FROM settings WHERE key = 'weekends'").run();

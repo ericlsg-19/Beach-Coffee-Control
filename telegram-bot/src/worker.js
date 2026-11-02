@@ -112,6 +112,21 @@ async function isOpen(env) {
   return !(await closedText(env));
 }
 
+// ---------- Sponsor (/sponsor) ----------
+//
+// When a sponsor covers the coffee, guests see it in the Mini App and on every order receipt.
+
+const sponsorName = async env => (await getSetting(env, "sponsor")) || "";
+// /sponsor → shows it. /sponsor @Brand (or a name) sets it, /sponsor off removes it.
+async function sponsorCommand(env, args) {
+  const name = args.join(" ").trim().slice(0, 40);
+  if (name.toLowerCase() === "off") await setSetting(env, "sponsor", "");
+  else if (name) await setSetting(env, "sponsor", name);
+  const now = await sponsorName(env);
+  return now ? `☕ Sponsor: <b>${escapeHtml(now)}</b>\nGuests see "This coffee is on ${escapeHtml(now)}" in the Mini App and on every receipt.\n/sponsor off to remove it.`
+    : "No sponsor set. /sponsor @Brand to show one to guests.";
+}
+
 // ---------- Lunch break (/lunch) ----------
 //
 // Every day the barista stops for lunch (13:00–14:00 bar time unless /lunch changes it). Orders still come
@@ -270,6 +285,8 @@ async function createOrder(env, chatId, from, drink, milk = "") {
 
   const lunch = await lunchBreak(env);
   if (lunch) order.lunch = lunch.until;
+  const sponsor = await sponsorName(env);
+  if (sponsor) order.sponsor = sponsor;
   const msg = await send(env, baristaChat,
     `🆕 <b>#${order.num} · ${drink.name}</b>${milk ? `\n🥛 <b>${MILKS[milk]}</b>` : ""}\n👤 ${escapeHtml(name)}\n🕐 ${localTime(createdAt)}` +
       (lunch ? `\n🍽️ <b>After lunch</b> · from ${lunch.until}` : ""),
@@ -288,7 +305,7 @@ async function createOrder(env, chatId, from, drink, milk = "") {
 function receiptText(order, drink) {
   return `🧾 <b>Order #${order.num}</b> · ${drink.name}${order.milk ? ` · ${MILKS[order.milk]}` : ""}\n` + (order.lunch
     ? `Got it! The barista is on lunch break 🍽️ Your drink will be ready from ${clockLabel(order.lunch)}. We'll message you here.`
-    : "Got it! We'll message you here when it's ready.");
+    : "Got it! We'll message you here when it's ready.") + (order.sponsor ? `\n☕ This coffee is on <b>${escapeHtml(order.sponsor)}</b>` : "");
 }
 
 // Order placed from the chat buttons: the menu message turns into the receipt.
@@ -429,7 +446,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/sponsor: show a sponsor to guests (/sponsor @Brand, /sponsor off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -451,6 +468,7 @@ async function onMessage(env, message) {
     if (cmd === "/today") return send(env, chatId, await dayReport(env, localDay()));
     if (cmd === "/demoday") return send(env, chatId, await demoDayCommand(env, args));
     if (cmd === "/lunch") return send(env, chatId, await lunchCommand(env, args));
+    if (cmd === "/sponsor") return send(env, chatId, await sponsorCommand(env, args));
     if (cmd === "/total") return send(env, chatId, await eventReport(env));
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
@@ -691,7 +709,7 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
-      event: await eventStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
+      event: await eventStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null, sponsor: (await sponsorName(env)) || null,
       closed: await closedText(env), ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
@@ -709,7 +727,7 @@ async function handleApi(request, env, path) {
       return json({ ok: false, error });
     }
     await send(env, user.id, receiptText(order, drink));
-    return json({ ok: true, order: { num: order.num, drink: drink.id, ...(order.milk ? { milk: order.milk } : {}), ...(order.lunch ? { lunch: clockLabel(order.lunch) } : {}) }, orders: await todaysOrders(env, user.id) });
+    return json({ ok: true, order: { num: order.num, drink: drink.id, ...(order.milk ? { milk: order.milk } : {}), ...(order.lunch ? { lunch: clockLabel(order.lunch) } : {}), ...(order.sponsor ? { sponsor: order.sponsor } : {}) }, orders: await todaysOrders(env, user.id) });
   }
   return json({ ok: false, error: "Not found" }, 404);
 }
