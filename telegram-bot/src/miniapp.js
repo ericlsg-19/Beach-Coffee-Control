@@ -88,6 +88,9 @@ export function miniAppHtml(drinks, pay = null) {
   .btn { height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: var(--gold); color: var(--gold-ink); font: 600 1rem/1 var(--body); cursor: pointer; }
   .btn:disabled { opacity: .5; cursor: default; }
   .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  /* Each wallet in its own colors: Solflare yellow and black, Phantom lavender and white. */
+  .btn.solflare { background: #fbee64; color: #111; }
+  .btn.phantom { background: #a99eec; color: #fff; }
   .fallback { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .fallback .btn { width: 100%; }
   .tabs { display: grid; grid-template-columns: repeat(var(--tabs, 2), 1fr); gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
@@ -209,8 +212,8 @@ export function miniAppHtml(drinks, pay = null) {
         <div class="amount" id="payAmount"></div>
         <p class="note">USDC on the Solana network.</p>
       </div>
-      <button class="btn wide" id="paySolflare">Pay with Solflare</button>
-      <button class="btn ghost wide" id="payPhantom">Pay with Phantom</button>
+      <button class="btn solflare wide" id="paySolflare">Pay with Solflare</button>
+      <button class="btn phantom wide" id="payPhantom">Pay with Phantom</button>
       <button class="btn ghost wide" id="paySolanaPay">Blocked by your wallet? Use Solana Pay</button>
       <div class="pay-card">
         <h3>Other wallet or exchange</h3>
