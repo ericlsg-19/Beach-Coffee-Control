@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.7.13**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 29/10/2026, bot e Âncora na **v1.7.14**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -43,6 +43,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.7.13**, no domínio próprio **d
 - 31/10: v1.7.10: no fim de semana o aviso é sempre "off touching sand", mesmo depois de um `/close`. Atenção: o `/close` manual continua valendo depois do fim de semana; se foi usado, mandar `/open` na segunda de manhã.
 - 01/11: v1.7.11: **página de eventos** em https://drinkbeachcoffee.com/eventos (casamentos, aniversários, corporativos; português). Simulador de orçamento: R$ 500 de montagem e deslocamento (fixo) + R$ 15 por convidado para 3 h (2 h 85%, 4 h +15%, 5 h+ +30%, só na parte por convidado), mínimo R$ 1.500, lembrancinha R$ 50 por pacote de 250 g, faixa de ±10%. Envia a mensagem pronta para o WhatsApp +55 48 99830-0443 ou copia para a DM do @beachcoffee.co. Preços em `PRICING` em `telegram-bot/src/eventspage.js`. Base de custo medida no Island DAO: R$ 2,14 de insumos por bebida, R$ 60/h, R$ 40 de deslocamento; R$ 15 por convidado supõe 1,5 bebida por convidado (medir no primeiro evento). Falta: prazo de antecedência das lembrancinhas (FAQ sem número por enquanto). v1.7.12: pagamento na página de eventos: 50% na reserva da data e 50% ao final do evento (passo a passo, FAQ e nota do simulador).
 - 02/11: v1.7.13: botões de carteira nas cores de cada app (Solflare amarelo #FBEE64 com texto preto, Phantom lavanda #A99EEC com texto branco), no mini app e na página de pagamento.
+- 02/11: v1.7.14: **página para organizadores web3** em https://drinkbeachcoffee.com/web3 (inglês): "Coffee, onchain", prova do Island DAO (460+ cafés, 0→94% no Telegram, 5 min → 0, tips em USDC), como funciona, o que o organizador recebe, **pacote de patrocínio** ("This coffee is on @YourBrand"), Island DAO Edition e contato por WhatsApp ou DM no X (@BeachCoffeco). Atenção: o nome do patrocinador no mini app e no recibo ainda não está no bot; fazer antes do primeiro evento patrocinado.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

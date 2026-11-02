@@ -329,7 +329,7 @@ test("pages on the old workers.dev address move to WEBHOOK_URL; the API and webh
   const { env } = setup();
   env.WEBHOOK_URL = "https://beachcoffee.example";
   const old = "https://beach-coffee-bot.beachcoffeeco.workers.dev";
-  for (const path of ["/app", "/pay", "/pay/abc", "/panel", "/eventos"]) {
+  for (const path of ["/app", "/pay", "/pay/abc", "/panel", "/eventos", "/web3"]) {
     const res = await worker.fetch(new Request(old + path), env);
     assert.equal(res.status, 301, path);
     assert.equal(res.headers.get("location"), "https://beachcoffee.example" + path);
@@ -350,6 +350,21 @@ test("/eventos: the events page in Portuguese, with the estimate and a ready Wha
   assert.match(html, /wa\.me\//);
   assert.ok(!html.includes("/*CONFIG*/") && !html.includes("<!--WORDMARK-->"));
   assert.match(html, /50% do valor na reserva da data e 50% ao final do evento/);
+});
+
+test("/web3: the page for web3 organizers in English, its bag image, and a ready WhatsApp inquiry", async () => {
+  const { env } = setup();
+  const res = await worker.fetch(new Request("https://bot/web3"), env);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /<html lang="en">/);
+  assert.match(html, /Coffee,<br><span class="on">onchain/);
+  assert.match(html, /"x":"BeachCoffeco"/);
+  assert.ok(!html.includes("/*CONFIG*/") && !html.includes("<!--WORDMARK-->"));
+  const img = await worker.fetch(new Request("https://bot/web3/bag.webp"), env);
+  assert.equal(img.headers.get("content-type"), "image/webp");
+  const bytes = new Uint8Array(await img.arrayBuffer());
+  assert.equal(String.fromCharCode(...bytes.slice(8, 12)), "WEBP");
 });
 
 test("/eventos estimate: set-up fixed, hours scale the per-guest part, R$ 1,500 minimum, R$ 50 favors", async () => {
@@ -787,7 +802,7 @@ test("the Mini App and payment page scripts are valid JavaScript", async () => {
     return [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   };
   const { payment } = await pay(env, { kind: "bag" });
-  for (const path of ["/app", "/eventos", "/pay", `/pay/${payment.ref}`]) {
+  for (const path of ["/app", "/eventos", "/web3", "/pay", `/pay/${payment.ref}`]) {
     const list = await scripts(path);
     assert.ok(list.length, `${path} has an inline script`);
     for (const js of list) assert.doesNotThrow(() => new Function(js), `${path} script parses`);
