@@ -118,14 +118,14 @@ const PAGE = String.raw`<!doctype html>
   <div class="hero">
     <p class="eyebrow"><span class="dot"></span>Live at Island DAO · Floripa · Oct 2026</p>
     <h1>Coffee,<br><span class="on">onchain.</span></h1>
-    <p class="lead">The specialty coffee bar for builders' events. Attendees order from a Telegram Mini App, get pinged when it's ready, and tip the barista in USDC on Solana. No lines, no lost orders, no one leaving the hackathon floor.</p>
+    <p class="lead">The specialty coffee bar for builders' events. No lines, no lost orders, no one leaving the hackathon floor.</p>
     <div class="ctas">
       <a class="btn mint" href="#book">Bring the bar to your event</a>
       <a class="btn ghost" href="https://t.me/BeachCoffeeIslandBot" target="_blank" rel="noopener">Try the bot</a>
     </div>
     <div class="solbar"></div>
     <div class="stats">
-      <div><b>460<span class="g">+</span></b><span>cups served in seven days at Island DAO</span></div>
+      <div><b>2k<span class="g">+</span></b><span>coffees served in one month, during Island DAO</span></div>
       <div><b>0<span class="g">→</span>94%</b><span>of orders moved to Telegram in four days</span></div>
       <div><b>5<span class="g">→</span>0</b><span>minutes in line, timed at the bar</span></div>
       <div><b>USDC</b><span>tips verified onchain with Solana Pay</span></div>
@@ -171,7 +171,7 @@ const PAGE = String.raw`<!doctype html>
 <section>
   <div class="wrap">
     <p class="eyebrow">Proof of brew</p>
-    <p class="story">Built from zero at the bar, by the barista, between shifts, with AI. Not by a dev team. <b>On the island, anyone can build.</b></p>
+    <p class="story">Built from zero at the bar, by the barista, between shifts, with AI. Not by a dev team.<br><b>On the island, anyone can build.</b></p>
   </div>
 </section>
 
