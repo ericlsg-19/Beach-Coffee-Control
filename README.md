@@ -47,7 +47,6 @@ Every checkout (a tip or a bag) gets a unique **Solana Pay reference** key.
 - One panel for Telegram and walk-up orders, live (Âncora, `/panel`).
 - Crowd controls: pending-drink limit per guest, stock per drink, and a one-day **demo-day mode** (`/demoday`: a short menu with stock and a per-guest cap).
 - Lunch break (`/lunch`), weekends closed by default, `/close` and `/open`.
-- Sponsor line (`/sponsor @Brand`): "This coffee is on @Brand" in the app and on every receipt.
 - Pages that sell the bar: [`/web3`](https://drinkbeachcoffee.com/web3) for web3 organizers, [`/eventos`](https://drinkbeachcoffee.com/eventos) for weddings and private events, with an instant estimate.
 
 ## Stack

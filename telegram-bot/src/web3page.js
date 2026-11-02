@@ -1,5 +1,5 @@
 // /web3: the coffee bar pitched to web3 event organizers (hackathons, conferences, hacker houses), in
-// English. Proof from Island DAO, how ordering works, what organizers and sponsors get, the edition bag,
+// English. Proof from Island DAO, how ordering works, what organizers get, the edition bag,
 // and a quick inquiry that goes out as a ready WhatsApp message or is copied for an X DM.
 import { WORDMARK_SVG } from "./wordmark.js";
 
@@ -22,16 +22,18 @@ const PAGE = String.raw`<!doctype html>
 <meta name="description" content="A specialty coffee bar for hackathons, conferences and hacker houses. Builders order from Telegram, get pinged when it's ready, and tip in USDC on Solana.">
 <meta property="og:title" content="Coffee, onchain · Beach Coffee Co.">
 <meta property="og:description" content="The specialty coffee bar for builders' events. 0% to 94% of orders on Telegram in four days at Island DAO.">
-<meta name="theme-color" content="#071110">
+<meta name="theme-color" content="#17322b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800;125,900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
-  :root { --bg: #071110; --bg2: #0b1715; --card: rgba(16,30,27,.72); --line: rgba(168,230,184,.14); --text: #eef3ee; --muted: #9db3a6;
+  :root { --bg: #0c1c18; --bg2: #10241f; --card: rgba(8,20,17,.5); --line: rgba(168,230,184,.14); --text: #eef3ee; --muted: #9db3a6;
     --mint: #a8e6b8; --gold: #e8b86a; --sol: linear-gradient(90deg, #9945ff, #14f195); }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body { margin: 0; color: var(--text); font: 400 16px/1.6 Figtree, system-ui, sans-serif; -webkit-font-smoothing: antialiased;
-    background: radial-gradient(900px 600px at 85% -5%, rgba(168,230,184,.13), transparent 60%), radial-gradient(800px 600px at -10% 40%, rgba(153,69,255,.10), transparent 60%), var(--bg); }
+    background: radial-gradient(1400px 1000px at 85% -8%, #2a4a3d 0%, #1b3a31 30%, rgba(27,58,49,0) 70%),
+      radial-gradient(1000px 800px at -5% 55%, rgba(38,72,60,.75), rgba(38,72,60,0) 70%),
+      radial-gradient(900px 700px at 100% 100%, rgba(33,57,47,.8), rgba(33,57,47,0) 70%), var(--bg); }
   body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .5;
     background-image: linear-gradient(rgba(168,230,184,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(168,230,184,.045) 1px, transparent 1px);
     background-size: 56px 56px; mask-image: linear-gradient(180deg, #000 0%, transparent 70%); -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 70%); }
@@ -72,12 +74,10 @@ const PAGE = String.raw`<!doctype html>
   .card { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 24px; padding: 24px; backdrop-filter: blur(6px); }
   .card p { margin: 10px 0 0; color: var(--muted); }
   .num { font: 500 13px/1 "JetBrains Mono", monospace; color: var(--gold); letter-spacing: .1em; margin-bottom: 16px; display: block; }
-  .card.feature { border-color: rgba(232,184,106,.45); background: linear-gradient(160deg, rgba(232,184,106,.10), rgba(16,30,27,.72) 55%); }
-  .tag { display: inline-block; font: 600 11px/1 "JetBrains Mono", monospace; letter-spacing: .12em; text-transform: uppercase; color: #062018; background: var(--gold); padding: 6px 9px; border-radius: 999px; margin-bottom: 14px; }
-  .receipt { margin-top: 18px; background: #0d1d19; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; font: 500 14px/1.6 "JetBrains Mono", monospace; color: #cfe0d5; }
-  .receipt .hl { color: var(--mint); }
   .bag { display: grid; gap: 24px; align-items: center; }
-  .bag img { width: 100%; max-width: 360px; justify-self: center; filter: drop-shadow(0 40px 60px rgba(0,0,0,.55)); }
+  .bagcard { justify-self: center; width: 100%; max-width: 420px; aspect-ratio: 4 / 5; border-radius: 32px; display: grid; place-items: center; padding: 36px;
+    background: radial-gradient(120% 90% at 50% 12%, #f8eedc 0%, #ead8ba 55%, #d4b98f 100%); box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+  .bagcard img { height: 100%; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 26px 30px rgba(70,45,20,.45)); }
   .story { border-left: 4px solid var(--gold); padding: 6px 0 6px 22px; font-size: clamp(18px, 2.6vw, 24px); color: #dbe6de; max-width: 46em; }
   .story b { color: var(--gold); }
   /* Inquiry */
@@ -90,9 +90,6 @@ const PAGE = String.raw`<!doctype html>
   input[type=text], input[type=number] { width: 100%; height: 52px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.04); padding: 0 14px;
     font: 500 16px Figtree; color: var(--text); }
   input::placeholder { color: #5f7d70; }
-  .check { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 14px; padding: 14px; cursor: pointer; background: rgba(255,255,255,.03); }
-  .check input { width: 20px; height: 20px; accent-color: var(--mint); margin: 2px 0 0; flex: none; }
-  .check small { display: block; color: var(--muted); font-size: 14px; }
   .note { font-size: 13px; color: var(--muted); text-align: center; margin: 0; }
   footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
   footer svg { height: 30px; width: auto; display: block; margin: 0 auto 14px; }
@@ -114,7 +111,7 @@ const PAGE = String.raw`<!doctype html>
 <div class="wrap">
   <nav>
     <!--WORDMARK-->
-    <div class="links"><a href="#how">How it works</a><a href="#organizers">Organizers</a><a href="#sponsors">Sponsors</a></div>
+    <div class="links"><a href="#how">How it works</a><a href="#organizers">Organizers</a><a href="#edition">Edition</a></div>
     <a class="pill" href="#book">Book the bar</a>
   </nav>
 
@@ -158,31 +155,16 @@ const PAGE = String.raw`<!doctype html>
       <div class="card"><span class="num">DATA</span><h3>Live panel and report</h3><p>A live order panel during the event, and a final report: cups served, unique guests, peak hours, top drinks.</p></div>
       <div class="card"><span class="num">FLOW</span><h3>Built for crowds</h3><p>Per-guest limits, stock per drink and a demo-day mode keep the bar fair when everyone breaks at once.</p></div>
       <div class="card"><span class="num">MERCH</span><h3>Limited edition bag</h3><p>A coffee bag with your event's label, sold onchain in the same app. A souvenir that funds the bar.</p></div>
-      <div class="card"><span class="num">SHIP</span><h3>Content included</h3><p>Daily recap cards for X with the event's numbers, ready for you and your sponsors to share.</p></div>
+      <div class="card"><span class="num">SHIP</span><h3>Content included</h3><p>Daily recap cards for X with the event's numbers, ready for you to share.</p></div>
     </div>
   </div>
 </section>
 
-<section id="sponsors">
-  <div class="wrap">
-    <div class="grid two" style="align-items:center">
-      <div class="head" style="margin:0"><p class="eyebrow">For sponsors</p><h2>Every cup is a brand moment</h2>
-        <p>Coffee is free for attendees. A sponsor covers it, and gets seen every time someone orders, waits and picks up: hundreds of touchpoints a day, at the exact moment people are paying attention.</p></div>
-      <div class="card feature">
-        <span class="tag">Sponsor package</span>
-        <h3>"Your coffee is on us"</h3>
-        <p>Sponsor name in the Mini App and on every order confirmation, on the bar and the cups, and in the daily recaps. A report at the end with orders, unique guests and peak hours.</p>
-        <div class="receipt">Order #42 · Iced Latte<br><span class="hl">This coffee is on @YourBrand</span><br>We'll ping you when it's ready.</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section>
+<section id="edition">
   <div class="wrap bag">
     <div class="head" style="margin:0"><p class="eyebrow">Limited edition</p><h2>Island DAO Edition</h2>
       <p>20 bags of our specialty Arabica with the event's own label, 10 USDC each, sold and verified onchain inside the same Mini App. Every event can have its own edition.</p></div>
-    <img src="/web3/bag.webp" alt="Island DAO Edition coffee bag: a black 250 g pouch with the green Beach Coffee Co. label" width="600" height="960" loading="lazy">
+    <div class="bagcard"><img src="/web3/bag.webp" alt="Island DAO Edition coffee bag: a black 250 g pouch with the green Beach Coffee Co. label" width="600" height="960" loading="lazy"></div>
   </div>
 </section>
 
@@ -205,7 +187,6 @@ const PAGE = String.raw`<!doctype html>
         <div class="field"><label for="dates">Dates</label><input type="text" id="dates" placeholder="Nov 20–24"></div>
       </div>
       <div class="field"><label for="guests">Attendees</label><input type="number" id="guests" min="10" step="10" value="150"></div>
-      <label class="check"><input type="checkbox" id="sponsor"><span>Interested in the sponsor package<small>A sponsor covers the coffee and gets seen on every order.</small></span></label>
       <a class="btn mint full" id="sendWa" href="#" target="_blank" rel="noopener">Send on WhatsApp</a>
       <button class="btn ghost full" id="sendX" type="button">Copy for an X DM</button>
       <p class="note">We reply within a day.</p>
@@ -234,7 +215,6 @@ const PAGE = String.raw`<!doctype html>
       "City: " + (v("city") || "to be confirmed"),
       "Dates: " + (v("dates") || "to be confirmed"),
       "Attendees: " + (v("guests") || "to be confirmed")];
-    if ($("sponsor").checked) lines.push("Interested in the sponsor package: yes");
     return lines.join("\n");
   }
   function render() {
@@ -242,7 +222,7 @@ const PAGE = String.raw`<!doctype html>
     $("sendWa").href = "https://wa.me/" + C.contact.whatsapp + "?text=" + encodeURIComponent(message());
   }
   $("kinds").addEventListener("click", e => { const b = e.target.closest("[data-kind]"); if (b) { kind = b.dataset.kind; render(); } });
-  ["name", "city", "dates", "guests", "sponsor"].forEach(id => $(id).addEventListener("input", render));
+  ["name", "city", "dates", "guests"].forEach(id => $(id).addEventListener("input", render));
   const toast = t => { $("toast").textContent = t; $("toast").classList.add("on"); setTimeout(() => $("toast").classList.remove("on"), 2600); };
   // X can't take a prefilled DM here: copy the message, then open the profile.
   $("sendX").addEventListener("click", async () => {

@@ -57,7 +57,7 @@ No custody, fees in cents, confirmed in seconds.
 
 Post 4:
 ```
-Next: taking the bar to web3 events, with sponsors covering the coffee ("This coffee is on @YourBrand").
+Next: taking the bar to web3 events across Brazil.
 
 Organizers 👉 drinkbeachcoffee.com/web3
 Code 👉 github.com/ericlsg-19/Beach-Coffee-Control
