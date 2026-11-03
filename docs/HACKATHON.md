@@ -28,41 +28,28 @@ Gravar com a gravação de tela do iPhone, na vertical. Uma tomada para cada cen
 6. **(1:40–1:55)** O 💛 Tip chegando no chat da barista e a transação no Solscan. Legenda: "Verified onchain by its Solana Pay reference".
 7. **(1:55–2:05)** Encerramento: logo + "Coffee, onchain. drinkbeachcoffee.com/web3".
 
-## Thread no X
+## Post no X
 
-Post 1 (com o vídeo de demo):
+Um post só, no formato dos outros projetos do Demo Day: o problema com um número, o produto numa linha, "USDC", e os agradecimentos. Postar com o vídeo de demo.
+
+Opção A (começa pelo problema):
 ```
-I'm a barista. During Island DAO I vibecoded the system that runs our coffee bar 🏝️☕
+Beach Coffee at @islanddao Demo Day 🇧🇷☕
+Same coffee break, same 5-min line. Builders stop building. Our Telegram bot takes your order from your seat and pings you when it's ready. Tip in USDC.
 
-Builders order from Telegram, get pinged when it's ready, and tip in USDC on Solana.
-
-Our IslandHack v5 entry, Payments + Commerce 🧵
-```
-
-Post 2 (com o card da semana):
-```
-It ran the bar every day, with real guests:
-
-• 460+ drinks in 7 days
-• 0% → 94% of orders on Telegram in 4 days
-• ~5 min in line → 0
+Thanks @SuperteamBR and @henrymeistersol for the support.
 ```
 
-Post 3:
+Opção B (começa pelos números):
 ```
-Payments: every checkout carries a Solana Pay reference. The bot finds that exact transaction onchain and only accepts it if the full USDC amount arrived.
+Beach Coffee at @islanddao Demo Day 🇧🇷☕
+2k+ coffees in one month, 94% ordered from Telegram. Order from your seat, get pinged when it's ready, tip the barista in USDC. Built by the barista, between shifts.
 
-No custody, fees in cents, confirmed in seconds.
-```
-
-Post 4:
-```
-Next: taking the bar to web3 events across Brazil.
-
-Organizers 👉 drinkbeachcoffee.com/web3
-Code 👉 github.com/ericlsg-19/Beach-Coffee-Control
-
-Proof of brew: on the island, anyone can build.
+Thanks @SuperteamBR and @henrymeistersol for the support.
 ```
 
-Marcar `@IslandDAO` no post 1, e `@solana` e `@SuperteamBR` no último, se fizer sentido.
+Resposta no próprio post, com os links:
+```
+Try it: t.me/BeachCoffeeIslandBot
+Bring the bar to your event: drinkbeachcoffee.com/web3
+```
