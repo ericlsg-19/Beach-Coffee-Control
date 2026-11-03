@@ -115,6 +115,8 @@ export function miniAppHtml(drinks, pay = null) {
   .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .chip { height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); font: 600 1rem/1 var(--body); cursor: pointer; }
   .chip.on { border-color: var(--mint); color: var(--mint); box-shadow: 0 0 0 1px var(--mint) inset; }
+  .chip.off { opacity: .4; cursor: default; display: grid; place-content: center; gap: 3px; line-height: 1.1; }
+  .chip.off small { font: 500 .66rem/1 var(--mono); color: var(--muted); }
   .pay input { height: 46px; border-radius: 14px; border: 1px solid var(--line); background: var(--card-2); color: var(--text); padding: 0 14px; font: 500 1rem/1 var(--body); width: 100%; }
   .bag { background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.18), transparent 60%), var(--card); cursor: pointer; }
   .bag.on { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
@@ -266,16 +268,18 @@ export function miniAppHtml(drinks, pay = null) {
   }
 
   // On an event day only that day's drinks show, each with what's left; otherwise the full menu.
+  let out = [];   // drinks and milks the bar has run out of (/out)
   const leftOf = id => { const e = event && event.drinks.find(x => x.id === id); return e ? e.left : null; };
   function visibleMenu() {
     return event ? event.drinks.map(e => MENU.find(d => d.id === e.id)).filter(Boolean) : MENU.filter(d => !d.eventOnly);
   }
   function renderDrinks() {
     $("drinks").innerHTML = visibleMenu().map(d => {
-      const left = leftOf(d.id);
-      return '<button class="drink' + (selected === d.id ? " selected" : "") + (left === 0 ? " soldout" : "") + '" data-id="' + d.id + '">' +
+      const left = leftOf(d.id), gone = out.includes(d.id);
+      const tag = gone ? "Not available" : left === null ? "" : left ? left + " left" : "Sold out";
+      return '<button class="drink' + (selected === d.id ? " selected" : "") + (left === 0 || gone ? " soldout" : "") + '" data-id="' + d.id + '"' + (gone ? " disabled" : "") + '>' +
         '<span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + d.icon + '</svg></span>' +
-        '<span class="name">' + esc(d.name) + (left === null ? "" : '<span class="left">' + (left ? left + " left" : "Sold out") + '</span>') + '</span></button>';
+        '<span class="name">' + esc(d.name) + (tag ? '<span class="left">' + tag + '</span>' : "") + '</span></button>';
     }).join("");
   }
 
@@ -283,8 +287,9 @@ export function miniAppHtml(drinks, pay = null) {
     const d = MENU.find(x => x.id === selected);
     $("milkPick").hidden = !open || !(d && d.milk);
     const opts = [["regular", "Regular"], ["lactosefree", "Lactose-free"], ["plant", "Plant-based"]];
-    $("milkChips").innerHTML = opts.map(([id, label]) =>
-      '<button class="chip' + (milk === id ? " on" : "") + '" data-milk="' + id + '">' + label + '</button>').join("");
+    $("milkChips").innerHTML = opts.map(([id, label]) => out.includes(id)
+      ? '<button class="chip off" data-milk="' + id + '" disabled>' + label + '<small>Not available</small></button>'
+      : '<button class="chip' + (milk === id ? " on" : "") + '" data-milk="' + id + '">' + label + '</button>').join("");
   }
 
   function renderOrders(list) {
@@ -380,6 +385,9 @@ export function miniAppHtml(drinks, pay = null) {
         $("msg").textContent = "That's your " + (daily.max === 1 ? "drink" : daily.max + " drinks") + " for today 🙌 See you tomorrow!";
       }
     }
+    out = s.out || [];
+    if (out.includes(selected)) { selected = null; milk = null; }
+    if (out.includes(milk)) milk = null;
     event = s.event || null;
     if (event) {
       $("eventNote").hidden = false;
@@ -439,7 +447,7 @@ export function miniAppHtml(drinks, pay = null) {
 
   $("drinks").addEventListener("click", e => {
     const b = e.target.closest("[data-id]");
-    if (!b || leftOf(b.dataset.id) === 0) return;
+    if (!b || leftOf(b.dataset.id) === 0 || out.includes(b.dataset.id)) return;
     selected = selected === b.dataset.id ? null : b.dataset.id;
     milk = null;
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
@@ -451,7 +459,7 @@ export function miniAppHtml(drinks, pay = null) {
   });
   // Nothing is preselected: for a drink with milk the order button waits for this choice.
   $("milkChips").addEventListener("click", e => {
-    const b = e.target.closest("[data-milk]"); if (!b) return;
+    const b = e.target.closest("[data-milk]"); if (!b || b.disabled) return;
     milk = b.dataset.milk;
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     renderMilk(); updateButton();
