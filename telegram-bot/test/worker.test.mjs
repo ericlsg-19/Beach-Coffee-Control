@@ -211,6 +211,32 @@ test("daily limit: 3 drinks per guest per day by default, cancelled ones don't c
   assert.equal((await session()).daily, null);
 });
 
+test("/out and /back: drinks and milks the bar ran out of are refused until they're back", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  const order = body => apiCall(env, "/api/order", { initData: ana, ...body }).then(r => r.json());
+  const session = () => apiCall(env, "/api/session", { initData: ana }).then(r => r.json());
+
+  await post(msg(ANA, "/out latte"));
+  assert.deepEqual((await session()).out, []);
+
+  await post(msg(BARISTA, "/out matcha icedmatcha lactose-free vegetal"));
+  assert.match(calls.at(-1).body.text, /Not available now: <b>Matcha, Iced Matcha, Lactose-free milk, Plant-based milk<\/b>/);
+  assert.deepEqual((await session()).out, ["matcha", "icedmatcha", "lactosefree", "plant"]);
+  assert.match((await order({ drink: "matcha", milk: "regular" })).error, /Matcha isn't available right now/);
+  assert.match((await order({ drink: "latte", milk: "plant" })).error, /Plant-based milk isn't available right now/);
+  assert.equal((await order({ drink: "latte", milk: "regular" })).ok, true);
+
+  await post(msg(BARISTA, "/out oatmilk"));
+  assert.match(calls.at(-1).body.text, /I don't know: oatmilk/);
+  await post(msg(BARISTA, "/back matcha"));
+  assert.deepEqual((await session()).out, ["icedmatcha", "lactosefree", "plant"]);
+  await post(msg(BARISTA, "/back all"));
+  assert.match(calls.at(-1).body.text, /Everything is available/);
+  assert.equal((await order({ drink: "matcha", milk: "lactosefree" })).ok, true);
+});
+
 test("weekends: closed Saturday and Sunday with a friendly note, /open opens just that day, Monday opens by itself", async t => {
   const { env, calls, post } = setup();
   await env.DB.prepare("DELETE FROM settings WHERE key = 'weekends'").run();

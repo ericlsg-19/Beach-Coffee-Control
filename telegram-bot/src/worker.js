@@ -44,7 +44,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.8.1";
+const VERSION = "1.8.2";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -111,6 +111,30 @@ async function closedText(env) {
 }
 async function isOpen(env) {
   return !(await closedText(env));
+}
+
+// ---------- Out of stock (/out, /back) ----------
+//
+// Drinks or milks the bar has run out of: greyed out and not tappable in the Mini App, refused by the bot,
+// until /back.
+
+const MILK_NAMES = { regular: "Regular milk", ...MILKS };
+const OUT_ALIASES = { "lactose-free": "lactosefree", lactose: "lactosefree", "plant-based": "plant", vegetal: "plant" };
+async function outList(env) {
+  try { return JSON.parse((await getSetting(env, "out")) || "[]"); } catch { return []; }
+}
+const outName = id => (drinkById(id) || {}).name || MILK_NAMES[id] || id;
+// /out matcha lactosefree → marks them out. /back matcha → back. /back all → everything back. /out alone lists.
+async function outCommand(env, cmd, args) {
+  let list = await outList(env);
+  const ids = args.map(a => a.toLowerCase()).map(a => OUT_ALIASES[a] || a);
+  const unknown = ids.filter(id => id !== "all" && !drinkById(id) && !MILK_NAMES[id]);
+  if (unknown.length) return `I don't know: ${escapeHtml(unknown.join(", "))}.\nUse the drink ids (matcha, icedmatcha, latte…) or the milks (lactosefree, plant).`;
+  if (cmd === "/out") list = [...new Set([...list, ...ids])];
+  else list = ids.includes("all") ? [] : list.filter(id => !ids.includes(id));
+  await setSetting(env, "out", JSON.stringify(list));
+  return list.length ? `🚫 Not available now: <b>${list.map(outName).join(", ")}</b>\n/back matcha when it's back, /back all to clear.`
+    : "✅ Everything is available.";
 }
 
 // ---------- Daily limit (/limit) ----------
@@ -258,6 +282,9 @@ async function askConfirm(env, chatId, messageId, drink) {
 // milk: a key of MILKS for a drink made with milk; anything else means regular.
 async function createOrder(env, chatId, from, drink, milk = "") {
   if (!MILKS[milk] || !MILK_DRINKS.includes(drink.id)) milk = "";
+  const out = await outList(env);
+  if (out.includes(drink.id)) return { error: `${drink.name} isn't available right now 🙏 Pick another drink.` };
+  if (milk && out.includes(milk)) return { error: `${MILKS[milk]} isn't available right now 🙏 Pick another milk.` };
   const closed = await closedText(env);
   if (closed) return { error: closed };
 
@@ -459,7 +486,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -482,6 +509,7 @@ async function onMessage(env, message) {
     if (cmd === "/demoday") return send(env, chatId, await demoDayCommand(env, args));
     if (cmd === "/lunch") return send(env, chatId, await lunchCommand(env, args));
     if (cmd === "/limit") return send(env, chatId, await limitCommand(env, args));
+    if (cmd === "/out" || cmd === "/back") return send(env, chatId, await outCommand(env, cmd, args));
     if (cmd === "/total") return send(env, chatId, await eventReport(env));
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
@@ -722,7 +750,7 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
-      event: await eventStatus(env, user.id), daily: (await eventDay(env)) ? null : await dailyStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
+      event: await eventStatus(env, user.id), out: await outList(env), daily: (await eventDay(env)) ? null : await dailyStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
       closed: await closedText(env), ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {

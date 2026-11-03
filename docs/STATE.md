@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.8.1**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 29/10/2026, bot e Âncora na **v1.8.2**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -47,6 +47,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.8.1**, no domínio próprio **dr
 - 02/11: v1.7.15: sem patrocínio por enquanto (o `/sponsor` saiu do bot e da página; fazer quando houver um patrocinador). Página `/web3` com o fundo verde do degradê da marca e a bag num card cor de areia. v1.7.16: topo mais curto, "2k+ coffees served in one month, during Island DAO" (número informado pelo Eric) e "On the island, anyone can build." numa linha própria.
 - 03/11: v1.8.0: **Iced Matcha** no cardápio (depois do Matcha, com escolha de leite, ícone de copo gelado com a folha). Também na página de eventos (14 bebidas) e no story do cardápio.
 - 03/11: v1.8.1: **limite de 3 bebidas por pessoa por dia** (contam os pedidos do dia não cancelados). O mini app mostra "Up to 3 drinks per person a day · you've had N" e, no limite, "That's your 3 drinks for today". `/limit 5` muda, `/limit off` tira.
+- 03/11: v1.8.2: **`/out` e `/back`** para o que acabou: bebidas e leites aparecem "Not available" no mini app, sem dar para tocar, e o bot recusa. Acabou matcha e leite sem lactose e vegetal: `/out matcha icedmatcha lactosefree plant`.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
