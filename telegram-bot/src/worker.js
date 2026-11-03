@@ -44,7 +44,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.8.0";
+const VERSION = "1.8.1";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -111,6 +111,33 @@ async function closedText(env) {
 }
 async function isOpen(env) {
   return !(await closedText(env));
+}
+
+// ---------- Daily limit (/limit) ----------
+//
+// Drinks per guest per day (every order of the day that wasn't cancelled): 3 unless /limit changes it.
+// On an event day (/demoday) the event's own cap applies instead.
+
+const DAILY_DEFAULT = 3;
+async function dailyMax(env) {
+  const v = await getSetting(env, "daily_max");
+  if (v === "off") return null;
+  return /^\d+$/.test(v || "") && Number(v) > 0 ? Number(v) : DAILY_DEFAULT;
+}
+// What the Mini App needs: the cap and how many this guest has had today.
+async function dailyStatus(env, chatId) {
+  const max = await dailyMax(env);
+  return max ? { max, used: await ordersToday(env, "customer_chat", chatId) } : null;
+}
+// /limit → shows it. /limit 5 to change it, /limit off to remove it.
+async function limitCommand(env, args) {
+  const a = (args[0] || "").toLowerCase();
+  if (a === "off") await setSetting(env, "daily_max", "off");
+  else if (/^\d+$/.test(a) && Number(a) > 0) await setSetting(env, "daily_max", a);
+  else if (a) return "Use /limit 3, or /limit off.";
+  const max = await dailyMax(env);
+  return max ? `🥤 Daily limit: <b>${drinksWord(max)}</b> per guest.\n/limit 5 to change it, /limit off to remove it.`
+    : "🥤 No daily limit: guests can order all day (still at most " + MAX_PENDING_PER_CUSTOMER + " waiting at once).";
 }
 
 // ---------- Lunch break (/lunch) ----------
@@ -251,8 +278,10 @@ async function createOrder(env, chatId, from, drink, milk = "") {
     }
     if (await ordersToday(env, "drink", drink.id) >= event.stock[drink.id]) return { error: `${drink.name} is sold out for today 🙏` };
     if (await ordersToday(env, "customer_chat", chatId) >= event.max) return { error: `That's your ${event.max === 1 ? "drink" : drinksWord(event.max)} for today 🙌 See you tomorrow!` };
-  } else if (EVENT_ONLY.includes(drink.id)) {
-    return { error: "Pick a drink from the menu." };
+  } else {
+    if (EVENT_ONLY.includes(drink.id)) return { error: "Pick a drink from the menu." };
+    const max = await dailyMax(env);
+    if (max && await ordersToday(env, "customer_chat", chatId) >= max) return { error: `That's your ${drinksWord(max)} for today 🙌 See you tomorrow!` };
   }
 
   const day = localDay();
@@ -430,7 +459,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -452,6 +481,7 @@ async function onMessage(env, message) {
     if (cmd === "/today") return send(env, chatId, await dayReport(env, localDay()));
     if (cmd === "/demoday") return send(env, chatId, await demoDayCommand(env, args));
     if (cmd === "/lunch") return send(env, chatId, await lunchCommand(env, args));
+    if (cmd === "/limit") return send(env, chatId, await limitCommand(env, args));
     if (cmd === "/total") return send(env, chatId, await eventReport(env));
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
@@ -692,7 +722,7 @@ async function handleApi(request, env, path) {
 
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
-      event: await eventStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
+      event: await eventStatus(env, user.id), daily: (await eventDay(env)) ? null : await dailyStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
       closed: await closedText(env), ranking: await rankingForCustomer(env, user.id) });
   }
   if (path === "/api/order") {
