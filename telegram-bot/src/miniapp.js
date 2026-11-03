@@ -370,6 +370,16 @@ export function miniAppHtml(drinks, pay = null) {
     lunch = s.lunch || null;
     $("lunchNote").hidden = !lunch;
     if (lunch) $("lunchNote").innerHTML = "🍽️ <b>Lunch break</b> until " + esc(lunch.label) + ". You can still order: it'll be ready from " + esc(lunch.label) + ".";
+    // The daily limit (normal days): a note once they've ordered, and no menu once they've reached it.
+    const daily = !s.event && s.daily ? s.daily : null;
+    if (daily && daily.used) {
+      $("eventNote").hidden = false;
+      $("eventNote").innerHTML = "☕ Up to " + daily.max + (daily.max === 1 ? " drink" : " drinks") + " per person a day · you've had " + daily.used + ".";
+      if (daily.used >= daily.max && open) {
+        $("pick").hidden = true;
+        $("msg").textContent = "That's your " + (daily.max === 1 ? "drink" : daily.max + " drinks") + " for today 🙌 See you tomorrow!";
+      }
+    }
     event = s.event || null;
     if (event) {
       $("eventNote").hidden = false;

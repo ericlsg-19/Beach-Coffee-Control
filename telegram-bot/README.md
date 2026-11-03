@@ -15,7 +15,7 @@ Quem manda `/start` ou qualquer mensagem recebe a explicação de que o pedido �
 
 Nas bebidas com leite (Cappuccino, Flat White, Latte, Iced Latte, Mocha, Matcha, Iced Matcha, Hot Chocolate) o pedido tem 3 passos, escritos na tela: **Step 1 · Pick your drink**, **Step 2 · Choose your milk** (Regular, Lactose-free ou Plant-based, nada vem marcado) e **Step 3 · Confirm your order**, com o resumo, quando o botão **Order** libera. Nas outras bebidas a confirmação é o Step 2. Sem escolher o leite não dá para pedir; o bot também recusa. A barista vê 🥛 no pedido, no chat e no painel.
 
-Cada cliente pode ter no máximo 3 bebidas esperando ao mesmo tempo.
+Cada cliente pode pedir no máximo **3 bebidas por dia** (contam todos os pedidos do dia que não foram cancelados) e ter no máximo 3 esperando ao mesmo tempo. `/limit` mostra o limite, `/limit 5` muda, `/limit off` tira. Num dia de evento (`/demoday`) vale o limite do evento.
 
 **Barista** (no chat configurado com `/barista`)
 - Cada pedido chega com número, bebida, nome do cliente e hora, e os botões **Ready** / **Cancel**.

@@ -12,7 +12,7 @@ function d1() {
   const db = new DatabaseSync(":memory:");
   db.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
   // The real clock must not land tests in the lunch break or on a closed weekend.
-  db.exec("INSERT INTO settings (key, value) VALUES ('lunch', 'off'), ('weekends', 'open')");
+  db.exec("INSERT INTO settings (key, value) VALUES ('lunch', 'off'), ('weekends', 'open'), ('daily_max', 'off')");
   return {
     prepare(sql) {
       let params = [];
@@ -180,6 +180,35 @@ test("/demoday: today only, a short menu with stock and a daily cap per guest; o
   assert.equal((await order(leo, "icedcoffee")).ok, false);
   await post(msg(BARISTA, "/demoday off"));
   assert.match(calls.at(-1).body.text, /full menu is on/);
+});
+
+test("daily limit: 3 drinks per guest per day by default, cancelled ones don't count, /limit changes it", async () => {
+  const { env, calls, post } = setup();
+  await env.DB.prepare("DELETE FROM settings WHERE key = 'daily_max'").run();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  const order = () => apiCall(env, "/api/order", { initData: ana, drink: "espresso" }).then(r => r.json());
+  const session = () => apiCall(env, "/api/session", { initData: ana }).then(r => r.json());
+
+  assert.deepEqual((await session()).daily, { max: 3, used: 0 });
+  for (let i = 0; i < 3; i++) assert.equal((await order()).ok, true);
+  // Made and handed over: the 3 pending ones don't block, the daily cap does.
+  await env.DB.prepare("UPDATE orders SET status = 'ready'").run();
+  assert.equal((await order()).error, "That's your 3 drinks for today 🙌 See you tomorrow!");
+  assert.deepEqual((await session()).daily, { max: 3, used: 3 });
+  // A cancelled order gives the drink back.
+  await env.DB.prepare("UPDATE orders SET status = 'cancelled' WHERE id = 1").run();
+  assert.equal((await order()).ok, true);
+
+  await post(msg(BARISTA, "/limit 5"));
+  assert.match(calls.at(-1).body.text, /Daily limit: <b>5 drinks<\/b>/);
+  assert.equal((await order()).ok, true);
+  await post(msg(BARISTA, "/limit off"));
+  assert.match(calls.at(-1).body.text, /No daily limit/);
+  assert.equal((await session()).daily, null);
+  // A customer can't change it.
+  await post(msg(ANA, "/limit 99"));
+  assert.equal((await session()).daily, null);
 });
 
 test("weekends: closed Saturday and Sunday with a friendly note, /open opens just that day, Monday opens by itself", async t => {
