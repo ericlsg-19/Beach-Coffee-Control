@@ -49,7 +49,7 @@ const stories = {
     <div class="rule"></div>
     <div class="cols">
       <div><div class="k">Quentes</div><div class="list" style="font-size:31px;gap:9px"><span>Espresso</span><span>Espresso duplo</span><span>Americano</span><span>Carioca</span><span>Cappuccino</span><span>Latte</span><span>Flat white</span><span>Mocha</span><span>Chocolate quente</span></div></div>
-      <div><div class="k">Geladas</div><div class="list" style="font-size:31px;gap:9px"><span>Latte gelado</span><span>Café gelado</span><span>Freddo espresso</span><span>Matcha latte</span></div></div>
+      <div><div class="k">Geladas</div><div class="list" style="font-size:31px;gap:9px"><span>Latte gelado</span><span>Café gelado</span><span>Freddo espresso</span><span>Matcha latte</span><span>Matcha gelado</span></div></div>
     </div>
     <p class="note">Preparadas com leite integral. Leite sem lactose ou vegetal com custo adicional. Lembrancinhas: pacotes de 250 g de café especial, sob encomenda.</p></div>`,
   orcamento: `<div class="s">${WORD}${icon("orcamento", 190)}

@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.7.16**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 29/10/2026, bot e Âncora na **v1.8.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -45,6 +45,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.7.16**, no domínio próprio **d
 - 02/11: v1.7.13: botões de carteira nas cores de cada app (Solflare amarelo #FBEE64 com texto preto, Phantom lavanda #A99EEC com texto branco), no mini app e na página de pagamento.
 - 02/11: v1.7.14: **página para organizadores web3** em https://drinkbeachcoffee.com/web3 (inglês): "Coffee, onchain", prova do Island DAO (460+ cafés, 0→94% no Telegram, 5 min → 0, tips em USDC), como funciona, o que o organizador recebe, Island DAO Edition e contato por WhatsApp ou DM no X (@BeachCoffeco).
 - 02/11: v1.7.15: sem patrocínio por enquanto (o `/sponsor` saiu do bot e da página; fazer quando houver um patrocinador). Página `/web3` com o fundo verde do degradê da marca e a bag num card cor de areia. v1.7.16: topo mais curto, "2k+ coffees served in one month, during Island DAO" (número informado pelo Eric) e "On the island, anyone can build." numa linha própria.
+- 03/11: v1.8.0: **Iced Matcha** no cardápio (depois do Matcha, com escolha de leite, ícone de copo gelado com a folha). Também na página de eventos (14 bebidas) e no story do cardápio.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

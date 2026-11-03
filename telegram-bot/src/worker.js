@@ -39,11 +39,12 @@ const DRINKS = [
   { id: "icedcoffee", name: "Iced Coffee" },
   { id: "mocha",      name: "Mocha" },
   { id: "matcha",     name: "Matcha" },
+  { id: "icedmatcha", name: "Iced Matcha" },
   { id: "chocolate",  name: "Hot Chocolate" },
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.7.16";
+const VERSION = "1.8.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;

@@ -158,7 +158,7 @@ const PAGE = String.raw`<!doctype html>
     </div>
     <div class="proof">
       <div><b>460+</b><span>cafés servidos em sete dias de um evento internacional em Florianópolis</span></div>
-      <div><b>13</b><span>bebidas no cardápio, quentes e geladas</span></div>
+      <div><b>14</b><span>bebidas no cardápio, quentes e geladas</span></div>
       <div><b>100%</b><span>montagem, serviço e desmontagem por nossa conta</span></div>
     </div>
   </div>
@@ -189,7 +189,7 @@ const PAGE = String.raw`<!doctype html>
       <div class="rule"></div>
       <h3>Cardápio</h3>
       <p>Bebidas quentes e geladas, preparadas com leite integral. Leite sem lactose ou vegetal disponível com custo adicional.</p>
-      <div class="menu"><span>Espresso</span><span>Espresso duplo</span><span>Americano</span><span>Carioca</span><span>Cappuccino</span><span>Latte</span><span>Flat white</span><span>Mocha</span><span>Chocolate quente</span><span>Matcha latte</span><span>Latte gelado</span><span>Café gelado</span><span>Freddo espresso</span></div>
+      <div class="menu"><span>Espresso</span><span>Espresso duplo</span><span>Americano</span><span>Carioca</span><span>Cappuccino</span><span>Latte</span><span>Flat white</span><span>Mocha</span><span>Chocolate quente</span><span>Matcha latte</span><span>Matcha gelado</span><span>Latte gelado</span><span>Café gelado</span><span>Freddo espresso</span></div>
     </div>
   </div>
 </section>
