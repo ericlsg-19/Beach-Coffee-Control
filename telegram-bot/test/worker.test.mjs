@@ -441,7 +441,7 @@ test("Âncora and the bot share the same menu and version", async () => {
   const bot = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
   const menu = src => [...src.matchAll(/\{ id: "([a-z]+)",\s*name: "([^"]+)" \}/g)].map(m => `${m[1]}=${m[2]}`);
   assert.deepEqual(menu(ancora), menu(bot));
-  assert.equal(menu(bot).length, 13);
+  assert.equal(menu(bot).length, 14);
   const botVersion = bot.match(/const VERSION = "([^"]+)"/)[1];
   assert.ok(ancora.includes(`Âncora v${botVersion}`), `Âncora should show v${botVersion}`);
   const h = await (await worker.fetch(new Request("https://bot/health"), setup().env)).json();

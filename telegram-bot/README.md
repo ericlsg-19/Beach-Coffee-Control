@@ -7,13 +7,13 @@ Roda de graça no **Cloudflare Workers**, com os pedidos guardados num banco **D
 ## Como funciona
 
 **Cliente**
-1. Abre o bot e toca em **Order ☕**, ao lado do campo de mensagem. Abre o mini app (`/app`), com o visual do Âncora e as 12 bebidas.
+1. Abre o bot e toca em **Order ☕**, ao lado do campo de mensagem. Abre o mini app (`/app`), com o visual do Âncora e as bebidas do cardápio.
 2. Escolhe a bebida, toca no botão dourado **Order …** e recebe no chat o número do pedido (ex.: *Order #14 · Flat White*).
 3. Quando a barista toca **Ready**, recebe: *Your Flat White is ready! Pick it up at the bar.* No mini app, o pedido aparece como **Ready**.
 
 Quem manda `/start` ou qualquer mensagem recebe a explicação de que o pedido é feito pelo botão **Order ☕**.
 
-Nas bebidas com leite (Cappuccino, Flat White, Latte, Iced Latte, Mocha, Matcha, Hot Chocolate) o pedido tem 3 passos, escritos na tela: **Step 1 · Pick your drink**, **Step 2 · Choose your milk** (Regular, Lactose-free ou Plant-based, nada vem marcado) e **Step 3 · Confirm your order**, com o resumo, quando o botão **Order** libera. Nas outras bebidas a confirmação é o Step 2. Sem escolher o leite não dá para pedir; o bot também recusa. A barista vê 🥛 no pedido, no chat e no painel.
+Nas bebidas com leite (Cappuccino, Flat White, Latte, Iced Latte, Mocha, Matcha, Iced Matcha, Hot Chocolate) o pedido tem 3 passos, escritos na tela: **Step 1 · Pick your drink**, **Step 2 · Choose your milk** (Regular, Lactose-free ou Plant-based, nada vem marcado) e **Step 3 · Confirm your order**, com o resumo, quando o botão **Order** libera. Nas outras bebidas a confirmação é o Step 2. Sem escolher o leite não dá para pedir; o bot também recusa. A barista vê 🥛 no pedido, no chat e no painel.
 
 Cada cliente pode ter no máximo 3 bebidas esperando ao mesmo tempo.
 

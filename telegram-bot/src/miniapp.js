@@ -16,12 +16,13 @@ const ICONS = {
   icedcoffee: '<path d="M7 5h10l-1.6 15h-6.8z"/><path d="M14.5 2l-1.5 7"/><rect x="9" y="11" width="3" height="3" rx=".5"/><rect x="12.4" y="13.8" width="2.6" height="2.6" rx=".5"/>',
   mocha:      '<path d="M7 10h10l-1.5 10h-7z"/><path d="M6.5 10c0-2 1.5-3 3-3 .4-1.6 1.4-2.5 2.5-2.5s2.1.9 2.5 2.5c1.5 0 3 1 3 3M8 14h8"/>',
   matcha:     '<path d="M12 21c-5-2-7-6-7-10 4 0 7 2 7 6 0-4 3-6 7-6 0 4-2 8-7 10z"/><path d="M12 17V5"/>',
+  icedmatcha: '<path d="M7 4h10l-1.5 16h-7z"/><path d="M7.5 8.5h9"/><path d="M12 18c-2.2-.9-3.1-2.7-3.1-4.5 1.8 0 3.1.9 3.1 2.7 0-1.8 1.3-2.7 3.1-2.7 0 1.8-.9 3.6-3.1 4.5z"/><path d="M12 16.2V11.5"/>',
   chocolate:  '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 9h12M6 15h12M12 3v18"/>',
 };
 
 // Drinks made with milk: the guest has to pick one of these milks before ordering.
 // Regular is a choice too, but isn't stored (no extras row = regular milk).
-export const MILK_DRINKS = ["cappuccino", "flatwhite", "latte", "icedlatte", "mocha", "matcha", "chocolate"];
+export const MILK_DRINKS = ["cappuccino", "flatwhite", "latte", "icedlatte", "mocha", "matcha", "icedmatcha", "chocolate"];
 export const MILKS = { lactosefree: "Lactose-free milk", plant: "Plant-based milk" };
 export const MILK_CHOICES = ["regular", ...Object.keys(MILKS)];
 // Only on the menu on an event day (/demoday).
