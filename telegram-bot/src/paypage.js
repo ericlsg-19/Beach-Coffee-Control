@@ -118,7 +118,7 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
       <p class="note">Send exactly this amount of <b>USDC</b> on <b>Solana</b> to this address:</p>
       <div class="field"><label>Address</label><div class="copy"><code id="addr"></code><button data-copy="addr">Copy</button></div></div>
       <div class="field"><label>Amount (USDC)</label><div class="copy"><code id="amt"></code><button data-copy="amt">Copy</button></div></div>
-      <p class="note">Transfers sent this way don't show up here automatically: show your wallet to the barista.</p>
+      <p class="note">No Solana wallet? Any exchange works (Binance, Coinbase…): withdraw USDC, pick the <b>Solana</b> network. When it arrives the barista gets a message; it can take a few minutes.</p>
       <details id="qrBox">
         <summary>Scan with a wallet app</summary>
         <div class="qr" id="qr"></div>
@@ -138,6 +138,23 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   let pick = null, polling = null;
+  // Tells the bot what happened (wallet buttons, wallet errors), so /payments shows where checkouts get stuck.
+  function track(step, detail) {
+    if (!C.payment) return;
+    try {
+      fetch("/api/pay/" + C.payment.ref + "/event", { method: "POST", keepalive: true, headers: { "content-type": "application/json" },
+        body: JSON.stringify({ step, detail: String(detail || "").slice(0, 300) }) }).catch(() => {});
+    } catch (e) {}
+  }
+  function walletName() {
+    const w = window;
+    if (w.phantom && w.phantom.solana) return "phantom";
+    if (w.solflare && w.solflare.isSolflare) return "solflare";
+    if (w.backpack && w.backpack.solana) return "backpack";
+    if (w.solana) return "wallet";
+    return /Telegram/i.test(navigator.userAgent) || (w.TelegramWebviewProxy) ? "telegram" : "browser";
+  }
+  const platform = () => /iPhone|iPad|iPod/.test(navigator.userAgent) ? "ios" : /Android/.test(navigator.userAgent) ? "android" : "desktop";
 
   function provider() {
     const w = window;
@@ -201,6 +218,9 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     const showWallet = () => { const inside = !!provider(); $("inWallet").hidden = !inside; $("openWallet").hidden = inside; };
     showWallet();
     setTimeout(showWallet, 600); // some wallets inject their provider a moment after load
+    if (p.status !== "paid") setTimeout(() => track("open", walletName() + " " + platform()), 700);
+    [["solflare", "solflare"], ["phantom", "phantom"], ["solanaPay", "solanapay"], ["solanaPayIn", "solanapay"]]
+      .forEach(([id, name]) => $(id).addEventListener("click", () => track("tap", name + " web")));
     if (p.status === "paid") return renderPaid(p);
     poll(p.ref);
   }
@@ -225,6 +245,7 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
   document.addEventListener("click", async e => {
     const b = e.target.closest("[data-copy]"); if (!b) return;
     const text = $(b.dataset.copy).textContent;
+    track("tap", "copy-" + b.dataset.copy + " web");
     try { await navigator.clipboard.writeText(text); }
     catch (err) { const r = document.createRange(); r.selectNodeContents($(b.dataset.copy)); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand("copy"); }
     b.textContent = "Copied ✓"; setTimeout(() => { b.textContent = "Copy"; }, 1600);
@@ -265,7 +286,8 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
       rpcCall("getBalance", [payer, { commitment: "confirmed" }]),
     ]);
     const amount = C.payment.amount;
-    if (usdc && usdc.error) throw { friendly: "This wallet has no USDC on Solana yet. Add at least " + amount + " USDC (Solana network) and try again." };
+    // Only "this account doesn't exist" means no USDC; a busy RPC (rate limit) lets the wallet decide.
+    if (usdc && usdc.error && /could not find account|invalid param/i.test(usdc.error.message || "")) throw { friendly: "This wallet has no USDC on Solana yet. Add at least " + amount + " USDC (Solana network) and try again." };
     if (usdc && usdc.result && Number(usdc.result.value.amount) < micro) {
       throw { friendly: "This wallet has " + usdc.result.value.uiAmountString + " USDC on Solana; you need " + amount + "." };
     }
@@ -303,7 +325,8 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     if (!exists) tx.add(create);
     tx.add(transfer);
     try {
-      return await wallet.signAndSendTransaction(tx);
+      const sent = await wallet.signAndSendTransaction(tx);
+      return { signature: typeof sent === "string" ? sent : sent && sent.signature, lastValid: bh.lastValidBlockHeight };
     } catch (err) {
       // Some wallets (Solflare in its browser) fail on sign-and-send but can sign; then the page sends it.
       if (rejected(err) || !wallet.signTransaction) throw err;
@@ -311,20 +334,64 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
       const r = await rpcCall("sendTransaction", [b64(signed.serialize({ verifySignatures: false })), { encoding: "base64", preflightCommitment: "confirmed" }]);
       if (!r) throw Object.assign(new Error("no RPC"), { network: true });
       if (r.error) throw new Error(r.error.message || "the network refused the transaction");
-      return { signature: r.result };
+      return { signature: r.result, lastValid: bh.lastValidBlockHeight, raw: b64(signed.serialize({ verifySignatures: false })) };
     }
   }
+  // What the wallet's error means, in words a guest can act on.
+  function explain(err) {
+    const msg = String(err && err.message || err || "");
+    if (err && err.friendly) return err.friendly;
+    if (err && err.network) return "The Solana network didn't answer. Wait a few seconds and tap Pay again.";
+    if (rejected(err)) return "Payment cancelled.";
+    if (/insufficient|not enough|0x1\\b/i.test(msg)) return "Not enough funds: you need " + C.payment.amount + " USDC on Solana and a little SOL for the fee.";
+    if (/blockhash/i.test(msg)) return "That took a bit long and the network let it expire. Nothing was charged: tap Pay again.";
+    if (/simulat|malicious|unsafe|blocked/i.test(msg)) return "Your wallet wouldn't run it here. Use “Blocked? Pay with Solana Pay” below: the wallet builds the payment itself.";
+    return "Couldn't send: " + (msg || "unknown error") + ". Check you have " + C.payment.amount + " USDC on Solana and a little SOL for the fee, or use Solana Pay below.";
+  }
+
+  // After the wallet sends: watch the reference on chain. A transaction can still be dropped by a busy
+  // network (or never reach it); once its blockhash has surely expired with nothing on chain, say so,
+  // because the guest was not charged and can simply pay again.
+  async function watch(sent) {
+    const started = Date.now();
+    for (;;) {
+      await new Promise(r => setTimeout(r, 2500));
+      if ($("checkout").hidden) return; // paid: the poll already showed the thank-you
+      if (sent.raw) rpcCall("sendTransaction", [sent.raw, { encoding: "base64", skipPreflight: true, maxRetries: 0 }]);
+      const onChain = await rpcCall("getSignaturesForAddress", [C.payment.ref, { limit: 5, commitment: "confirmed" }]);
+      const list = onChain && onChain.result || [];
+      if (list.some(s => !s.err)) { $("payNow").textContent = "Paid ✓ confirming…"; return; }
+      const mine = list.find(s => s.signature === sent.signature);
+      if (mine && mine.err) {
+        track("error", "failed on chain");
+        $("payErr").textContent = "The network rejected that transaction (nothing was sent). Tap Pay again, or use Solana Pay below.";
+        $("payNow").disabled = false; $("payNow").textContent = "Pay " + C.payment.amount + " USDC";
+        return;
+      }
+      const height = await rpcCall("getBlockHeight", [{ commitment: "confirmed" }]);
+      // 150 extra blocks (about a minute) in case the wallet refreshed the blockhash before sending.
+      const expired = height && height.result > (sent.lastValid || 0) + 150;
+      if (expired || Date.now() - started > 4 * 60 * 1000) {
+        track("dropped", (sent.signature || "").slice(0, 20));
+        $("payErr").textContent = "The network dropped that payment, so nothing was charged. Tap Pay again.";
+        $("payNow").disabled = false; $("payNow").textContent = "Pay " + C.payment.amount + " USDC";
+        return;
+      }
+    }
+  }
+
   $("payNow").addEventListener("click", async () => {
     $("payNow").disabled = true; $("payErr").textContent = "";
+    track("pay", walletName());
     try {
-      await payInWallet(C.payment);
+      const sent = await payInWallet(C.payment);
+      track("sent", sent.signature || "");
       $("payNow").textContent = "Sent ✓ confirming…";
+      watch(sent);
     } catch (err) {
-      const msg = String(err && err.message || "");
-      $("payErr").textContent = err && err.friendly ? err.friendly
-        : err && err.network ? "The Solana network didn't answer. Wait a few seconds and tap Pay again."
-        : rejected(err) ? "Payment cancelled."
-        : "Couldn't send: " + msg + ". Check you have " + C.payment.amount + " USDC on Solana and a little SOL for the fee.";
+      track(err && err.friendly ? "funds" : rejected(err) ? "cancel" : "error",
+        err && err.friendly ? err.friendly : String(err && (err.message || err.code) || err));
+      $("payErr").textContent = explain(err);
       $("payNow").disabled = false;
     }
   });

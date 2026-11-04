@@ -39,6 +39,8 @@ Every checkout (a tip or a bag) gets a unique **Solana Pay reference** key.
 - **Before the wallet opens**, the page checks the payer's USDC and SOL and says what's missing, instead of a generic wallet error.
 - **If a wallet blocks the site**, a Solana Pay transfer request (`solana:` link with amount, USDC mint and reference) lets the wallet build the transfer itself.
 - **The bot verifies onchain**: it looks up the reference with `getSignaturesForAddress` (every minute from a cron, every 3 s while the page is open) and accepts the payment only if the shop's USDC account received the full amount. Then it thanks the guest and pings the barista.
+- **USDC sent without the reference** (from an exchange, or a plain transfer) is still caught: the cron also reads the shop's USDC account, settles the one open checkout of exactly that amount, or tells the barista it arrived.
+- **Every checkout step is logged** (wallet button, wallet error, missing USDC or SOL, a transaction the network dropped), and `/payments` shows the barista where tips get stuck.
 - **No custody**: the USDC goes straight to the shop's wallet. Fees are cents, so even a 1 USDC tip makes sense.
 
 ## Built for a real bar

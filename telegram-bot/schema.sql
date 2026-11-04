@@ -53,3 +53,24 @@ CREATE TABLE IF NOT EXISTS payments (
 
 CREATE INDEX IF NOT EXISTS payments_status ON payments (status, created_at);
 CREATE INDEX IF NOT EXISTS payments_day ON payments (day, status);
+
+-- What happens on the pay pages (wallet buttons tapped, wallet errors, transactions the network
+-- dropped), so /payments can say where tips get stuck. step: open, tap, pay, funds, sent, cancel, error, dropped.
+CREATE TABLE IF NOT EXISTS pay_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  payment_id INTEGER NOT NULL,
+  at TEXT NOT NULL,
+  step TEXT NOT NULL,
+  detail TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS pay_events_payment ON pay_events (payment_id);
+
+-- USDC that reached the shop's wallet without a checkout reference (an exchange, a plain transfer)
+-- and matched no open checkout. The barista is told about each one.
+CREATE TABLE IF NOT EXISTS direct_transfers (
+  signature TEXT PRIMARY KEY,
+  payer TEXT NOT NULL DEFAULT '',
+  amount_micro INTEGER NOT NULL,
+  day TEXT NOT NULL,
+  at TEXT NOT NULL
+);

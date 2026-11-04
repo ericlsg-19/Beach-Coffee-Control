@@ -654,6 +654,8 @@ test("Mini App has Menu and Ranking tabs", async () => {
 const SHOP = "WTxV6GDprgz2vHT4gX4ULCexqqaXYKQ8zWpZoYJHz2u";
 const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const BUYER = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin";
+const SHOP_USDC = "7iCZy3y4LYp9mHdUwdTMMoTj2WNzGQYxzo87pvXTyvHd";
+const EXCHANGE = "5tzFkiKscXHK5ZXCGbXZxdw7gTjjD1mBwuoFbhUvuAi9";
 
 // setup() plus a fake Solana RPC. chain[reference] = [{ signature, received (USDC), failed? }].
 function setupPay(extraEnv = {}) {
@@ -675,12 +677,20 @@ function setupPay(extraEnv = {}) {
     const all = Object.values(chain).flat();
     let result;
     if (method === "getLatestBlockhash") result = { value: { blockhash: "GHtXQBsoZHVnNFa9YevAzFr17DJjgHXk3ycTKD5xD3Zi", lastValidBlockHeight: 99 } };
-    if (method === "getSignaturesForAddress") result = (chain[params[0]] || []).map(t => ({ signature: t.signature, err: t.failed ? {} : null }));
+    if (method === "getTokenAccountsByOwner") result = { value: [{ pubkey: SHOP_USDC }] };
+    if (method === "getSignaturesForAddress") {
+      // Newest first, like Solana; "until" stops before that signature.
+      let list = chain[params[0]] || [];
+      const until = params[1] && params[1].until;
+      if (until && list.some(t => t.signature === until)) list = list.slice(0, list.findIndex(t => t.signature === until));
+      result = list.slice(0, (params[1] && params[1].limit) || 1000).map(t => ({ signature: t.signature, err: t.failed ? {} : null }));
+    }
     if (method === "getTransaction") {
       const t = all.find(t => t.signature === params[0]);
       const bal = amount => [{ accountIndex: 2, mint: USDC, owner: SHOP, uiTokenAmount: { amount: String(amount) } }];
       result = { meta: { err: t.failed ? { InstructionError: [1, "x"] } : null, preTokenBalances: bal(5_000_000), postTokenBalances: bal(5_000_000 + t.received * 1e6) },
-        transaction: { message: { accountKeys: [{ pubkey: BUYER }, { pubkey: SHOP }] } } };
+        blockTime: t.blockTime || Math.floor(Date.now() / 1000),
+        transaction: { message: { accountKeys: [{ pubkey: t.payer || BUYER }, { pubkey: SHOP }, ...(t.keys || []).map(pubkey => ({ pubkey }))] } } };
     }
     return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result }));
   };
@@ -939,4 +949,83 @@ test("falls back to a public RPC when the first one refuses (403 from api.mainne
   assert.equal(h.last_payment_check.found, true);
   assert.equal(h.last_payment_check.signature, "pn1");
   assert.equal((await getJson("/health")).rpc, undefined, "plain /health doesn't call Solana");
+});
+
+// ---------- USDC sent without a checkout, and where checkouts get stuck ----------
+
+test("USDC sent without the reference: pays the one open checkout of that amount, otherwise the barista hears about it", async () => {
+  const { env, calls, post, chain, getJson } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  chain[SHOP_USDC] = [{ signature: "old", received: 50 }];
+  await runMinuteCron(env); // first run: starts from the newest transaction, the history is not announced
+  assert.equal((await env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind(`direct_cursor:${SHOP_USDC}`).first()).value, "old");
+
+  const tg = ANA;
+  const tip = (await pay(env, { kind: "tip", amount: "5", initData: signedInitData("t", { id: ANA, first_name: "Ana" }) })).payment;
+  // From an exchange: a plain 5 USDC transfer with no reference, then a 3 USDC one nobody started a checkout for.
+  chain[SHOP_USDC].unshift({ signature: "binance5", received: 5, payer: EXCHANGE });
+  chain[SHOP_USDC].unshift({ signature: "plain3", received: 3, payer: EXCHANGE });
+  calls.length = 0;
+  await runMinuteCron(env);
+  assert.equal((await getJson(`/api/pay/${tip.ref}`)).payment.status, "paid");
+  const sent = calls.filter(c => c.method === "sendMessage");
+  assert.ok(sent.some(c => String(c.body.chat_id) === String(tg) && /Thank you for the 5 USDC tip/.test(c.body.text)), "the guest is thanked");
+  assert.ok(sent.some(c => c.body.chat_id === String(BARISTA) && /💛 <b>Tip · 5 USDC<\/b>\n👤 Ana/.test(c.body.text)));
+  const outside = sent.filter(c => /arrived outside the app/.test(c.body.text));
+  assert.equal(outside.length, 1);
+  assert.match(outside[0].body.text, /💸 <b>3 USDC arrived outside the app<\/b>\nFrom 5tzF…uAi9/);
+  assert.match(outside[0].body.text, /solscan\.io\/tx\/plain3/);
+
+  calls.length = 0;
+  await runMinuteCron(env);
+  assert.ok(!calls.some(c => /outside the app|Tip ·/.test(c.body.text || "")), "each transfer is handled once");
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /💸 Outside the app: 1 · 3 USDC/);
+});
+
+test("a checkout's own transfer seen on the shop account is matched by its reference, not as outside money", async () => {
+  const { env, calls, post, chain, getJson } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  chain[SHOP_USDC] = [{ signature: "start", received: 1 }];
+  await runMinuteCron(env);
+  // Two open 10 USDC bags: an amount match alone would be ambiguous, the reference decides.
+  const a = (await pay(env, { kind: "bag" })).payment, b = (await pay(env, { kind: "bag" })).payment;
+  const tx = { signature: "bagtx", received: 10, keys: [b.ref] };
+  chain[SHOP_USDC].unshift(tx);
+  chain[b.ref] = [tx];
+  calls.length = 0;
+  await runMinuteCron(env);
+  assert.equal((await getJson(`/api/pay/${b.ref}`)).payment.status, "paid");
+  assert.equal((await getJson(`/api/pay/${a.ref}`)).payment.status, "pending");
+  assert.ok(!calls.some(c => /outside the app/.test(c.body.text || "")));
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM direct_transfers").first()).n, 0);
+});
+
+test("pay pages report wallet taps and errors; /payments shows where checkouts get stuck", async () => {
+  const { env, calls, post } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const event = (ref, body) => worker.fetch(new Request(`https://bot/api/pay/${ref}/event`, { method: "POST", body: JSON.stringify(body) }), env);
+  const a = (await pay(env, { kind: "tip", amount: "5" })).payment;
+  const b = (await pay(env, { kind: "bag" })).payment;
+  assert.equal((await event(a.ref, { step: "hack" })).status, 400);
+  assert.equal((await event("1".repeat(40), { step: "tap" })).status, 404);
+  await event(a.ref, { step: "tap", detail: "solflare tg ios" });
+  await event(a.ref, { step: "open", detail: "solflare ios" });
+  await event(a.ref, { step: "pay", detail: "solflare" });
+  await event(a.ref, { step: "funds", detail: "This wallet needs a little SOL for the network fee" });
+  await event(b.ref, { step: "tap", detail: "phantom tg android" });
+  await event(b.ref, { step: "open", detail: "phantom android" });
+  await event(b.ref, { step: "error", detail: "Unexpected <error>" });
+  for (let i = 0; i < 45; i++) await event(b.ref, { step: "tap", detail: "copy-payAddr" });
+  assert.equal((await env.DB.prepare("SELECT COUNT(*) AS n FROM pay_events WHERE payment_id = ?").bind(b.bagNo).first()).n, 40, "capped per checkout");
+
+  await post(msg(BARISTA, "/payments"));
+  const text = calls.at(-1).body.text;
+  assert.match(text, /Checkouts: <b>2<\/b> · paid: <b>0<\/b> \(0%\)/);
+  assert.match(text, /Wallet buttons tapped: .*solflare 1/);
+  assert.match(text, /Wallet buttons tapped: .*copy-payAddr 1/);
+  assert.match(text, /Pay page opened in: solflare 1 · phantom 1/);
+  assert.match(text, /not enough USDC or SOL 1 · wallet errors 1/);
+  assert.match(text, /Bag 10 · phantom · Unexpected &lt;error&gt;/);
+  assert.match(text, /Tip 5 · solflare · This wallet needs a little SOL/);
 });
