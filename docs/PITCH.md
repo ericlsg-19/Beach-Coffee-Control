@@ -14,7 +14,7 @@
 | Demo ao vivo | Pronto: [@BeachCoffeeIslandBot](https://t.me/BeachCoffeeIslandBot) e `https://drinkbeachcoffee.com/pay` |
 | Vídeo de pitch (até ~3 min) | Falta |
 | Vídeo de demo técnica (~2–3 min): pedido → barista → Ready; gorjeta/pacote → Solscan → aviso | Falta |
-| Deck (6–8 slides) | Pronto: https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (6 slides, notas do apresentador em inglês, cópia em `design/deck/`). Números do `/total` em 28/10 12:33: 356 bebidas em 5 dias, 47 pelo Telegram de 33 pessoas. Está privado: compartilhar pelo menu Share. |
+| Deck (6–8 slides) | Pronto: https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (6 slides, notas do apresentador em inglês, cópia em `design/deck/`). Slide 5 atualizado em 04/11: 2k+ cafés em um mês, 0→94% pelo Telegram (26–30/10), 5 min → 0 na fila, USDC. Está privado: compartilhar pelo menu Share. |
 | Descrição curta, trilha, equipe, carteira para prêmio | Texto abaixo |
 | Números de tração | Tirar os totais exatos do Âncora (**Summary by day** / **Download CSV**) e do `/ranking` |
 
@@ -50,7 +50,7 @@ So we built this: tap, sip, tip. Scan the QR and order with me: 10 iced coffees 
 How does it work? Every checkout carries a Solana Pay reference. The bot finds that exact transaction onchain and only accepts it if the full USDC amount reached our wallet. Fees in cents, confirmed in seconds, and we never hold anyone's money.
 
 **Slide 5 · The event so far (35 s)**
-And this isn't a prototype. It runs the bar every day: 356 drinks in five days. Telegram ordering started on the 27th, and by day two four out of five orders came through it, from 33 different guests. That's three and a half hours given back to building instead of waiting in line. These numbers come straight from the bot.
+And this isn't a prototype. It ran the bar every day of the event: over two thousand coffees in one month at Island DAO. Telegram ordering started on the 27th, and by Friday 94% of orders came through it. People used to wait about five minutes in line; now they wait at their desk. These numbers come straight from the bot.
 
 **Slide 6 · What's next (20 s)**
 What's next: from one bar to every event. Menu, brand and wallet are just settings, so we want to bring specialty coffee and onchain ordering to web3 events across Brazil. Proof of brew: this was built from zero, at the bar. On the island, anyone can build. Thank you!
