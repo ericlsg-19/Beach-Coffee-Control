@@ -153,3 +153,35 @@ export async function findPayment(env, p, trace = []) {
   }
   return null;
 }
+
+// ---------- USDC that arrives without a checkout reference ----------
+// Exchanges and some wallets send a plain transfer: no reference, so findPayment can't see it.
+// The cron also reads the shop's own USDC account, so that money never goes unnoticed.
+
+// The shop's USDC token accounts (normally one).
+export async function shopUsdcAccounts(env) {
+  const r = await rpc(env, "getTokenAccountsByOwner", [env.SOLANA_ADDRESS, { mint: USDC_MINT }, { encoding: "jsonParsed", commitment: "confirmed" }]);
+  return (r.value || []).map(a => a.pubkey);
+}
+
+// Newest signature on an account, to start reading from (history before it is ignored).
+export async function newestSignature(env, account) {
+  const sigs = await rpc(env, "getSignaturesForAddress", [account, { limit: 1, commitment: "confirmed" }]);
+  return sigs.length ? sigs[0].signature : null;
+}
+
+// Successful transactions on `account` after `until`, oldest first: { signature, micro, payer, keys, time }.
+// micro is the USDC the shop gained (0 or less for outgoing ones). Stops at the first one that isn't
+// readable yet, so the caller can pick it up next minute.
+export async function transfersSince(env, account, until) {
+  const sigs = await rpc(env, "getSignaturesForAddress", [account, { limit: 20, until, commitment: "confirmed" }]);
+  const out = [];
+  for (const s of sigs.reverse()) {
+    if (s.err) { out.push({ signature: s.signature, micro: 0n }); continue; }
+    const tx = await rpc(env, "getTransaction", [s.signature, { commitment: "confirmed", encoding: "jsonParsed", maxSupportedTransactionVersion: 0 }]);
+    if (!tx || !tx.meta) break;
+    const keys = tx.transaction.message.accountKeys.map(k => (typeof k === "string" ? k : k.pubkey));
+    out.push({ signature: s.signature, micro: tx.meta.err ? 0n : received(tx.meta, env.SOLANA_ADDRESS), payer: keys[0], keys, time: (tx.blockTime || s.blockTime || 0) * 1000 });
+  }
+  return out;
+}

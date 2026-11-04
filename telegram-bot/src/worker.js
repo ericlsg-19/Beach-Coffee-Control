@@ -24,7 +24,7 @@ import { payPageHtml } from "./paypage.js";
 import { eventsHtml } from "./eventspage.js";
 import { web3Html } from "./web3page.js";
 import { WEB3_BAG_WEBP } from "./web3bag.js";
-import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus } from "./pay.js";
+import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
 
 const DRINKS = [
   { id: "espresso",   name: "Espresso" },
@@ -44,7 +44,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.8.2";
+const VERSION = "1.9.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -486,7 +486,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -522,6 +522,7 @@ async function onMessage(env, message) {
     if (cmd === "/queue") return queue(env, chatId);
     if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
     if (cmd === "/bags") return send(env, chatId, await bagsCommand(env, args));
+    if (cmd === "/payments") return send(env, chatId, await paymentsReport(env));
     if (cmd === "/close") {
       await setSetting(env, "open", "0"); await setSetting(env, "open_day", "");
       return send(env, chatId, "🌙 Closed. New orders are paused until /open.");
@@ -921,15 +922,139 @@ async function checkOpenPayments(env) {
     .bind(new Date(now - EXPIRE_MS).toISOString()).run();
 }
 
+// ---------- USDC sent without a checkout (exchanges, other wallets) ----------
+
+const shortKey = a => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : "an unknown wallet");
+
+// Every minute, after the checkouts: reads the shop's own USDC account for transfers that no checkout
+// reference explains. One that matches a single open checkout of exactly that amount pays it; any other
+// is recorded and the barista is told, so a tip sent from an exchange never goes unnoticed.
+async function checkDirectTransfers(env) {
+  if (!paymentsOn(env)) return;
+  let accounts = JSON.parse(await getSetting(env, "shop_usdc_accounts") || "null");
+  if (!accounts) {
+    accounts = await shopUsdcAccounts(env);
+    if (!accounts.length) return;
+    await setSetting(env, "shop_usdc_accounts", JSON.stringify(accounts));
+  }
+  for (const account of accounts) {
+    const key = `direct_cursor:${account}`;
+    const cursor = await getSetting(env, key);
+    if (!cursor) { // first run: start from now; what came before is already in the reports
+      const newest = await newestSignature(env, account);
+      if (newest) await setSetting(env, key, newest);
+      continue;
+    }
+    for (const t of await transfersSince(env, account, cursor)) {
+      if (t.micro > 0n) await settleDirect(env, t);
+      await setSetting(env, key, t.signature);
+    }
+  }
+}
+
+async function settleDirect(env, t) {
+  const known = await env.DB.prepare("SELECT 1 FROM payments WHERE signature = ? UNION ALL SELECT 1 FROM direct_transfers WHERE signature = ?")
+    .bind(t.signature, t.signature).first();
+  if (known) return;
+  // A checkout's own transfer (it carries the reference) that the cron hasn't matched yet: that check pays it.
+  const keys = t.keys.filter(isAddress);
+  if (keys.length) {
+    const { results } = await env.DB.prepare(`SELECT * FROM payments WHERE status != 'expired' AND reference IN (${keys.map(() => "?").join(",")})`)
+      .bind(...keys).all();
+    if (results.length) { for (const p of results) await checkPayment(env, p); return; }
+  }
+  const at = t.time || Date.now(), micro = Number(t.micro);
+  const { results: open } = await env.DB.prepare(
+    "SELECT * FROM payments WHERE status = 'pending' AND amount_micro = ? AND created_at > ? AND created_at < ?"
+  ).bind(micro, new Date(at - CHECK_WINDOW_MS).toISOString(), new Date(at + 60000).toISOString()).all();
+  if (open.length === 1) {
+    const paid = await env.DB.prepare(
+      "UPDATE payments SET status = 'paid', signature = ?, payer = ?, paid_at = ? WHERE id = ? AND status = 'pending' RETURNING *"
+    ).bind(t.signature, t.payer || null, new Date().toISOString(), open[0].id).first();
+    if (paid) {
+      console.log("payment paid by plain transfer", JSON.stringify({ id: paid.id, amount: fromMicro(micro), signature: t.signature }));
+      return announcePayment(env, paid);
+    }
+  }
+  await env.DB.prepare("INSERT OR IGNORE INTO direct_transfers (signature, payer, amount_micro, day, at) VALUES (?, ?, ?, ?, ?)")
+    .bind(t.signature, t.payer || "", micro, localDay(new Date(at)), new Date(at).toISOString()).run();
+  console.log("usdc outside the app", JSON.stringify({ amount: fromMicro(micro), signature: t.signature }));
+  const baristaChat = await getSetting(env, "barista_chat");
+  if (baristaChat) {
+    await send(env, baristaChat, `💸 <b>${usdc(micro)} arrived outside the app</b>\nFrom ${shortKey(t.payer)}, with no checkout (an exchange or a plain transfer). If someone tipped this way, thank them at the bar.\n<a href="https://solscan.io/tx/${t.signature}">View on Solscan</a>`);
+  }
+}
+
+// ---------- Where checkouts get stuck (/payments) ----------
+
+const PAY_STEPS = new Set(["open", "tap", "pay", "funds", "sent", "cancel", "error", "dropped"]);
+const MAX_EVENTS_PER_PAYMENT = 40;
+
+// POST /api/pay/<ref>/event from the pay page and the Mini App: { step, detail }.
+async function payEvent(env, ref, body) {
+  const step = String(body.step || "");
+  if (!PAY_STEPS.has(step)) return json({ ok: false, error: "Unknown step." }, 400);
+  const p = await env.DB.prepare("SELECT id FROM payments WHERE reference = ?").bind(ref).first();
+  if (!p) return json({ ok: false, error: "Payment not found." }, 404);
+  const { n } = await env.DB.prepare("SELECT COUNT(*) AS n FROM pay_events WHERE payment_id = ?").bind(p.id).first();
+  if (n >= MAX_EVENTS_PER_PAYMENT) return json({ ok: true });
+  const detail = String(body.detail || "").replace(/\s+/g, " ").trim().slice(0, 300);
+  await env.DB.prepare("INSERT INTO pay_events (payment_id, at, step, detail) VALUES (?, ?, ?, ?)")
+    .bind(p.id, new Date().toISOString(), step, detail).run();
+  if (step === "error" || step === "funds" || step === "dropped") console.log("pay problem", JSON.stringify({ id: p.id, step, detail }));
+  return json({ ok: true });
+}
+
+async function paymentsReport(env, days = 7) {
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const c = await env.DB.prepare(
+    "SELECT COUNT(*) AS n, COALESCE(SUM(status = 'paid'), 0) AS paid, COALESCE(SUM(customer_chat != 0), 0) AS tg FROM payments WHERE created_at > ?"
+  ).bind(since).first();
+  const direct = await env.DB.prepare("SELECT COUNT(*) AS n, SUM(amount_micro) AS micro FROM direct_transfers WHERE at > ?").bind(since).first();
+  const { results: events } = await env.DB.prepare(
+    `SELECT e.payment_id, e.at, e.step, e.detail, p.kind, p.amount_micro FROM pay_events e JOIN payments p ON p.id = e.payment_id
+     WHERE p.created_at > ? ORDER BY e.id LIMIT 5000`
+  ).bind(since).all();
+  const count = step => new Set(events.filter(e => e.step === step).map(e => e.payment_id)).size;
+  // Payments per first word of the detail (the wallet, or the button), e.g. "solflare 6 · phantom 3".
+  const split = step => {
+    const m = new Map();
+    for (const e of events.filter(e => e.step === step)) {
+      const k = e.detail.split(" ")[0] || "?";
+      if (!m.has(k)) m.set(k, new Set());
+      m.get(k).add(e.payment_id);
+    }
+    return [...m].sort((a, b) => b[1].size - a[1].size).map(([k, s]) => `${k} ${s.size}`).join(" · ") || "none";
+  };
+  const opened = new Map(events.filter(e => e.step === "open").map(e => [e.payment_id, e.detail.split(" ")[0]]));
+  const problems = events.filter(e => ["funds", "error", "dropped"].includes(e.step)).slice(-6).reverse();
+  const when = iso => `${localDay(new Date(iso)).slice(8)}/${localDay(new Date(iso)).slice(5, 7)} ${localTime(iso)}`;
+  return [
+    `💳 <b>Tips and bags, last ${days} days</b>`,
+    c.n ? `Checkouts: <b>${c.n}</b> · paid: <b>${c.paid}</b> (${Math.round(100 * c.paid / c.n)}%) · from Telegram: ${c.tg}` : "No checkouts yet.",
+    ...(events.length ? [
+      `Wallet buttons tapped: ${split("tap")}`,
+      `Pay page opened in: ${split("open")}`,
+      `Pay tapped: ${count("pay")} · sent: ${count("sent")} · cancelled: ${count("cancel")}`,
+      `Stopped by: not enough USDC or SOL ${count("funds")} · wallet errors ${count("error")} · dropped by the network ${count("dropped")}`,
+    ] : []),
+    ...(direct.n ? [`💸 Outside the app: ${direct.n} · ${usdc(direct.micro)}`] : []),
+    ...(problems.length ? ["", "<b>Last problems</b>", ...problems.map(e =>
+      `• ${when(e.at)} · ${e.kind === "bag" ? "Bag" : "Tip"} ${fromMicro(e.amount_micro)} · ${escapeHtml(opened.get(e.payment_id) || "?")} · ${escapeHtml(e.detail || e.step)}`)] : []),
+  ].join("\n");
+}
+
 async function salesLines(env, day) {
   const { results } = await env.DB.prepare(
     "SELECT kind, COUNT(*) AS n, SUM(amount_micro) AS micro FROM payments WHERE day = ? AND status = 'paid' GROUP BY kind"
   ).bind(day).all();
   const of = kind => results.find(r => r.kind === kind);
   const left = of("bag") ? await bagsLeft(env) : null;
+  const direct = await env.DB.prepare("SELECT COUNT(*) AS n, SUM(amount_micro) AS micro FROM direct_transfers WHERE day = ?").bind(day).first();
   return [
     ...(of("tip") ? [`💛 Tips: ${of("tip").n} · ${usdc(of("tip").micro)}`] : []),
     ...(of("bag") ? [`🛍️ Coffee bags: ${of("bag").n} · ${usdc(of("bag").micro)}${left === null ? "" : ` (${left} left)`}`] : []),
+    ...(direct.n ? [`💸 Outside the app: ${direct.n} · ${usdc(direct.micro)}`] : []),
   ];
 }
 
@@ -960,6 +1085,8 @@ async function handlePayApi(request, env, path, base) {
       return json({ ok: false, error: "Solana is busy. Try again." }, 502);
     }
   }
+  const event = /^\/api\/pay\/([1-9A-HJ-NP-Za-km-z]{32,44})\/event$/.exec(path);
+  if (event && request.method === "POST") return payEvent(env, event[1], await request.json().catch(() => ({})));
   const ref = path.slice("/api/pay/".length);
   let p = await env.DB.prepare("SELECT * FROM payments WHERE reference = ?").bind(ref).first();
   if (!p) return json({ ok: false, error: "Payment not found." }, 404);
@@ -984,7 +1111,8 @@ export default {
   async scheduled(event, env, ctx) {
     if (event.cron === DAILY_REPORT_CRON) return ctx.waitUntil(sendDailyReport(env));
     ctx.waitUntil(ensureWebhook(env).then(() => ensureMenuButton(env)));
-    ctx.waitUntil(checkOpenPayments(env));
+    ctx.waitUntil(checkOpenPayments(env).then(() => checkDirectTransfers(env))
+      .catch(e => console.log("payment cron failed", String(e && e.message || e).slice(0, 300))));
   },
 
   async fetch(request, env) {

@@ -223,7 +223,7 @@ export function miniAppHtml(drinks, pay = null) {
         <p class="note">Send exactly this amount of <b>USDC</b> on <b>Solana</b> to:</p>
         <div class="field"><label>Address</label><div class="copy"><code id="payAddr"></code><button data-copy="payAddr">Copy</button></div></div>
         <div class="field"><label>Amount (USDC)</label><div class="copy"><code id="payAmt"></code><button data-copy="payAmt">Copy</button></div></div>
-        <p class="note">Sent this way, it won't show up here: show your wallet to the barista.</p>
+        <p class="note">No Solana wallet? Any exchange works (Binance, Coinbase…): withdraw USDC on the <b>Solana</b> network. The barista gets a message when it arrives; it can take a few minutes.</p>
       </div>
       <div class="waiting"><span class="dot"></span><span>Waiting for the payment…</span></div>
       <button class="btn ghost wide" id="payBack">Back</button>
@@ -496,16 +496,26 @@ export function miniAppHtml(drinks, pay = null) {
     showPayment(r.payment);
   }
   function openLink(url) { if (tg && tg.openLink) tg.openLink(url); else window.open(url, "_blank"); }
+  let payRef = null;
+  // Tells the bot which wallet button was tapped, so /payments shows where checkouts get stuck.
+  function payTrack(step, detail) {
+    if (!payRef) return;
+    try {
+      fetch("/api/pay/" + payRef + "/event", { method: "POST", keepalive: true, headers: { "content-type": "application/json" },
+        body: JSON.stringify({ step, detail: detail + " tg " + (tg && tg.platform || "web") }) }).catch(() => {});
+    } catch (e) {}
+  }
   function showPayment(p) {
     $("payPick").hidden = true; $("payMsg").textContent = "";
     $("payItem").textContent = p.kind === "bag" ? "🛍️ " + PAY.products.bag.title : "💛 " + PAY.products.tip.title;
     $("payAmount").innerHTML = esc(p.amount) + "<small>USDC</small>";
     $("payAddr").textContent = PAY.recipient;
     $("payAmt").textContent = p.amount;
-    $("payPhantom").onclick = () => openLink(p.phantom);
-    $("paySolflare").onclick = () => openLink(p.solflare);
+    payRef = p.ref;
+    $("payPhantom").onclick = () => { payTrack("tap", "phantom"); openLink(p.phantom); };
+    $("paySolflare").onclick = () => { payTrack("tap", "solflare"); openLink(p.solflare); };
     // Opens the checkout in the phone's browser, where "Open my wallet app" hands the wallet a Solana Pay link.
-    $("paySolanaPay").onclick = () => openLink(p.page);
+    $("paySolanaPay").onclick = () => { payTrack("tap", "solanapay"); openLink(p.page); };
     $("payBox").hidden = false;
     clearInterval(payPoll);
     payPoll = setInterval(async () => {
@@ -559,6 +569,7 @@ export function miniAppHtml(drinks, pay = null) {
     document.addEventListener("click", async e => {
       const b = e.target.closest("[data-copy]"); if (!b) return;
       const text = $(b.dataset.copy).textContent;
+      payTrack("tap", "copy-" + b.dataset.copy);
       try { await navigator.clipboard.writeText(text); }
       catch (err) { const r = document.createRange(); r.selectNodeContents($(b.dataset.copy)); getSelection().removeAllRanges(); getSelection().addRange(r); document.execCommand("copy"); }
       b.textContent = "Copied ✓"; setTimeout(() => { b.textContent = "Copy"; }, 1600);

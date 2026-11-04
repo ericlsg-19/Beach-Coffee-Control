@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 29/10/2026, bot e Âncora na **v1.8.2**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 04/11/2026, bot e Âncora na **v1.9.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -48,6 +48,7 @@ Atualizado em 29/10/2026, bot e Âncora na **v1.8.2**, no domínio próprio **dr
 - 03/11: v1.8.0: **Iced Matcha** no cardápio (depois do Matcha, com escolha de leite, ícone de copo gelado com a folha). Também na página de eventos (14 bebidas) e no story do cardápio.
 - 03/11: v1.8.1: **limite de 3 bebidas por pessoa por dia** (contam os pedidos do dia não cancelados). O mini app mostra "Up to 3 drinks per person a day · you've had N" e, no limite, "That's your 3 drinks for today". `/limit 5` muda, `/limit off` tira.
 - 03/11: v1.8.2: **`/out` e `/back`** para o que acabou: bebidas e leites aparecem "Not available" no mini app, sem dar para tocar, e o bot recusa. Acabou matcha e leite sem lactose e vegetal: `/out matcha icedmatcha lactosefree plant`.
+- 04/11: v1.9.0: **pagamentos mais confiáveis e visíveis.** USDC que chega sem *reference* (exchange, transferência simples) agora é detectado: paga o único checkout aberto com o mesmo valor, senão a barista recebe "💸 X USDC arrived outside the app" (tabela `direct_transfers`, aparece no `/today`). A página de pagamento e o mini app registram cada passo (botão tocado, carteira, erro, falta de USDC/SOL, transação descartada pela rede) em `pay_events`, e **`/payments`** mostra o funil dos últimos 7 dias e os últimos erros. A página avisa quando a rede descartou a transação (nada foi cobrado, pode pagar de novo) e explica os erros comuns em palavras claras.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
