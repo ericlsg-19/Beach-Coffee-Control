@@ -12,7 +12,7 @@ Atualizado em 04/11 (bot v1.9.0). Respostas do formulário e imagens: `design/ha
 | 3 | README em inglês para os jurados (raiz do repositório) | Claude | Feito (02/11) |
 | 4 | **Vídeo de demo** (~2 min), gravando a tela do celular, roteiro abaixo | Eric grava, Claude roteiriza e edita a legenda | Falta |
 | 5 | **Vídeo do pitch** (~3 min): deck na tela + voz, roteiro em `docs/PITCH.md` | Eric | Falta |
-| 6 | Atualizar o slide 5 do deck com os números da semana (460+ cafés, 0→94%) | Claude | Falta |
+| 6 | Slide 5 do deck com os números: 2k+ cafés em um mês, 0→94% pelo Telegram, 5 min → 0, USDC (PDF em `design/deck/`) | Claude | Feito (04/11) |
 | 7 | Formulário **Add your project** e **Enter IslandHack v5** no app da Island DAO, com os links dos vídeos, do repositório e do Solscan | Eric, com as respostas de `design/hackathon/` | Falta |
 | 8 | **Thread no X** no dia da entrega (texto abaixo) | Eric posta | Falta |
 

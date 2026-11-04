@@ -157,7 +157,7 @@ const PAGE = String.raw`<!doctype html>
       </div>
     </div>
     <div class="proof">
-      <div><b>460+</b><span>cafés servidos em sete dias de um evento internacional em Florianópolis</span></div>
+      <div><b>2 mil+</b><span>cafés servidos em um mês de um evento internacional em Florianópolis</span></div>
       <div><b>14</b><span>bebidas no cardápio, quentes e geladas</span></div>
       <div><b>100%</b><span>montagem, serviço e desmontagem por nossa conta</span></div>
     </div>

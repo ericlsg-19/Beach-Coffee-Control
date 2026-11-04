@@ -26,7 +26,7 @@ A coffee bar at a builders' event: everyone wants coffee in the same break, orde
 
 ## Traction (live, real guests)
 
-- **460+ drinks** served in seven days at the Island DAO Vila.
+- **2k+ coffees** served in one month at the Island DAO Vila.
 - **0% → 94%** of orders through Telegram in four days (Mon 0%, Tue 18%, Wed 87%, Fri 94%).
 - **~5 min → 0** in line, timed at the bar: guests wait where they work, not at the counter.
 - Daily reports, a live queue and a coffee lovers ranking, straight from the bot (`/today`, `/total`).
