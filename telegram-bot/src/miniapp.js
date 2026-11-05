@@ -20,6 +20,24 @@ const ICONS = {
   chocolate:  '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M6 9h12M6 15h12M12 3v18"/>',
 };
 
+// One line under each drink's name, so guests know what's in it.
+export const DESCRIPTIONS = {
+  espresso:   "Short, strong coffee shot",
+  double:     "Two espresso shots",
+  freddo:     "Espresso shaken with ice",
+  americano:  "Espresso with hot water",
+  carioca:    "Lighter espresso, with hot water",
+  cappuccino: "Espresso, milk and thick foam",
+  flatwhite:  "Double espresso, silky milk",
+  latte:      "Espresso with lots of milk",
+  icedlatte:  "Espresso and cold milk on ice",
+  icedcoffee: "Coffee over ice",
+  mocha:      "Espresso, chocolate and milk",
+  matcha:     "Green tea with steamed milk",
+  icedmatcha: "Green tea and cold milk on ice",
+  chocolate:  "Hot chocolate, no coffee",
+};
+
 // Drinks made with milk: the guest has to pick one of these milks before ordering.
 // Regular is a choice too, but isn't stored (no extras row = regular milk).
 export const MILK_DRINKS = ["cappuccino", "flatwhite", "latte", "icedlatte", "mocha", "matcha", "icedmatcha", "chocolate"];
@@ -30,7 +48,7 @@ export const EVENT_ONLY = ["icedcoffee"];
 
 // pay: { recipient, bagPrice, bagStock, bagsLeft } when tips and bags are on, null otherwise.
 export function miniAppHtml(drinks, pay = null) {
-  const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "", milk: MILK_DRINKS.includes(d.id), eventOnly: EVENT_ONLY.includes(d.id) })));
+  const menu = JSON.stringify(drinks.map(d => ({ ...d, icon: ICONS[d.id] || "", desc: DESCRIPTIONS[d.id] || "", milk: MILK_DRINKS.includes(d.id), eventOnly: EVENT_ONLY.includes(d.id) })));
   const payConfig = JSON.stringify(pay && { ...pay, presets: TIP_PRESETS, products: PRODUCTS });
   return `<!doctype html>
 <html lang="en"><head>
@@ -78,6 +96,7 @@ export function miniAppHtml(drinks, pay = null) {
   .drink.selected .ico { background: rgba(168,230,184,.16); }
   .drink svg { width: 26px; height: 26px; stroke: var(--mint); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .drink .name { font: 600 .95rem/1.2 var(--body); }
+  .drink .desc { display: block; margin-top: 3px; font: 400 .76rem/1.3 var(--body); color: var(--muted); }
   .drink .left { display: block; margin-top: 3px; font: 500 .78rem/1 var(--mono); color: var(--gold); }
   .drink.soldout { opacity: .45; cursor: default; }
   .note { color: var(--muted); font-size: .9rem; margin: 0; }
@@ -279,7 +298,7 @@ export function miniAppHtml(drinks, pay = null) {
       const tag = gone ? "Not available" : left === null ? "" : left ? left + " left" : "Sold out";
       return '<button class="drink' + (selected === d.id ? " selected" : "") + (left === 0 || gone ? " soldout" : "") + '" data-id="' + d.id + '"' + (gone ? " disabled" : "") + '>' +
         '<span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true">' + d.icon + '</svg></span>' +
-        '<span class="name">' + esc(d.name) + (tag ? '<span class="left">' + tag + '</span>' : "") + '</span></button>';
+        '<span class="name">' + esc(d.name) + (d.desc ? '<span class="desc">' + esc(d.desc) + '</span>' : "") + (tag ? '<span class="left">' + tag + '</span>' : "") + '</span></button>';
     }).join("");
   }
 
