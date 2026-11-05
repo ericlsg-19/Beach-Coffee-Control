@@ -497,6 +497,11 @@ test("Âncora and the bot share the same menu and version", async () => {
   const menu = src => [...src.matchAll(/\{ id: "([a-z]+)",\s*name: "([^"]+)" \}/g)].map(m => `${m[1]}=${m[2]}`);
   assert.deepEqual(menu(ancora), menu(bot));
   assert.equal(menu(bot).length, 14);
+  // Every drink has a one-line description under its name in the Mini App.
+  const { DESCRIPTIONS } = await import("../src/miniapp.js");
+  for (const m of menu(bot)) assert.ok(DESCRIPTIONS[m.split("=")[0]], `description for ${m}`);
+  const app = await (await worker.fetch(new Request("https://bot/app"), setup().env)).text();
+  assert.ok(app.includes('"desc":"Espresso, milk and thick foam"'));
   const botVersion = bot.match(/const VERSION = "([^"]+)"/)[1];
   assert.ok(ancora.includes(`Âncora v${botVersion}`), `Âncora should show v${botVersion}`);
   const h = await (await worker.fetch(new Request("https://bot/health"), setup().env)).json();

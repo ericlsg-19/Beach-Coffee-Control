@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 04/11/2026, bot e Âncora na **v1.9.1**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 05/11/2026, bot e Âncora na **v1.9.2**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -50,6 +50,7 @@ Atualizado em 04/11/2026, bot e Âncora na **v1.9.1**, no domínio próprio **dr
 - 03/11: v1.8.2: **`/out` e `/back`** para o que acabou: bebidas e leites aparecem "Not available" no mini app, sem dar para tocar, e o bot recusa. Acabou matcha e leite sem lactose e vegetal: `/out matcha icedmatcha lactosefree plant`.
 - 04/11: v1.9.0: **pagamentos mais confiáveis e visíveis.** USDC que chega sem *reference* (exchange, transferência simples) agora é detectado: paga o único checkout aberto com o mesmo valor, senão a barista recebe "💸 X USDC arrived outside the app" (tabela `direct_transfers`, aparece no `/today`). A página de pagamento e o mini app registram cada passo (botão tocado, carteira, erro, falta de USDC/SOL, transação descartada pela rede) em `pay_events`, e **`/payments`** mostra o funil dos últimos 7 dias e os últimos erros. A página avisa quando a rede descartou a transação (nada foi cobrado, pode pagar de novo) e explica os erros comuns em palavras claras.
 - 04/11: v1.9.1: o número de tração passa a ser **2k+ cafés em um mês** em todo lugar (README, deck slide 5 e PDF, pitch, respostas do formulário, `/eventos` "2 mil+"; `/web3` já dizia).
+- 05/11: v1.9.2: **descrição curta embaixo do nome de cada bebida** no mini app (ex.: Cappuccino "Espresso, milk and thick foam"). Os textos ficam em `DESCRIPTIONS` em `telegram-bot/src/miniapp.js`.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
