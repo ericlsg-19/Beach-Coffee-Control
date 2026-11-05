@@ -1034,3 +1034,47 @@ test("pay pages report wallet taps and errors; /payments shows where checkouts g
   assert.match(text, /Bag 10 · phantom · Unexpected &lt;error&gt;/);
   assert.match(text, /Tip 5 · solflare · This wallet needs a little SOL/);
 });
+
+// ---------- Installable app (PWA) and the Android app for the Solana dApp Store ----------
+
+test("installable app: manifest, service worker, icons, asset links and the menu outside Telegram", async () => {
+  const { env, post } = setupPay();
+  const get = path => worker.fetch(new Request(`https://bot${path}`), env);
+  const m = await (await get("/manifest.webmanifest")).json();
+  assert.equal(m.start_url, "/app?source=pwa");
+  assert.equal(m.display, "standalone");
+  assert.deepEqual(m.icons.map(i => i.sizes + " " + i.purpose), ["192x192 any", "512x512 any", "512x512 maskable"]);
+  for (const i of m.icons) {
+    const r = await get(i.src);
+    assert.equal(r.headers.get("content-type"), "image/png");
+    assert.deepEqual([...new Uint8Array(await r.arrayBuffer()).slice(1, 4)], [80, 78, 71], `${i.src} is a PNG`);
+  }
+  const sw = await get("/sw.js");
+  assert.match(sw.headers.get("content-type"), /javascript/);
+  new Function(await sw.text()); // parses
+  assert.match(await (await get("/vendor/mwa.js")).text(), /BeachMWA/);
+
+  assert.deepEqual(await (await get("/.well-known/assetlinks.json")).json(), [], "no fingerprint yet: no links");
+  env.ANDROID_PACKAGE = "com.drinkbeachcoffee.app";
+  env.ANDROID_CERT_SHA256 = "aa:" + "BB:".repeat(30) + "CC, not-a-fingerprint";
+  const links = await (await get("/.well-known/assetlinks.json")).json();
+  assert.equal(links[0].target.package_name, "com.drinkbeachcoffee.app");
+  assert.deepEqual(links[0].target.sha256_cert_fingerprints, ["AA:" + "BB:".repeat(30) + "CC"]);
+
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(msg(BARISTA, "/out matcha"));
+  const menu = await (await get("/api/menu")).json();
+  assert.equal(menu.ok, true);
+  assert.deepEqual(menu.out, ["matcha"]);
+  assert.equal(menu.open, true);
+
+  const app = await (await get("/app")).text();
+  assert.match(app, /<link rel="manifest" href="\/manifest.webmanifest">/);
+  assert.match(app, /if \(!initData\) return browse\(\);/);
+  assert.match(app, /Order on Telegram/);
+  const { payment } = await pay(env, { kind: "tip", amount: "2" });
+  const page = await (await get(`/pay/${payment.ref}`)).text();
+  assert.match(page, /<script src="\/vendor\/mwa.js" defer><\/script>/);
+  assert.match(page, /with my wallet/);
+  assert.match(await (await get("/privacy")).text(), /No ads, no trackers/);
+});

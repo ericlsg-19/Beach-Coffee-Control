@@ -13,6 +13,8 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tip & coffee bag · Beach Coffee Co.</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#071110">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800;125,900&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
 <style>
   :root {
@@ -133,6 +135,7 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
   <section id="paid" class="card done" hidden></section>
 </div>
 <script src="/vendor/web3.js" defer></script>
+<script src="/vendor/mwa.js" defer></script>
 <script>
   const C = ${config};
   const $ = id => document.getElementById(id);
@@ -146,12 +149,17 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
         body: JSON.stringify({ step, detail: String(detail || "").slice(0, 300) }) }).catch(() => {});
     } catch (e) {}
   }
+  // Android (the Seeker included), no wallet browser: the Mobile Wallet Adapter asks the phone's wallet app.
+  function mwaWallet() {
+    try { return /Android/i.test(navigator.userAgent) && window.BeachMWA ? window.BeachMWA.get() : null; } catch (e) { return null; }
+  }
   function walletName() {
     const w = window;
     if (w.phantom && w.phantom.solana) return "phantom";
     if (w.solflare && w.solflare.isSolflare) return "solflare";
     if (w.backpack && w.backpack.solana) return "backpack";
     if (w.solana) return "wallet";
+    if (mwaWallet()) return "mwa";
     return /Telegram/i.test(navigator.userAgent) || (w.TelegramWebviewProxy) ? "telegram" : "browser";
   }
   const platform = () => /iPhone|iPad|iPod/.test(navigator.userAgent) ? "ios" : /Android/.test(navigator.userAgent) ? "android" : "desktop";
@@ -215,7 +223,11 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     $("solanaPay").href = $("solanaPayIn").href = p.solanaPay;
     $("payNow").textContent = "Pay " + p.amount + " USDC";
     $("checkout").hidden = false;
-    const showWallet = () => { const inside = !!provider(); $("inWallet").hidden = !inside; $("openWallet").hidden = inside; };
+    const showWallet = () => {
+      const inside = !!provider(), mwa = !inside && !!mwaWallet();
+      $("inWallet").hidden = !(inside || mwa); $("openWallet").hidden = inside || mwa;
+      $("payNow").textContent = "Pay " + p.amount + " USDC" + (mwa ? " with my wallet" : "");
+    };
     showWallet();
     setTimeout(showWallet, 600); // some wallets inject their provider a moment after load
     if (p.status !== "paid") setTimeout(() => track("open", walletName() + " " + platform()), 700);
@@ -298,12 +310,51 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
   const b64 = bytes => btoa(String.fromCharCode.apply(null, bytes));
   const rejected = err => err && (err.code === 4001 || /reject|cancel|denied|declined|closed/i.test(String(err.message || "")));
 
+  const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  function b58(bytes) {
+    let n = 0n, out = "";
+    for (const b of bytes) n = n * 256n + BigInt(b);
+    while (n > 0n) { out = B58[Number(n % 58n)] + out; n /= 58n; }
+    for (const b of bytes) { if (b) break; out = "1" + out; }
+    return out;
+  }
+
+  // The wallet that pays: the one injected by a wallet's browser, or the Mobile Wallet Adapter.
+  // Returns { address, signAndSend(tx) → signature, sign(tx) → signed bytes, or null }.
+  async function signer() {
+    const injected = provider();
+    if (injected) {
+      const res = await injected.connect();
+      return {
+        address: String((res && res.publicKey) || injected.publicKey),
+        signAndSend: async tx => { const sent = await injected.signAndSendTransaction(tx); return typeof sent === "string" ? sent : sent && sent.signature; },
+        sign: injected.signTransaction ? async tx => (await injected.signTransaction(tx)).serialize({ verifySignatures: false }) : null,
+      };
+    }
+    const mwa = mwaWallet();
+    if (!mwa) throw new Error("Open this page in your wallet app.");
+    const { accounts } = await mwa.features["standard:connect"].connect();
+    const account = accounts && accounts[0];
+    if (!account) throw new Error("The wallet didn't share an account.");
+    const bytes = tx => tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+    const send = mwa.features["solana:signAndSendTransaction"], sign = mwa.features["solana:signTransaction"];
+    return {
+      address: account.address,
+      signAndSend: async tx => {
+        if (!send) throw new Error("this wallet only signs");
+        const [r] = await send.signAndSendTransaction({ account, chain: "solana:mainnet", transaction: bytes(tx) });
+        return b58(r.signature);
+      },
+      sign: sign ? async tx => (await sign.signTransaction({ account, chain: "solana:mainnet", transaction: bytes(tx) }))[0].signedTransaction : null,
+    };
+  }
+
   // Builds the USDC transfer with the payment's reference attached and asks the wallet to send it.
   async function payInWallet(p) {
-    const W = window.solanaWeb3, wallet = provider();
-    if (!W || !wallet) throw new Error("Open this page in your wallet app.");
-    const res = await wallet.connect();
-    const payer = new W.PublicKey(String((res && res.publicKey) || wallet.publicKey));
+    const W = window.solanaWeb3;
+    if (!W) throw Object.assign(new Error("no web3"), { network: true });
+    const wallet = await signer();
+    const payer = new W.PublicKey(wallet.address);
     const TOKEN = new W.PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
     const ATA = new W.PublicKey("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
     const mint = new W.PublicKey(C.mint), owner = new W.PublicKey(C.recipient), reference = new W.PublicKey(p.ref);
@@ -325,16 +376,15 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     if (!exists) tx.add(create);
     tx.add(transfer);
     try {
-      const sent = await wallet.signAndSendTransaction(tx);
-      return { signature: typeof sent === "string" ? sent : sent && sent.signature, lastValid: bh.lastValidBlockHeight };
+      return { signature: await wallet.signAndSend(tx), lastValid: bh.lastValidBlockHeight };
     } catch (err) {
       // Some wallets (Solflare in its browser) fail on sign-and-send but can sign; then the page sends it.
-      if (rejected(err) || !wallet.signTransaction) throw err;
-      const signed = await wallet.signTransaction(tx);
-      const r = await rpcCall("sendTransaction", [b64(signed.serialize({ verifySignatures: false })), { encoding: "base64", preflightCommitment: "confirmed" }]);
+      if (rejected(err) || !wallet.sign) throw err;
+      const signed = await wallet.sign(tx);
+      const r = await rpcCall("sendTransaction", [b64(signed), { encoding: "base64", preflightCommitment: "confirmed" }]);
       if (!r) throw Object.assign(new Error("no RPC"), { network: true });
       if (r.error) throw new Error(r.error.message || "the network refused the transaction");
-      return { signature: r.result, lastValid: bh.lastValidBlockHeight, raw: b64(signed.serialize({ verifySignatures: false })) };
+      return { signature: r.result, lastValid: bh.lastValidBlockHeight, raw: b64(signed) };
     }
   }
   // What the wallet's error means, in words a guest can act on.

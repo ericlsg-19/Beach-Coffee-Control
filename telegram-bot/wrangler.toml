@@ -10,6 +10,10 @@ SOLANA_ADDRESS = "WTxV6GDprgz2vHT4gX4ULCexqqaXYKQ8zWpZoYJHz2u"
 BAG_PRICE_USDC = "10"
 # How many Limited Edition bags there are. Sales stop when they're sold; remove the line for no limit.
 BAG_STOCK = "20"
+# The Android app (Solana dApp Store / Seeker) that opens drinkbeachcoffee.com full screen.
+# ANDROID_CERT_SHA256: the signing key's SHA-256 fingerprint from PWABuilder/Bubblewrap (public, not a secret).
+ANDROID_PACKAGE = "com.drinkbeachcoffee.app"
+ANDROID_CERT_SHA256 = ""
 # Where Telegram delivers updates; the scheduled check re-registers it if lost.
 WEBHOOK_URL = "https://drinkbeachcoffee.com"
 
