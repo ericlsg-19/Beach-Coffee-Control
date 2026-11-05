@@ -13,7 +13,7 @@ BAG_STOCK = "20"
 # The Android app (Solana dApp Store / Seeker) that opens drinkbeachcoffee.com full screen.
 # ANDROID_CERT_SHA256: the signing key's SHA-256 fingerprint from PWABuilder/Bubblewrap (public, not a secret).
 ANDROID_PACKAGE = "com.drinkbeachcoffee.app"
-ANDROID_CERT_SHA256 = ""
+ANDROID_CERT_SHA256 = "EF:5D:29:1E:BD:29:14:A3:B2:78:68:76:4D:04:0C:DA:AB:09:2F:01:40:23:1A:1B:C9:32:52:94:FB:20:8A:56"
 # Where Telegram delivers updates; the scheduled check re-registers it if lost.
 WEBHOOK_URL = "https://drinkbeachcoffee.com"
 

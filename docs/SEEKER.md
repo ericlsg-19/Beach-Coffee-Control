@@ -8,6 +8,9 @@ O app é o próprio site instalável (PWA): `https://drinkbeachcoffee.com/app`. 
 - **Tip & Bag**: o checkout paga com a carteira do celular pelo **Mobile Wallet Adapter** (no Seeker, a carteira do próprio aparelho; no Android, Phantom/Solflare). Fora do Android, Solflare/Phantom/Solana Pay como antes.
 - Instalável: `manifest.webmanifest`, ícones em `/icons/`, `sw.js` (abre offline com aviso), política em `/privacy`.
 
+## Situação
+- 05/11: pacote Android gerado no PWABuilder (`com.drinkbeachcoffee.app`, chave nova). Impressão digital `EF:5D:29:…:8A:56` no `wrangler.toml` → `/.well-known/assetlinks.json`. O .zip (keystore e senhas) fica guardado com o Eric.
+
 ## Passo a passo (Eric)
 1. **Gerar o app Android:** em pwabuilder.com, colar `https://drinkbeachcoffee.com/app` → *Package for stores* → **Android**.
    - Package ID: `com.drinkbeachcoffee.app` · App name: `Beach Coffee Co.` · Launcher name: `Beach Coffee`.
