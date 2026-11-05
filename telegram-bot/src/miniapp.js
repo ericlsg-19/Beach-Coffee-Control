@@ -55,6 +55,9 @@ export function miniAppHtml(drinks, pay = null) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beach Coffee Co.</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#071110">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800;125,900&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
 <style>
@@ -145,6 +148,8 @@ export function miniAppHtml(drinks, pay = null) {
   .amount { font: 900 2.4rem/1 var(--display); font-stretch: 125%; color: var(--gold); }
   .amount small { font: 600 1rem/1 var(--body); color: var(--muted); letter-spacing: .1em; margin-left: 6px; }
   .wide { width: 100%; }
+  a.btn { display: grid; place-items: center; text-decoration: none; }
+  .order-tg { display: grid; gap: 12px; padding: 16px 18px; margin-bottom: 14px; }
   .tip-after { justify-self: stretch; text-align: left; margin-top: 18px; }
   .bag-offer { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; text-align: left; padding: 14px 16px; border-radius: 18px;
     border: 1px solid var(--gold); color: var(--text); font: 500 .95rem/1.3 var(--body); cursor: pointer;
@@ -189,6 +194,10 @@ export function miniAppHtml(drinks, pay = null) {
   <section id="pick">
     <p class="note" id="lunchNote" hidden style="margin-bottom:12px"></p>
     <p class="note" id="eventNote" hidden style="margin-bottom:12px"></p>
+    <div class="card order-tg" id="orderTg" hidden>
+      <p class="note" style="color:var(--text)"><b>Order from your seat.</b> Open the bar in Telegram, pick your drink, and get a ping when it's ready.</p>
+      <a class="btn wide" href="https://t.me/BeachCoffeeIslandBot" target="_blank" rel="noopener">Order on Telegram</a>
+    </div>
     <p class="eyebrow" style="margin-bottom:10px" id="pickTitle">Step 1 · Pick your drink</p>
     <div class="drinks" id="drinks"></div>
     <div id="milkPick" hidden>
@@ -376,12 +385,26 @@ export function miniAppHtml(drinks, pay = null) {
     return res.json().catch(() => ({ ok: false, error: "Something went wrong. Try again." }));
   }
 
+  // Outside Telegram (the installed app, a browser): the live menu to browse, ordering in Telegram,
+  // and Tip & Bag, paid with the phone's wallet on the checkout page.
+  let browsing = false;
+  async function browse() {
+    browsing = true;
+    document.querySelector('[data-tab="rank"]').hidden = true; // the ranking is per Telegram customer
+    document.querySelector(".tabs").style.setProperty("--tabs", PAY ? 2 : 1);
+    $("orderTg").hidden = false;
+    $("pickTitle").textContent = "Our menu";
+    const s = await fetch("/api/menu").then(r => r.json()).catch(() => null);
+    if (!s || !s.ok) { $("msg").textContent = "Couldn't load the menu. Check your connection and try again."; return; }
+    open = s.open; out = s.out || []; event = s.event || null;
+    if (!open) $("live").textContent = "Closed for now";
+    $("closedNote").hidden = open;
+    $("closedText").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
+    renderDrinks();
+  }
+
   async function load() {
-    if (!initData) {
-      $("pick").hidden = true;
-      $("msg").innerHTML = 'Open this menu from <b>@BeachCoffeeIslandBot</b> in Telegram to order.';
-      return;
-    }
+    if (!initData) return browse();
     const s = await api("/api/session", {});
     if (!s.ok) { $("msg").textContent = s.error || "Couldn't load the menu."; return; }
     $("greet").textContent = greeting(s.user && s.user.first_name);
@@ -466,6 +489,7 @@ export function miniAppHtml(drinks, pay = null) {
 
   $("drinks").addEventListener("click", e => {
     const b = e.target.closest("[data-id]");
+    if (browsing && b) return $("orderTg").scrollIntoView({ behavior: "smooth", block: "center" });
     if (!b || leftOf(b.dataset.id) === 0 || out.includes(b.dataset.id)) return;
     selected = selected === b.dataset.id ? null : b.dataset.id;
     milk = null;
@@ -512,6 +536,8 @@ export function miniAppHtml(drinks, pay = null) {
     $("payGo").disabled = true;
     const r = await api("/api/pay", { kind: payPick.kind, amount: payAmountPicked() });
     if (!r.ok) { $("payMsg").textContent = r.error || "Something went wrong. Try again."; renderPayPick(); return; }
+    // Outside Telegram the checkout page pays with the phone's wallet (Mobile Wallet Adapter on Android).
+    if (!initData) { location.href = r.payment.page; return; }
     showPayment(r.payment);
   }
   function openLink(url) { if (tg && tg.openLink) tg.openLink(url); else window.open(url, "_blank"); }
@@ -598,6 +624,8 @@ export function miniAppHtml(drinks, pay = null) {
 
   renderDrinks();
   load();
+  // Installable app: works offline enough to open, and lets Android install it (not inside Telegram).
+  if (!initData && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 </script>
 </body></html>`;
 }

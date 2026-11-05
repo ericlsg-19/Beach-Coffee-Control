@@ -24,6 +24,9 @@ import { payPageHtml } from "./paypage.js";
 import { eventsHtml } from "./eventspage.js";
 import { web3Html } from "./web3page.js";
 import { WEB3_BAG_WEBP } from "./web3bag.js";
+import { MWA_IIFE } from "./vendor/mwa-iife.js";
+import { ICON_192, ICON_512, MASKABLE_512 } from "./appicons.js";
+import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML } from "./pwa.js";
 import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
 
 const DRINKS = [
@@ -44,7 +47,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.9.2";
+const VERSION = "1.10.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -1141,6 +1144,26 @@ export default {
     }
     if (path === "/pay" || path.startsWith("/pay/")) return payPage(env, path, base);
     if (path.startsWith("/api/pay")) return handlePayApi(request, env, path, base);
+    // The installable app (PWA, and the Android app in the Solana dApp Store).
+    if (path === "/manifest.webmanifest") {
+      return new Response(JSON.stringify(manifest()), { headers: { "content-type": "application/manifest+json", "cache-control": "public, max-age=3600" } });
+    }
+    if (path === "/sw.js") {
+      return new Response(SERVICE_WORKER, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-cache" } });
+    }
+    const icon = { "/icons/icon-192.png": ICON_192, "/icons/icon-512.png": ICON_512, "/icons/maskable-512.png": MASKABLE_512 }[path];
+    if (icon) return new Response(Uint8Array.from(atob(icon), c => c.charCodeAt(0)), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
+    if (path === "/.well-known/assetlinks.json") return json(assetLinks(env));
+    if (path === "/privacy") return new Response(PRIVACY_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+    if (path === "/vendor/mwa.js") {
+      return new Response(MWA_IIFE, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=86400" } });
+    }
+    // The menu for the app outside Telegram (no customer): what's on, what's out, open or closed.
+    if (path === "/api/menu" && request.method === "GET") {
+      const open = await isOpen(env);
+      return json({ ok: true, open, out: await outList(env), event: await eventStatus(env, 0),
+        lunch: open ? await lunchBreak(env) : null, closed: await closedText(env) });
+    }
     if (path === "/vendor/web3.js") {
       return new Response(WEB3_IIFE, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=86400" } });
     }
