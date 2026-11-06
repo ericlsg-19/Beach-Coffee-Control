@@ -74,3 +74,21 @@ CREATE TABLE IF NOT EXISTS direct_transfers (
   day TEXT NOT NULL,
   at TEXT NOT NULL
 );
+
+-- Coffee check-ins onchain: the guest's wallet signs a memo transaction for an order; the bar's
+-- check-in wallet (CHECKIN_KEY) pays the fee. One per order. status: open, sent, done, failed.
+CREATE TABLE IF NOT EXISTS checkins (
+  order_id INTEGER PRIMARY KEY,
+  token TEXT NOT NULL UNIQUE,
+  customer_chat INTEGER NOT NULL,
+  day TEXT NOT NULL,
+  wallet TEXT,
+  message TEXT,
+  fee_signature TEXT,
+  signature TEXT UNIQUE,
+  status TEXT NOT NULL DEFAULT 'open',
+  created_at TEXT NOT NULL,
+  sent_at TEXT,
+  done_at TEXT
+);
+CREATE INDEX IF NOT EXISTS checkins_day ON checkins (day, status);
