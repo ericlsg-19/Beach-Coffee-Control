@@ -27,7 +27,10 @@ import { WEB3_BAG_WEBP } from "./web3bag.js";
 import { MWA_IIFE } from "./vendor/mwa-iife.js";
 import { ICON_192, ICON_512, MASKABLE_512 } from "./appicons.js";
 import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML, TERMS_HTML } from "./pwa.js";
-import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
+import { checkinSigner, memoMessage, memoText, transactionBytes, parseTransaction, verifySignature, base58Decode, b64, unb64,
+  latestFinalizedBlockhash, sendRaw, signatureStatus, solBalance } from "./checkin.js";
+import { checkinPageHtml } from "./checkinpage.js";
+import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, base58, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
 
 const DRINKS = [
   { id: "espresso",   name: "Espresso" },
@@ -47,7 +50,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.10.2";
+const VERSION = "1.11.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -489,7 +492,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain, and the check-in wallet that pays the fees\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -526,6 +529,7 @@ async function onMessage(env, message) {
     if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
     if (cmd === "/bags") return send(env, chatId, await bagsCommand(env, args));
     if (cmd === "/payments") return send(env, chatId, await paymentsReport(env));
+    if (cmd === "/checkins") return send(env, chatId, await checkinsReport(env));
     if (cmd === "/close") {
       await setSetting(env, "open", "0"); await setSetting(env, "open_day", "");
       return send(env, chatId, "🌙 Closed. New orders are paused until /open.");
@@ -638,9 +642,11 @@ async function rankingText(env) {
 
 async function todaysOrders(env, chatId) {
   const { results } = await env.DB.prepare(
-    "SELECT num, drink, status FROM orders WHERE customer_chat = ? AND day = ? ORDER BY id DESC LIMIT 5"
+    `SELECT o.num, o.drink, o.status, c.status AS checkin FROM orders o LEFT JOIN checkins c ON c.order_id = o.id
+     WHERE o.customer_chat = ? AND o.day = ? ORDER BY o.id DESC LIMIT 5`
   ).bind(chatId, localDay()).all();
-  return results;
+  // checkin: "done" once the coffee is checked in onchain (left out when there's none).
+  return results.map(({ checkin, ...o }) => (checkin ? { ...o, checkin } : o));
 }
 
 // GET /health: is the worker up, can it reach the database, are orders open?
@@ -755,7 +761,7 @@ async function handleApi(request, env, path) {
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
       event: await eventStatus(env, user.id), out: await outList(env), daily: (await eventDay(env)) ? null : await dailyStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
-      closed: await closedText(env), ranking: await rankingForCustomer(env, user.id) });
+      closed: await closedText(env), ranking: await rankingForCustomer(env, user.id), checkin: !!(await checkinSigner(env)) });
   }
   if (path === "/api/order") {
     const drink = drinkById(body.drink);
@@ -988,6 +994,166 @@ async function settleDirect(env, t) {
   }
 }
 
+// ---------- Coffee check-in onchain (like the Island DAO check-in) ----------
+// The guest's wallet signs a memo transaction for one of today's orders; the bar's check-in wallet
+// (CHECKIN_KEY) pays the fee. One check-in per order, at most CHECKIN_DAILY_MAX a day (bounds the fees).
+
+const CHECKIN_DAILY_MAX = 500;
+
+function publicCheckin(c, base) {
+  const page = `${base}/checkin/${c.token}`;
+  return { token: c.token, status: c.status, page, ...walletLinks(page, base), signature: c.status === "done" ? c.signature : null };
+}
+const checkinByToken = (env, token) => env.DB.prepare(
+  "SELECT c.*, o.drink, o.num, o.status AS order_status FROM checkins c JOIN orders o ON o.id = c.order_id WHERE c.token = ?"
+).bind(token).first();
+
+async function handleCheckinApi(request, env, path, base) {
+  const signer = await checkinSigner(env);
+  if (!signer) return json({ ok: false, error: "Coffee check-in isn't open yet." });
+  const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
+
+  // From the Mini App: start (or reopen) the check-in for one of today's orders.
+  if (path === "/api/checkin" && request.method === "POST") {
+    const user = await verifyInitData(body.initData, env.BOT_TOKEN);
+    if (!user) return json({ ok: false, error: "Please open the menu from the bot in Telegram." }, 401);
+    const order = await env.DB.prepare("SELECT * FROM orders WHERE customer_chat = ? AND day = ? AND num = ? AND status != 'cancelled'")
+      .bind(user.id, localDay(), Number(body.num) || 0).first();
+    if (!order) return json({ ok: false, error: "That order isn't from today." });
+    const c = await env.DB.prepare("SELECT * FROM checkins WHERE order_id = ?").bind(order.id).first()
+      || await env.DB.prepare("INSERT INTO checkins (order_id, token, customer_chat, day, created_at) VALUES (?, ?, ?, ?, ?) RETURNING *")
+        .bind(order.id, newReference(), user.id, order.day, new Date().toISOString()).first();
+    return json({ ok: true, checkin: publicCheckin(c, base) });
+  }
+
+  const m = /^\/api\/checkin\/([1-9A-HJ-NP-Za-km-z]{32,44})(\/tx|\/send)?$/.exec(path);
+  if (!m) return json({ ok: false, error: "Not found." }, 404);
+  let c = await checkinByToken(env, m[1]);
+  if (!c) return json({ ok: false, error: "Check-in not found." }, 404);
+  const done = () => json({ ok: true, status: "done", signature: c.signature });
+  if (c.status === "done") return done();
+
+  if (!m[2]) { // the page polls while the transaction confirms
+    if (c.status === "sent") c = await confirmCheckin(env, c);
+    return json({ ok: true, status: c.status, ...(c.status === "done" ? { signature: c.signature } : {}) });
+  }
+  if (request.method !== "POST") return json({ ok: false, error: "Not found." }, 404);
+  if (c.day !== localDay() || c.order_status === "cancelled") return json({ ok: false, error: "Check-ins are for today's coffee. Order one and check it in ☕" });
+  if (c.status === "sent") {
+    // Sent but never confirmed: after 2 minutes its blockhash has expired, so a fresh one can go.
+    c = await confirmCheckin(env, c);
+    if (c.status === "done") return done();
+    if (c.status === "sent" && Date.now() - Date.parse(c.sent_at || 0) < 120000) return json({ ok: false, error: "Already sent: it confirms in a few seconds." });
+  }
+
+  // 1. Build the transaction for this wallet and sign it as the fee payer.
+  if (m[2] === "/tx") {
+    const wallet = String(body.wallet || "");
+    if (!isAddress(wallet) || base58Decode(wallet).length !== 32) return json({ ok: false, error: "That isn't a Solana wallet address." });
+    if (wallet === signer.address) return json({ ok: false, error: "Use your own wallet to check in." });
+    const today = await env.DB.prepare("SELECT COUNT(*) AS n FROM checkins WHERE day = ? AND status IN ('sent', 'done')").bind(localDay()).first();
+    if (today.n >= CHECKIN_DAILY_MAX) return json({ ok: false, error: "Check-ins are full for today. See you tomorrow ☕" });
+    let blockhash;
+    try { blockhash = (await latestFinalizedBlockhash(env)).blockhash; }
+    catch (e) { return json({ ok: false, error: "Solana is busy. Try again in a few seconds." }, 502); }
+    const message = memoMessage(signer.address, wallet, blockhash, memoText((drinkById(c.drink) || { name: c.drink }).name, c.num, c.day));
+    const feeSig = await signer.sign(message);
+    await env.DB.prepare("UPDATE checkins SET wallet = ?, message = ?, fee_signature = ?, signature = ?, status = 'open' WHERE order_id = ?")
+      .bind(wallet, b64(message), b64(feeSig), base58(feeSig), c.order_id).run();
+    return json({ ok: true, tx: b64(transactionBytes([feeSig, new Uint8Array(64)], message)), feePayer: signer.address });
+  }
+
+  // 2. The wallet signed it: check it's exactly the transaction built above, then send it.
+  if (!c.message) return json({ ok: false, error: "Start the check-in again." });
+  let tx;
+  try { tx = parseTransaction(unb64(String(body.tx || ""))); } catch (e) { return json({ ok: false, error: "That transaction couldn't be read." }); }
+  const message = unb64(c.message), same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+  if (!same(tx.message, message) || tx.signatures.length !== 2 || !same(tx.signatures[0], unb64(c.fee_signature))) {
+    console.log("checkin rejected", JSON.stringify({ order: c.order_id, reason: "changed" }));
+    return json({ ok: false, error: "Your wallet changed the transaction. Try again, or check in with Solflare." });
+  }
+  if (!(await verifySignature(base58Decode(c.wallet), tx.signatures[1], message))) {
+    return json({ ok: false, error: "The wallet's signature didn't check out. Try again." });
+  }
+  try {
+    await sendRaw(env, transactionBytes(tx.signatures, message));
+  } catch (e) {
+    const error = String(e && e.message || e);
+    console.log("checkin send failed", JSON.stringify({ order: c.order_id, error: error.slice(0, 200) }));
+    if (/insufficient|0x1\b|AccountNotFound|debit an account/i.test(error)) {
+      await notifyCheckinWallet(env);
+      return json({ ok: false, error: "The bar's check-in wallet is out of SOL. We've told the barista 🙏" });
+    }
+    return json({ ok: false, error: /blockhash/i.test(error) ? "That took a while and expired. Tap Check in again." : "Solana didn't take it. Tap Check in again." });
+  }
+  await env.DB.prepare("UPDATE checkins SET status = 'sent', sent_at = ? WHERE order_id = ?").bind(new Date().toISOString(), c.order_id).run();
+  console.log("checkin sent", JSON.stringify({ order: c.order_id, signature: c.signature }));
+  return json({ ok: true, status: "sent", signature: c.signature });
+}
+
+// Confirmed → done, and the guest gets a message with the Solscan link. Failed → can be retried.
+async function confirmCheckin(env, c) {
+  let st;
+  try { st = await signatureStatus(env, c.signature); } catch (e) { return c; }
+  if (!st) return c; // not seen yet (or never landed: the guest can tap Check in again)
+  if (st.err) {
+    await env.DB.prepare("UPDATE checkins SET status = 'failed' WHERE order_id = ?").bind(c.order_id).run();
+    return { ...c, status: "failed" };
+  }
+  if (st.confirmationStatus !== "confirmed" && st.confirmationStatus !== "finalized") return c;
+  const updated = await env.DB.prepare("UPDATE checkins SET status = 'done', done_at = ? WHERE order_id = ? AND status = 'sent' RETURNING *")
+    .bind(new Date().toISOString(), c.order_id).first();
+  if (updated) {
+    const name = (drinkById(c.drink) || { name: c.drink }).name;
+    console.log("checkin done", JSON.stringify({ order: c.order_id, wallet: c.wallet, signature: c.signature }));
+    await send(env, c.customer_chat, `☕ <b>Checked in onchain!</b>\nYour ${escapeHtml(name)} #${c.num} is on Solana.\n<a href="https://solscan.io/tx/${c.signature}">View on Solscan</a>`).catch(() => {});
+  }
+  return { ...c, status: "done" };
+}
+
+// Every minute: check-ins sent but not yet confirmed (the guest may have closed the page).
+async function checkSentCheckins(env) {
+  if (!(await checkinSigner(env))) return;
+  const { results } = await env.DB.prepare(
+    "SELECT c.*, o.drink, o.num FROM checkins c JOIN orders o ON o.id = c.order_id WHERE c.status = 'sent' AND c.day = ? LIMIT 10"
+  ).bind(localDay()).all();
+  for (const c of results) await confirmCheckin(env, c);
+}
+
+async function notifyCheckinWallet(env) {
+  const last = await getSetting(env, "checkin_low_sent");
+  if (last === localDay()) return;
+  await setSetting(env, "checkin_low_sent", localDay());
+  const baristaChat = await getSetting(env, "barista_chat"), signer = await checkinSigner(env);
+  if (baristaChat && signer) await send(env, baristaChat, `⚠️ <b>The check-in wallet is out of SOL</b>\nSend a little SOL (0.02 is ~4,000 check-ins) to:\n<code>${signer.address}</code>`);
+}
+
+async function checkinsReport(env) {
+  const signer = await checkinSigner(env);
+  if (!signer) return "☕ Coffee check-in is off. Add the CHECKIN_KEY secret in Cloudflare to turn it on (see OPERATIONS.md).";
+  let balance = "unknown";
+  try { balance = `${(await solBalance(env, signer.address)) / 1e9} SOL`; } catch (e) {}
+  const today = await env.DB.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT wallet) AS wallets FROM checkins WHERE day = ? AND status = 'done'").bind(localDay()).first();
+  const all = await env.DB.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT wallet) AS wallets FROM checkins WHERE status = 'done'").first();
+  return [`☕ <b>Coffee check-ins onchain</b>`,
+    `Today: <b>${today.n}</b> · ${today.wallets} wallets`,
+    `All time: <b>${all.n}</b> · ${all.wallets} wallets`,
+    `Check-in wallet (pays the fees): <code>${signer.address}</code>`,
+    `Balance: ${balance} (each check-in costs 0.000005 SOL)`].join("\n");
+}
+
+async function checkinPage(env, token, base) {
+  const html = body => new Response(body, { headers: { "content-type": "text/html; charset=utf-8" } });
+  const c = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(token) ? await checkinByToken(env, token) : null;
+  const signer = await checkinSigner(env);
+  if (!c || !signer) return Response.redirect(`${base}/app`, 302);
+  const page = `${base}/checkin/${c.token}`;
+  return html(checkinPageHtml({
+    token: c.token, drink: (drinkById(c.drink) || { name: c.drink }).name, num: c.num, day: c.day, status: c.status,
+    signature: c.status === "done" ? c.signature : null, feePayer: signer.address, ...walletLinks(page, base),
+  }));
+}
+
 // ---------- Where checkouts get stuck (/payments) ----------
 
 const PAY_STEPS = new Set(["open", "tap", "pay", "funds", "sent", "cancel", "error", "dropped"]);
@@ -1054,10 +1220,12 @@ async function salesLines(env, day) {
   const of = kind => results.find(r => r.kind === kind);
   const left = of("bag") ? await bagsLeft(env) : null;
   const direct = await env.DB.prepare("SELECT COUNT(*) AS n, SUM(amount_micro) AS micro FROM direct_transfers WHERE day = ?").bind(day).first();
+  const checked = await env.DB.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT wallet) AS wallets FROM checkins WHERE day = ? AND status = 'done'").bind(day).first();
   return [
     ...(of("tip") ? [`💛 Tips: ${of("tip").n} · ${usdc(of("tip").micro)}`] : []),
     ...(of("bag") ? [`🛍️ Coffee bags: ${of("bag").n} · ${usdc(of("bag").micro)}${left === null ? "" : ` (${left} left)`}`] : []),
     ...(direct.n ? [`💸 Outside the app: ${direct.n} · ${usdc(direct.micro)}`] : []),
+    ...(checked.n ? [`☕ Checked in onchain: ${checked.n} · ${checked.wallets} wallet${checked.wallets === 1 ? "" : "s"}`] : []),
   ];
 }
 
@@ -1114,6 +1282,7 @@ export default {
   async scheduled(event, env, ctx) {
     if (event.cron === DAILY_REPORT_CRON) return ctx.waitUntil(sendDailyReport(env));
     ctx.waitUntil(ensureWebhook(env).then(() => ensureMenuButton(env)));
+    ctx.waitUntil(checkSentCheckins(env).catch(e => console.log("checkin cron failed", String(e && e.message || e))));
     ctx.waitUntil(checkOpenPayments(env).then(() => checkDirectTransfers(env))
       .catch(e => console.log("payment cron failed", String(e && e.message || e).slice(0, 300))));
   },
@@ -1144,6 +1313,8 @@ export default {
     }
     if (path === "/pay" || path.startsWith("/pay/")) return payPage(env, path, base);
     if (path.startsWith("/api/pay")) return handlePayApi(request, env, path, base);
+    if (path === "/api/checkin" || path.startsWith("/api/checkin/")) return handleCheckinApi(request, env, path, base);
+    if (path.startsWith("/checkin/")) return checkinPage(env, path.slice("/checkin/".length), base);
     // The installable app (PWA, and the Android app in the Solana dApp Store).
     if (path === "/manifest.webmanifest") {
       return new Response(JSON.stringify(manifest()), { headers: { "content-type": "application/manifest+json", "cache-control": "public, max-age=3600" } });

@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 06/11/2026, bot e Âncora na **v1.10.1**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 06/11/2026, bot e Âncora na **v1.11.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -54,6 +54,7 @@ Atualizado em 06/11/2026, bot e Âncora na **v1.10.1**, no domínio próprio **d
 - 05/11: v1.10.0: **app instalável (PWA) para a Solana dApp Store / Seeker.** Fora do Telegram o `/app` mostra o menu ao vivo e "Order on Telegram"; o Tip & Bag paga com a carteira do celular pelo Mobile Wallet Adapter. Manifest, ícones, `sw.js`, `/.well-known/assetlinks.json` (`ANDROID_PACKAGE`, `ANDROID_CERT_SHA256` no `wrangler.toml`) e `/privacy`. Passo a passo em `docs/SEEKER.md`.
 - 06/11: v1.10.1: ícone do app e banner da loja com a **logo no degradê verde da marca** ("BEACH COFFEE CO." creme, como a foto do Instagram). Banner: "The coffee system for web3 events". O ícone dentro do .apk só muda gerando o pacote de novo no PWABuilder **com a mesma chave** (Use mine).
 - 06/11: v1.10.2: página `/terms`. **App enviado à Solana dApp Store (v1.0.0, In Review)**, com publisher Beach Coffee Co. e carteira `H9wg…Er5N`. Ver `docs/SEEKER.md`.
+- 06/11: v1.11.0: **check-in do café onchain**, como o check-in da Island DAO: a carteira do cliente assina um memo por pedido e a carteira de check-in do bar paga a taxa. Liga com o segredo `CHECKIN_KEY` no Cloudflare (ver OPERATIONS.md). `/checkins` para a barista. Telas em `design/app/checkin-*.png`.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

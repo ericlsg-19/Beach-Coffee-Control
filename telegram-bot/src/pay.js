@@ -97,7 +97,7 @@ async function rpcAt(url, method, params) {
 }
 
 // Asks each RPC in turn until one answers.
-async function rpc(env, method, params) {
+export async function rpc(env, method, params) {
   const errors = [];
   for (const url of rpcUrls(env)) {
     try { return await rpcAt(url, method, params); } catch (e) { errors.push(String(e && e.message || e)); }

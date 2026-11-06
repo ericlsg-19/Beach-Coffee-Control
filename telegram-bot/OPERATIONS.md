@@ -148,3 +148,14 @@ Se continuar aparecendo, o domínio pode estar marcado: subdomínios `*.workers.
 30/10, já em drinkbeachcoffee.com (sem alerta de golpe). Desde a v1.7.7 a página de pagamento:
 - confere o saldo antes de abrir a carteira e diz o que falta: "no USDC on Solana yet", "has 0.5 USDC; you need 1", "needs a little SOL for the network fee";
 - se `signAndSendTransaction` falhar (sem ser cancelamento), pede só `signTransaction` e envia a transação assinada pelo RPC público. A mensagem de erro da rede, se houver, aparece na tela.
+
+## Check-in do café onchain (v1.11.0)
+
+Como o check-in da Island DAO: depois do pedido, o cliente toca **"Check in with Solflare/Phantom"** (ou "☕ Check in" na lista "Your orders today"). A página `/checkin/<token>` abre dentro da carteira, que assina uma transação só com um memo (`Beach Coffee check-in | Latte | #12 | 2026-11-07`). Nenhum token se move. **Quem paga a taxa é a carteira de check-in do bar** (0,000005 SOL por check-in), então o cliente não precisa de SOL. No Android/Seeker funciona pelo Mobile Wallet Adapter.
+
+- **Ligar:** criar uma carteira nova só para isso (na Solflare: adicionar conta), exportar a chave privada (base58) e colar como **segredo** `CHECKIN_KEY` no Cloudflare (Workers → beach-coffee-bot → Settings → Variables and Secrets → Add → Secret). Nunca no chat nem no `wrangler.toml`. Mandar um pouco de SOL para ela: 0,02 SOL ≈ 4.000 check-ins.
+- **Sem `CHECKIN_KEY`** (ou chave inválida), o check-in não aparece em lugar nenhum.
+- **`/checkins`** no chat da barista: check-ins de hoje e no total, carteiras únicas, endereço e saldo da carteira de check-in. O `/today` mostra "☕ Checked in onchain: N · M wallets".
+- **Segurança:** o servidor monta a transação e assina como pagador; só envia se a carteira devolver exatamente a mesma transação (mesmo memo, mesmas contas) com uma assinatura válida do cliente. Um check-in por pedido, só pedidos de hoje, no máximo 500 por dia.
+- **Sem SOL na carteira de check-in:** o cliente vê "The bar's check-in wallet is out of SOL" e a barista recebe um aviso (uma vez por dia) com o endereço para recarregar.
+- Tabela `checkins`. Logs: `checkin sent`, `checkin done`, `checkin send failed`, `checkin rejected`.

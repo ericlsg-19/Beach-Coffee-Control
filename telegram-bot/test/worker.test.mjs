@@ -683,6 +683,9 @@ function setupPay(extraEnv = {}) {
     let result;
     if (method === "getLatestBlockhash") result = { value: { blockhash: "GHtXQBsoZHVnNFa9YevAzFr17DJjgHXk3ycTKD5xD3Zi", lastValidBlockHeight: 99 } };
     if (method === "getTokenAccountsByOwner") result = { value: [{ pubkey: SHOP_USDC }] };
+    if (method === "sendTransaction") { (chain.sent ||= []).push(params[0]); result = "sent"; }
+    if (method === "getSignatureStatuses") result = { value: [chain.status === undefined ? { confirmationStatus: "confirmed", err: null } : chain.status] };
+    if (method === "getBalance") result = { value: 20_000_000 };
     if (method === "getSignaturesForAddress") {
       // Newest first, like Solana; "until" stops before that signature.
       let list = chain[params[0]] || [];
@@ -1078,4 +1081,98 @@ test("installable app: manifest, service worker, icons, asset links and the menu
   assert.match(page, /with my wallet/);
   assert.match(await (await get("/privacy")).text(), /No ads, no trackers/);
   assert.match(await (await get("/terms")).text(), /Blockchain transactions are final/);
+});
+
+// ---------- Coffee check-in onchain ----------
+
+const { base58 } = await import("../src/pay.js");
+const { base58Decode, parseTransaction, transactionBytes, MEMO_PROGRAM } = await import("../src/checkin.js");
+async function ed25519() {
+  const k = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+  const jwk = await crypto.subtle.exportKey("jwk", k.privateKey);
+  const raw = s => Uint8Array.from(Buffer.from(s, "base64url"));
+  const pub = raw(jwk.x);
+  return { secret: base58(Uint8Array.from([...raw(jwk.d), ...pub])), address: base58(pub), sign: async m => new Uint8Array(await crypto.subtle.sign("Ed25519", k.privateKey, m)) };
+}
+
+test("coffee check-in onchain: the guest's wallet signs a memo, the bar's check-in wallet pays the fee", async () => {
+  const bar = await ed25519(), guest = await ed25519();
+  const { env, calls, post, chain, getJson } = setupPay({ CHECKIN_KEY: bar.secret });
+  await post(msg(BARISTA, "/barista beach123"));
+  const initData = signedInitData("t", { id: ANA, first_name: "Ana" });
+  const session = await (await apiCall(env, "/api/session", { initData })).json();
+  assert.equal(session.checkin, true);
+  const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.match(app, /Check in your coffee onchain/);
+  const order = (await (await apiCall(env, "/api/order", { initData, drink: "espresso" })).json()).order;
+
+  // Someone else's order, or a made-up one, can't be checked in.
+  const ben = signedInitData("t", { id: 3, first_name: "Ben" });
+  assert.equal((await (await apiCall(env, "/api/checkin", { initData: ben, num: order.num })).json()).ok, false);
+  const start = await (await apiCall(env, "/api/checkin", { initData, num: order.num })).json();
+  assert.equal(start.ok, true);
+  assert.match(start.checkin.page, /^https:\/\/bot\/checkin\//);
+  assert.match(start.checkin.solflare, /^https:\/\/solflare\.com\/ul\/v1\/browse\//);
+  const token = start.checkin.token;
+  assert.equal((await (await apiCall(env, "/api/checkin", { initData, num: order.num })).json()).checkin.token, token, "one check-in per order");
+  const page = await (await worker.fetch(new Request(start.checkin.page), env)).text();
+  assert.match(page, /Check in with my wallet/);
+  assert.match(page, /Free · the bar pays the fee/);
+
+  // 1. The server builds the transaction: fee payer = the bar, the guest signs the memo.
+  const capi = (path, body) => worker.fetch(new Request(`https://bot/api/checkin/${token}${path}`, { method: "POST", body: JSON.stringify(body) }), env).then(r => r.json());
+  assert.equal((await capi("/tx", { wallet: "nope" })).ok, false);
+  assert.equal((await capi("/tx", { wallet: bar.address })).ok, false, "the bar's own wallet can't check in");
+  const built = await capi("/tx", { wallet: guest.address });
+  assert.equal(built.ok, true);
+  assert.equal(built.feePayer, bar.address);
+  const tx = parseTransaction(Uint8Array.from(Buffer.from(built.tx, "base64")));
+  assert.deepEqual([...tx.message.slice(0, 3)], [2, 1, 1]);
+  assert.equal(base58(tx.message.slice(4, 36)), bar.address);
+  assert.equal(base58(tx.message.slice(36, 68)), guest.address);
+  assert.equal(base58(tx.message.slice(68, 100)), MEMO_PROGRAM);
+  assert.match(Buffer.from(tx.message).toString("utf8"), new RegExp(`Beach Coffee check-in \\| Espresso \\| #${order.num} \\| \\d{4}-\\d{2}-\\d{2}$`));
+  const barKey = await crypto.subtle.importKey("raw", base58Decode(bar.address), { name: "Ed25519" }, false, ["verify"]);
+  assert.ok(await crypto.subtle.verify("Ed25519", barKey, tx.signatures[0], tx.message), "signed by the bar as fee payer");
+  assert.ok(tx.signatures[1].every(b => b === 0), "the guest's slot is empty");
+
+  // A changed transaction is refused; so is a wrong signature.
+  const tampered = Uint8Array.from(tx.message); tampered[tampered.length - 1] ^= 1;
+  const sig = await guest.sign(tx.message);
+  assert.match((await capi("/send", { tx: Buffer.from(transactionBytes([tx.signatures[0], await guest.sign(tampered)], tampered)).toString("base64") })).error, /changed the transaction/);
+  assert.match((await capi("/send", { tx: Buffer.from(transactionBytes([tx.signatures[0], new Uint8Array(64).fill(1)], tx.message)).toString("base64") })).error, /signature/);
+  assert.equal(chain.sent, undefined, "nothing sent yet");
+
+  // 2. The guest's wallet signs; the server sends it.
+  const sent = await capi("/send", { tx: Buffer.from(transactionBytes([tx.signatures[0], sig], tx.message)).toString("base64") });
+  assert.equal(sent.ok, true);
+  assert.equal(sent.status, "sent");
+  assert.equal(sent.signature, base58(tx.signatures[0]));
+  assert.equal(chain.sent.length, 1);
+  assert.deepEqual(parseTransaction(Uint8Array.from(Buffer.from(chain.sent[0], "base64"))).signatures.map(base58), [base58(tx.signatures[0]), base58(sig)]);
+
+  // 3. Confirmed: done, and the guest gets the Solscan link in Telegram.
+  calls.length = 0;
+  const status = await getJson(`/api/checkin/${token}`);
+  assert.equal(status.status, "done");
+  const note = calls.find(c => c.method === "sendMessage" && String(c.body.chat_id) === String(ANA));
+  assert.match(note.body.text, /Checked in onchain!/);
+  assert.match(note.body.text, new RegExp(`solscan\\.io/tx/${sent.signature}`));
+  assert.equal((await capi("/tx", { wallet: guest.address })).status, "done", "checked in once");
+  const orders = (await (await apiCall(env, "/api/session", { initData })).json()).orders;
+  assert.equal(orders[0].checkin, "done");
+
+  await post(msg(BARISTA, "/checkins"));
+  assert.match(calls.at(-1).body.text, /Today: <b>1<\/b> · 1 wallets/);
+  assert.match(calls.at(-1).body.text, new RegExp(bar.address));
+  assert.match(calls.at(-1).body.text, /Balance: 0\.02 SOL/);
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /☕ Checked in onchain: 1 · 1 wallet/);
+});
+
+test("coffee check-in is off without a valid CHECKIN_KEY", async () => {
+  const { env } = setupPay({ CHECKIN_KEY: "not-a-key" });
+  const initData = signedInitData("t", { id: ANA, first_name: "Ana" });
+  assert.equal((await (await apiCall(env, "/api/session", { initData })).json()).checkin, false);
+  assert.equal((await (await apiCall(env, "/api/checkin", { initData, num: 1 })).json()).ok, false);
 });

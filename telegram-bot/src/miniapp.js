@@ -86,6 +86,9 @@ export function miniAppHtml(drinks, pay = null) {
   .order .num { font: 500 .85rem/1 var(--mono); color: var(--muted); width: 34px; }
   .order .name { flex: 1; font-weight: 500; }
   .pill { font: 600 .75rem/1 var(--body); padding: 6px 10px; border-radius: 999px; }
+  .ck { font: 600 .75rem/1 var(--body); padding: 6px 10px; border-radius: 999px; border: 1px solid var(--mint); background: transparent; color: var(--mint); cursor: pointer; }
+  .ck.on { border-color: transparent; background: rgba(168,230,184,.16); cursor: default; }
+  .checkin-card { border-color: rgba(168,230,184,.35); }
   .pill.pending { background: rgba(232,184,106,.16); color: var(--gold); }
   .pill.ready { background: rgba(168,230,184,.16); color: var(--mint); }
   .pill.cancelled { background: rgba(255,255,255,.06); color: var(--faint); }
@@ -278,6 +281,7 @@ export function miniAppHtml(drinks, pay = null) {
   const tg = window.Telegram && window.Telegram.WebApp;
   const initData = tg ? tg.initData : "";
   const $ = id => document.getElementById(id);
+  let checkinOn = false; // coffee check-in onchain (the bar has a check-in wallet)
   let selected = null, busy = false, open = true, tab = "menu", tipAsked = false, milk = null, event = null, lunch = null;
 
   if (tg) {
@@ -325,7 +329,9 @@ export function miniAppHtml(drinks, pay = null) {
     const label = { pending: "Preparing", ready: "Ready", cancelled: "Cancelled" };
     $("orders").innerHTML = list.map(o =>
       '<div class="order"><span class="num">#' + o.num + '</span><span class="name">' + esc(drinkName(o.drink)) + '</span>' +
-      '<span class="pill ' + o.status + '">' + (label[o.status] || o.status) + '</span></div>').join("");
+      '<span class="pill ' + o.status + '">' + (label[o.status] || o.status) + '</span>' +
+      (checkinOn && o.status !== "cancelled" ? (o.checkin === "done" ? '<span class="ck on">✓ Onchain</span>' : '<button class="ck" data-checkin="ask" data-num="' + o.num + '">☕ Check in</button>') : '') +
+      '</div>').join("");
     $("mine").hidden = false;
   }
 
@@ -415,6 +421,7 @@ export function miniAppHtml(drinks, pay = null) {
     $("closedNote").hidden = open;
     $("closedText").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
     lunch = s.lunch || null;
+    checkinOn = !!s.checkin;
     $("lunchNote").hidden = !lunch;
     if (lunch) $("lunchNote").innerHTML = "🍽️ <b>Lunch break</b> until " + esc(lunch.label) + ". You can still order: it'll be ready from " + esc(lunch.label) + ".";
     // The daily limit (normal days): a note once they've ordered, and no menu once they've reached it.
@@ -475,6 +482,9 @@ export function miniAppHtml(drinks, pay = null) {
       '<h2>' + esc(drinkName(r.order.drink)) + '<br><b>on the way</b></h2>' +
       '<p class="note">' + (r.order.lunch ? '🍽️ Ready from ' + esc(r.order.lunch) + ', after the barista\\'s lunch. We\\'ll message you in the chat ☕' : 'We\\'ll message you in the chat when it\\'s ready ☕') + '</p>' +
       '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
+      (checkinOn ? '<div class="pay-card checkin-card"><h3>☕ Check in your coffee onchain</h3><p class="note">Like the event check-in: your wallet signs, the bar pays the fee. Free.</p>' +
+        '<button class="btn solflare wide" data-checkin="solflare" data-num="' + r.order.num + '">Check in with Solflare</button>' +
+        '<button class="btn phantom wide" data-checkin="phantom" data-num="' + r.order.num + '">Check in with Phantom</button></div>' : '') +
       (PAY ? '<div class="pay-card tip-after"><h3>💛 Tip the barista?</h3><p class="note">Optional, in USDC on Solana. Drinks stay on the house.</p>' +
         '<div class="chips">' + PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") +
         '<button class="chip" data-tip="other">Other</button></div>' + bagOffer() + '</div>' : '');
@@ -510,6 +520,25 @@ export function miniAppHtml(drinks, pay = null) {
   });
   document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
   if (main) main.onClick(order); else $("fallbackBtn").addEventListener("click", order);
+
+  // ----- Coffee check-in onchain -----
+  // Opens the check-in page in the wallet's browser (Solflare or Phantom), where the wallet signs.
+  async function startCheckin(num, wallet) {
+    const r = await api("/api/checkin", { num: Number(num) });
+    if (!r.ok) { if (tg && tg.showAlert) tg.showAlert(r.error || "Couldn't start the check-in."); else alert(r.error || "Couldn't start the check-in."); return; }
+    if (r.checkin.status === "done") { if (tg && tg.showAlert) tg.showAlert("This coffee is already checked in onchain ☕"); return; }
+    openLink(wallet === "phantom" ? r.checkin.phantom : r.checkin.solflare);
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-checkin]"); if (!b) return;
+    const num = b.dataset.num;
+    if (b.dataset.checkin !== "ask") return startCheckin(num, b.dataset.checkin);
+    const pick = id => { if (id === "solflare" || id === "phantom") startCheckin(num, id); };
+    try {
+      tg.showPopup({ title: "Check in onchain", message: "Open your wallet to check in this coffee. Free: the bar pays the fee.",
+        buttons: [{ id: "solflare", type: "default", text: "Solflare" }, { id: "phantom", type: "default", text: "Phantom" }, { type: "cancel" }] }, pick);
+    } catch (err) { pick(confirm("Check in with Solflare? (Cancel for Phantom)") ? "solflare" : "phantom"); }
+  });
 
   // ----- Tip & Bag -----
   let payPick = null, payPoll = null;
