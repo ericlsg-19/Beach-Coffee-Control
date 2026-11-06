@@ -27,7 +27,7 @@ import { WEB3_BAG_WEBP } from "./web3bag.js";
 import { MWA_IIFE } from "./vendor/mwa-iife.js";
 import { ICON_192, ICON_512, MASKABLE_512 } from "./appicons.js";
 import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML, TERMS_HTML } from "./pwa.js";
-import { checkinSigner, memoMessage, memoText, transactionBytes, parseTransaction, verifySignature, base58Decode, b64, unb64,
+import { checkinSigner, newCheckinKey, memoMessage, memoText, transactionBytes, parseTransaction, verifySignature, base58Decode, b64, unb64,
   latestFinalizedBlockhash, sendRaw, signatureStatus, solBalance } from "./checkin.js";
 import { checkinPageHtml } from "./checkinpage.js";
 import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, base58, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
@@ -50,7 +50,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.11.0";
+const VERSION = "1.11.1";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -492,7 +492,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain, and the check-in wallet that pays the fees\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain and the wallet that pays their fees (/checkins setup, /checkins on, /checkins off)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -529,7 +529,7 @@ async function onMessage(env, message) {
     if (cmd === "/ranking") return send(env, chatId, await rankingText(env));
     if (cmd === "/bags") return send(env, chatId, await bagsCommand(env, args));
     if (cmd === "/payments") return send(env, chatId, await paymentsReport(env));
-    if (cmd === "/checkins") return send(env, chatId, await checkinsReport(env));
+    if (cmd === "/checkins") return send(env, chatId, await checkinsCommand(env, args));
     if (cmd === "/close") {
       await setSetting(env, "open", "0"); await setSetting(env, "open_day", "");
       return send(env, chatId, "🌙 Closed. New orders are paused until /open.");
@@ -761,7 +761,7 @@ async function handleApi(request, env, path) {
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
       event: await eventStatus(env, user.id), out: await outList(env), daily: (await eventDay(env)) ? null : await dailyStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
-      closed: await closedText(env), ranking: await rankingForCustomer(env, user.id), checkin: !!(await checkinSigner(env)) });
+      closed: await closedText(env), ranking: await rankingForCustomer(env, user.id), checkin: !!(await checkinActive(env)) });
   }
   if (path === "/api/order") {
     const drink = drinkById(body.drink);
@@ -999,6 +999,16 @@ async function settleDirect(env, t) {
 // (CHECKIN_KEY) pays the fee. One check-in per order, at most CHECKIN_DAILY_MAX a day (bounds the fees).
 
 const CHECKIN_DAILY_MAX = 500;
+const CHECKIN_MIN_LAMPORTS = 1_000_000; // 0.001 SOL: /checkins on needs at least this much
+
+// On when there's a check-in wallet and it isn't switched off: the CHECKIN_KEY secret is on by default;
+// a wallet the bot made (/checkins setup) waits for /checkins on, once it has SOL.
+async function checkinActive(env) {
+  const signer = await checkinSigner(env);
+  if (!signer) return null;
+  const setting = await getSetting(env, "checkin");
+  return setting === "on" || (setting === null && signer.source === "secret") ? signer : null;
+}
 
 function publicCheckin(c, base) {
   const page = `${base}/checkin/${c.token}`;
@@ -1009,7 +1019,7 @@ const checkinByToken = (env, token) => env.DB.prepare(
 ).bind(token).first();
 
 async function handleCheckinApi(request, env, path, base) {
-  const signer = await checkinSigner(env);
+  const signer = await checkinActive(env);
   if (!signer) return json({ ok: false, error: "Coffee check-in isn't open yet." });
   const body = request.method === "POST" ? await request.json().catch(() => ({})) : {};
 
@@ -1113,7 +1123,7 @@ async function confirmCheckin(env, c) {
 
 // Every minute: check-ins sent but not yet confirmed (the guest may have closed the page).
 async function checkSentCheckins(env) {
-  if (!(await checkinSigner(env))) return;
+  if (!(await checkinActive(env))) return;
   const { results } = await env.DB.prepare(
     "SELECT c.*, o.drink, o.num FROM checkins c JOIN orders o ON o.id = c.order_id WHERE c.status = 'sent' AND c.day = ? LIMIT 10"
   ).bind(localDay()).all();
@@ -1128,9 +1138,43 @@ async function notifyCheckinWallet(env) {
   if (baristaChat && signer) await send(env, baristaChat, `⚠️ <b>The check-in wallet is out of SOL</b>\nSend a little SOL (0.02 is ~4,000 check-ins) to:\n<code>${signer.address}</code>`);
 }
 
+// /checkins: the report. /checkins setup: the bot makes its own check-in wallet (it pays the fees).
+// /checkins on | off: switch the check-in on (once the wallet has SOL) or off.
+async function checkinsCommand(env, args) {
+  const sub = (args[0] || "").toLowerCase();
+  if (sub === "setup") {
+    let signer = await checkinSigner(env);
+    if (!signer) {
+      await setSetting(env, "checkin_key", await newCheckinKey());
+      signer = await checkinSigner(env);
+      console.log("checkin wallet created", JSON.stringify({ address: signer.address }));
+    }
+    return [`✅ <b>Check-in wallet ready</b>`,
+      `It pays the network fee of every coffee check-in (0.000005 SOL each).`,
+      `1. Send a little SOL to it (0.02 SOL ≈ 4,000 check-ins):`, `<code>${signer.address}</code>`,
+      `2. Then send /checkins on`].join("\n");
+  }
+  if (sub === "on") {
+    const signer = await checkinSigner(env);
+    if (!signer) return "No check-in wallet yet. Send /checkins setup first.";
+    let lamports = null;
+    try { lamports = await solBalance(env, signer.address); } catch (e) {}
+    if (lamports !== null && lamports < CHECKIN_MIN_LAMPORTS) {
+      return `The check-in wallet has ${lamports / 1e9} SOL. Send at least 0.001 SOL (0.02 is better) to:\n<code>${signer.address}</code>\nthen /checkins on again.`;
+    }
+    await setSetting(env, "checkin", "on");
+    return "☕ Coffee check-in is <b>on</b>: guests see \"Check in your coffee onchain\" after ordering.\n\n" + await checkinsReport(env);
+  }
+  if (sub === "off") {
+    await setSetting(env, "checkin", "off");
+    return "Coffee check-in is <b>off</b>. /checkins on to turn it back on.";
+  }
+  return checkinsReport(env);
+}
+
 async function checkinsReport(env) {
   const signer = await checkinSigner(env);
-  if (!signer) return "☕ Coffee check-in is off. Add the CHECKIN_KEY secret in Cloudflare to turn it on (see OPERATIONS.md).";
+  if (!signer) return "☕ Coffee check-in has no wallet yet. Send /checkins setup: the bot makes one, you send it a little SOL, then /checkins on.";
   let balance = "unknown";
   try { balance = `${(await solBalance(env, signer.address)) / 1e9} SOL`; } catch (e) {}
   const today = await env.DB.prepare("SELECT COUNT(*) AS n, COUNT(DISTINCT wallet) AS wallets FROM checkins WHERE day = ? AND status = 'done'").bind(localDay()).first();
@@ -1139,13 +1183,14 @@ async function checkinsReport(env) {
     `Today: <b>${today.n}</b> · ${today.wallets} wallets`,
     `All time: <b>${all.n}</b> · ${all.wallets} wallets`,
     `Check-in wallet (pays the fees): <code>${signer.address}</code>`,
-    `Balance: ${balance} (each check-in costs 0.000005 SOL)`].join("\n");
+    `Balance: ${balance} (each check-in costs 0.000005 SOL)`,
+    (await checkinActive(env)) ? "Status: <b>on</b> (/checkins off to stop)" : "Status: <b>off</b> (/checkins on to start)"].join("\n");
 }
 
 async function checkinPage(env, token, base) {
   const html = body => new Response(body, { headers: { "content-type": "text/html; charset=utf-8" } });
   const c = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(token) ? await checkinByToken(env, token) : null;
-  const signer = await checkinSigner(env);
+  const signer = await checkinActive(env);
   if (!c || !signer) return Response.redirect(`${base}/app`, 302);
   const page = `${base}/checkin/${c.token}`;
   return html(checkinPageHtml({

@@ -30,11 +30,17 @@ const b64url = bytes => b64(bytes).replace(/\+/g, "-").replace(/\//g, "_").repla
 const equal = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 export { b64, unb64 };
 
-// CHECKIN_KEY: the check-in wallet's secret key as wallets export it (base58, 64 bytes: seed + public key).
-// Returns { address, sign(bytes) } or null when it isn't set or isn't valid.
+// The check-in wallet's secret key (base58, 64 bytes: seed + public key, as wallets export it): the
+// CHECKIN_KEY secret in Cloudflare, or one the bot made itself with /checkins setup (settings.checkin_key).
+// Returns { address, sign(bytes), source } or null when there's none or it isn't valid.
 const keyCache = new Map();
 export async function checkinSigner(env) {
-  const secret = String(env.CHECKIN_KEY || "").trim();
+  let secret = String(env.CHECKIN_KEY || "").trim(), source = "secret";
+  if (!secret && env.DB) {
+    const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'checkin_key'").first().catch(() => null);
+    secret = row ? String(row.value) : "";
+    source = "bot";
+  }
   if (!secret) return null;
   if (keyCache.has(secret)) return keyCache.get(secret);
   let signer = null;
@@ -51,7 +57,7 @@ export async function checkinSigner(env) {
     // The public key in the secret must match the seed: sign once and verify.
     const probe = new Uint8Array([1, 2, 3]);
     if (!(await verifySignature(pub, await sign(probe), probe))) throw new Error("CHECKIN_KEY's public half doesn't match");
-    signer = { address: base58(pub), publicKey: pub, sign };
+    signer = { address: base58(pub), publicKey: pub, sign, source };
   } catch (e) {
     console.log("checkin key invalid", String(e && e.message || e));
   }
@@ -113,3 +119,11 @@ export const latestFinalizedBlockhash = async env => (await rpc(env, "getLatestB
 export const sendRaw = (env, bytes) => rpc(env, "sendTransaction", [b64(bytes), { encoding: "base64", preflightCommitment: "confirmed" }]);
 export const signatureStatus = async (env, signature) => (await rpc(env, "getSignatureStatuses", [[signature], { searchTransactionHistory: true }])).value[0];
 export const solBalance = async (env, address) => (await rpc(env, "getBalance", [address, { commitment: "confirmed" }])).value;
+
+// A new check-in wallet made on the server (/checkins setup): returns its secret key in base58.
+export async function newCheckinKey() {
+  const k = await crypto.subtle.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
+  const jwk = await crypto.subtle.exportKey("jwk", k.privateKey);
+  const raw = s => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+  return base58(Uint8Array.from([...raw(jwk.d), ...raw(jwk.x)]));
+}
