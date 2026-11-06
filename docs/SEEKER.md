@@ -13,6 +13,8 @@ O app é o próprio site instalável (PWA): `https://drinkbeachcoffee.com/app`. 
 
 - 06/11: ícone e banner trocados para a logo verde (v1.10.1). Para o ícone no celular mudar, gerar o pacote de novo no PWABuilder com **Signing key → Use mine** (o `signing.keystore` e as senhas do zip), nunca uma chave nova.
 
+- 06/11: **v1.0.0 enviado à Solana dApp Store, em análise (In Review).** Publisher "Beach Coffee Co." (KYC aprovado), carteira de publisher `H9wg…Er5N` (Solflare): toda atualização tem que ser assinada por ela. O .apk final foi gerado de novo com o ícone verde e a **mesma chave** (Use mine; impressão digital `EF:5D:29:1E…`). Editor's Choice pedido (headline, tag, `design/app/editors-choice-1200.png`).
+
 ## Passo a passo (Eric)
 1. **Gerar o app Android:** em pwabuilder.com, colar `https://drinkbeachcoffee.com/app` → *Package for stores* → **Android**.
    - Package ID: `com.drinkbeachcoffee.app` · App name: `Beach Coffee Co.` · Launcher name: `Beach Coffee`.
