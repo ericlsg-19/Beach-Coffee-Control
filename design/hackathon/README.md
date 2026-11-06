@@ -28,7 +28,7 @@ How it works: guests order free drinks from a Telegram Mini App and get a ping w
 
 Tips and the limited Island DAO coffee bag (20 bags, 10 USDC) are paid in USDC on Solana. Each checkout carries a Solana Pay reference, so the bot confirms the payment onchain within seconds and pings the bar, with no custody.
 
-Where it's at: live at the bar. 2k+ coffees served in one month during Island DAO. Telegram ordering started on 27 Oct; four days later 94% of orders came through it.
+Where it's at: live at the bar. 2k+ coffees served in one month during Island DAO. Telegram ordering started on 27 Oct; four days later 94% of orders came through it. It's also an installable app submitted to the Solana dApp Store (in review): on a Seeker, the phone's own wallet pays through Mobile Wallet Adapter.
 
 Looking for: people to try a USDC tip, feedback on the flow, and other events or cafés that want to run it.
 ```

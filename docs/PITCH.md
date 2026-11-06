@@ -47,7 +47,7 @@ Picture a coffee bar at a builders' event. Everyone wants coffee in the same bre
 So we built this: tap, sip, tip. Scan the QR and order with me: 10 iced coffees and 10 iced lattes are on us today, and in the same app you can buy one of our 20 Island DAO Edition coffee bags. *(phone)* I open our bot on Telegram, tap Order, pick an Iced Latte, choose the milk and confirm. It lands on the barista panel right away. I keep building; the barista taps Ready, and I get the ping. We timed it: people used to wait about five minutes in line. Now it's zero. Then the app asks if I want to tip. I tap 2 USDC, Phantom opens, I confirm, and the tip lands in the barista's chat, confirmed onchain.
 
 **Slide 4 · Payments on Solana (25 s)**
-How does it work? Every checkout carries a Solana Pay reference. The bot finds that exact transaction onchain and only accepts it if the full USDC amount reached our wallet. Fees in cents, confirmed in seconds, and we never hold anyone's money.
+How does it work? Every checkout carries a Solana Pay reference. The bot finds that exact transaction onchain and only accepts it if the full USDC amount reached our wallet. Fees in cents, confirmed in seconds, and we never hold anyone's money. And it's on the Solana dApp Store now: on a Seeker, the phone's own wallet pays.
 
 **Slide 5 · The event so far (35 s)**
 And this isn't a prototype. It ran the bar every day of the event: over two thousand coffees in one month at Island DAO. Telegram ordering started on the 27th, and by Friday 94% of orders came through it. People used to wait about five minutes in line; now they wait at their desk. These numbers come straight from the bot.

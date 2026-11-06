@@ -6,6 +6,7 @@ IslandHack v5 · Payments + Commerce track.
 - **Try it:** [@BeachCoffeeIslandBot](https://t.me/BeachCoffeeIslandBot) on Telegram (tap **Order ☕**)
 - **For event organizers:** [drinkbeachcoffee.com/web3](https://drinkbeachcoffee.com/web3)
 - **Pay a tip or buy the edition bag from any phone:** [drinkbeachcoffee.com/pay](https://drinkbeachcoffee.com/pay)
+- **On the Solana dApp Store** (submitted 6 Nov 2026, in review): installable app at [drinkbeachcoffee.com/app](https://drinkbeachcoffee.com/app), Seeker-ready with Mobile Wallet Adapter
 - **Demo video:** [`design/video/beach-coffee-demo.mp4`](design/video/beach-coffee-demo.mp4)
 
 ## The problem
@@ -35,6 +36,7 @@ A coffee bar at a builders' event: everyone wants coffee in the same break, orde
 
 Every checkout (a tip or a bag) gets a unique **Solana Pay reference** key.
 
+- **On Android and the Seeker**, the checkout asks the phone's own wallet to pay through **Mobile Wallet Adapter** (`@solana-mobile/wallet-standard-mobile`), from the browser or the installed app. The app is packaged as a PWA / Trusted Web Activity and submitted to the **Solana dApp Store**.
 - **In a wallet's browser** (Solflare, Phantom), the page builds a USDC `TransferChecked` to the shop's wallet with the reference attached and asks the wallet to sign and send it. If a wallet fails at sign-and-send, the page asks it only to sign and sends the transaction itself.
 - **Before the wallet opens**, the page checks the payer's USDC and SOL and says what's missing, instead of a generic wallet error.
 - **If a wallet blocks the site**, a Solana Pay transfer request (`solana:` link with amount, USDC mint and reference) lets the wallet build the transfer itself.
