@@ -7,8 +7,8 @@
 - **Privacy policy:** https://drinkbeachcoffee.com/privacy
 - **Contact:** X @BeachCoffeco · Telegram @BeachCoffeeIslandBot
 
-## Short description (up to ~80 characters)
-Specialty coffee at Island DAO. Order from your seat, tip the barista in USDC.
+## Short description
+The coffee system for web3 events.
 
 ## Long description
 Beach Coffee Co. runs the coffee bar at Island DAO in Florianópolis, and this is its app.
