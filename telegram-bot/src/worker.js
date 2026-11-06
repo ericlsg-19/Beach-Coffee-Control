@@ -26,7 +26,7 @@ import { web3Html } from "./web3page.js";
 import { WEB3_BAG_WEBP } from "./web3bag.js";
 import { MWA_IIFE } from "./vendor/mwa-iife.js";
 import { ICON_192, ICON_512, MASKABLE_512 } from "./appicons.js";
-import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML } from "./pwa.js";
+import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML, TERMS_HTML } from "./pwa.js";
 import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
 
 const DRINKS = [
@@ -47,7 +47,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.10.1";
+const VERSION = "1.10.2";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -1155,6 +1155,7 @@ export default {
     if (icon) return new Response(Uint8Array.from(atob(icon), c => c.charCodeAt(0)), { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
     if (path === "/.well-known/assetlinks.json") return json(assetLinks(env));
     if (path === "/privacy") return new Response(PRIVACY_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
+    if (path === "/terms") return new Response(TERMS_HTML, { headers: { "content-type": "text/html; charset=utf-8" } });
     if (path === "/vendor/mwa.js") {
       return new Response(MWA_IIFE, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=86400" } });
     }

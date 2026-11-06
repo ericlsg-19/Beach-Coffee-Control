@@ -5,6 +5,7 @@
 - **Category:** Food & Drink (or Lifestyle)
 - **Website:** https://drinkbeachcoffee.com/web3
 - **Privacy policy:** https://drinkbeachcoffee.com/privacy
+- **Terms of use:** https://drinkbeachcoffee.com/terms
 - **Contact:** X @BeachCoffeco · Telegram @BeachCoffeeIslandBot
 
 ## Short description
