@@ -685,7 +685,7 @@ function setupPay(extraEnv = {}) {
     if (method === "getTokenAccountsByOwner") result = { value: [{ pubkey: SHOP_USDC }] };
     if (method === "sendTransaction") { (chain.sent ||= []).push(params[0]); result = "sent"; }
     if (method === "getSignatureStatuses") result = { value: [chain.status === undefined ? { confirmationStatus: "confirmed", err: null } : chain.status] };
-    if (method === "getBalance") result = { value: 20_000_000 };
+    if (method === "getBalance") result = { value: chain.balance ?? 20_000_000 };
     if (method === "getSignaturesForAddress") {
       // Newest first, like Solana; "until" stops before that signature.
       let list = chain[params[0]] || [];
@@ -1175,4 +1175,39 @@ test("coffee check-in is off without a valid CHECKIN_KEY", async () => {
   const initData = signedInitData("t", { id: ANA, first_name: "Ana" });
   assert.equal((await (await apiCall(env, "/api/session", { initData })).json()).checkin, false);
   assert.equal((await (await apiCall(env, "/api/checkin", { initData, num: 1 })).json()).ok, false);
+});
+
+test("/checkins setup: the bot makes its own fee wallet; /checkins on once it has SOL, /checkins off", async () => {
+  const { env, calls, post, chain } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const initData = signedInitData("t", { id: ANA, first_name: "Ana" });
+  const on = async () => (await (await apiCall(env, "/api/session", { initData })).json()).checkin;
+  await post(msg(BARISTA, "/checkins"));
+  assert.match(calls.at(-1).body.text, /has no wallet yet\. Send \/checkins setup/);
+
+  await post(msg(BARISTA, "/checkins setup"));
+  const address = calls.at(-1).body.text.match(/<code>([1-9A-HJ-NP-Za-km-z]{32,44})<\/code>/)[1];
+  assert.match(calls.at(-1).body.text, /Check-in wallet ready/);
+  assert.equal(await on(), false, "made but not on yet");
+  await post(msg(BARISTA, "/checkins setup"));
+  assert.ok(calls.at(-1).body.text.includes(address), "setup again keeps the same wallet");
+
+  chain.balance = 0;
+  await post(msg(BARISTA, "/checkins on"));
+  assert.match(calls.at(-1).body.text, /Send at least 0\.001 SOL/);
+  assert.equal(await on(), false);
+  chain.balance = 20_000_000;
+  await post(msg(BARISTA, "/checkins on"));
+  assert.match(calls.at(-1).body.text, /check-in is <b>on<\/b>/);
+  assert.equal(await on(), true);
+
+  // It signs: a check-in built with the bot's own wallet as the fee payer.
+  const order = (await (await apiCall(env, "/api/order", { initData, drink: "latte", milk: "regular" })).json()).order;
+  const { checkin } = await (await apiCall(env, "/api/checkin", { initData, num: order.num })).json();
+  const guest = await ed25519();
+  const built = await (await worker.fetch(new Request(`https://bot/api/checkin/${checkin.token}/tx`, { method: "POST", body: JSON.stringify({ wallet: guest.address }) }), env)).json();
+  assert.equal(built.feePayer, address);
+
+  await post(msg(BARISTA, "/checkins off"));
+  assert.equal(await on(), false);
 });
