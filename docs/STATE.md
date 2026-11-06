@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 05/11/2026, bot e Âncora na **v1.10.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 06/11/2026, bot e Âncora na **v1.10.1**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -52,6 +52,7 @@ Atualizado em 05/11/2026, bot e Âncora na **v1.10.0**, no domínio próprio **d
 - 04/11: v1.9.1: o número de tração passa a ser **2k+ cafés em um mês** em todo lugar (README, deck slide 5 e PDF, pitch, respostas do formulário, `/eventos` "2 mil+"; `/web3` já dizia).
 - 05/11: v1.9.2: **descrição curta embaixo do nome de cada bebida** no mini app (ex.: Cappuccino "Espresso, milk and thick foam"). Os textos ficam em `DESCRIPTIONS` em `telegram-bot/src/miniapp.js`.
 - 05/11: v1.10.0: **app instalável (PWA) para a Solana dApp Store / Seeker.** Fora do Telegram o `/app` mostra o menu ao vivo e "Order on Telegram"; o Tip & Bag paga com a carteira do celular pelo Mobile Wallet Adapter. Manifest, ícones, `sw.js`, `/.well-known/assetlinks.json` (`ANDROID_PACKAGE`, `ANDROID_CERT_SHA256` no `wrangler.toml`) e `/privacy`. Passo a passo em `docs/SEEKER.md`.
+- 06/11: v1.10.1: ícone do app e banner da loja com a **logo no degradê verde da marca** ("BEACH COFFEE CO." creme, como a foto do Instagram). Banner: "The coffee system for web3 events". O ícone dentro do .apk só muda gerando o pacote de novo no PWABuilder **com a mesma chave** (Use mine).
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
