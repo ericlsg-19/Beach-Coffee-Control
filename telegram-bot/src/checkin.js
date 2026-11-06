@@ -115,7 +115,7 @@ export const memoText = (drinkName, num, day) =>
   `Beach Coffee check-in | ${String(drinkName).replace(/[^\x20-\x7e]/g, "")} | #${num} | ${day}`;
 
 export { isAddress };
-export const latestFinalizedBlockhash = async env => (await rpc(env, "getLatestBlockhash", [{ commitment: "finalized" }])).value;
+export { latestBlockhash as latestFinalizedBlockhash } from "./pay.js";
 export const sendRaw = (env, bytes) => rpc(env, "sendTransaction", [b64(bytes), { encoding: "base64", preflightCommitment: "confirmed" }]);
 export const signatureStatus = async (env, signature) => (await rpc(env, "getSignatureStatuses", [[signature], { searchTransactionHistory: true }])).value[0];
 export const solBalance = async (env, address) => (await rpc(env, "getBalance", [address, { commitment: "confirmed" }])).value;

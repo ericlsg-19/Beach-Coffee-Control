@@ -122,8 +122,22 @@ export async function rpcStatus(env) {
 
 // "finalized", not "confirmed": a few seconds older, so the RPC the wallet simulates on already has it.
 // With a newer one, Phantom sometimes couldn't simulate the first try and blocked it as "may be malicious".
-export const latestBlockhash = async env =>
-  (await rpc(env, "getLatestBlockhash", [{ commitment: "finalized" }])).value;
+// Cached for 20 s (a finalized blockhash stays valid for about a minute) and retried, so a busy public
+// RPC that refuses once doesn't stop a tip or a check-in.
+let cachedBlockhash = null;
+export async function latestBlockhash(env) {
+  if (cachedBlockhash && Date.now() - cachedBlockhash.at < 20000) return cachedBlockhash.value;
+  let last;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const value = (await rpc(env, "getLatestBlockhash", [{ commitment: "finalized" }])).value;
+      cachedBlockhash = { value, at: Date.now() };
+      return value;
+    } catch (e) { last = e; if (i < 2) await new Promise(r => setTimeout(r, 400 * (i + 1))); }
+  }
+  throw last;
+}
+export const forgetBlockhash = () => { cachedBlockhash = null; };
 
 // USDC the recipient gained in this transaction, in micro units.
 function received(meta, owner) {

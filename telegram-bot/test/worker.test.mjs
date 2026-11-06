@@ -941,6 +941,7 @@ test("falls back to a public RPC when the first one refuses (403 from api.mainne
 
   // Nothing answers: checkout still works and the page gets a clear failure for the blockhash.
   const { payment } = await pay(env, { kind: "tip", amount: "1" });
+  (await import("../src/pay.js")).forgetBlockhash(); // a blockhash cached by an earlier test would answer
   assert.equal((await worker.fetch(new Request("https://bot/api/pay/blockhash"), env)).status, 502);
   let h = await getJson("/health?rpc=1");
   assert.deepEqual(h.rpc.map(r => [r.host, r.ok]), [["solana-rpc.publicnode.com", false], ["api.mainnet-beta.solana.com", false]]);
