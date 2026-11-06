@@ -68,3 +68,23 @@ export const PRIVACY_HTML = `<!doctype html><html lang="en"><head><meta charset=
 <h2>Where it lives</h2><p>On Cloudflare (Workers and D1), used only to run the bar. Ask us and we delete your order history.</p>
 <h2>Contact</h2><p>X <a href="https://x.com/BeachCoffeco">@BeachCoffeco</a> · Instagram <a href="https://instagram.com/beachcoffee.co">@beachcoffee.co</a> · Telegram <a href="https://t.me/BeachCoffeeIslandBot">@BeachCoffeeIslandBot</a></p>
 </main></body></html>`;
+
+// Terms of use for the app stores (/terms).
+export const TERMS_HTML = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms of Use · Beach Coffee Co.</title><meta name="theme-color" content="#071110">
+<style>body{margin:0;background:#071110;color:#eef3ee;font:16px/1.6 system-ui,sans-serif}main{max-width:680px;margin:0 auto;padding:32px 20px 64px}h1{font-size:1.8rem;margin:0 0 4px}h2{font-size:1.05rem;margin:28px 0 6px;color:#a8e6b8}p,li{color:#c9d6cd}a{color:#e8b86a}small{color:#7f9a8c}</style></head>
+<body><main><h1>Terms of Use</h1><small>Beach Coffee Co. · updated 6 Nov 2026</small>
+<p>These terms cover the Beach Coffee Co. app, drinkbeachcoffee.com and the @BeachCoffeeIslandBot Telegram bot (together, "the app"). By using the app you agree to them.</p>
+<h2>Ordering</h2><p>The app shows the bar's menu and lets you order drinks through Telegram at events where Beach Coffee Co. runs the bar. Drinks, availability, opening hours and limits per person are set by the bar and can change at any time. An order is a request, not a guarantee: if something runs out, the bar may cancel it.</p>
+<h2>Tips and purchases in USDC</h2><ul>
+<li>Tips are voluntary. The coffee bag is sold at the price shown in the app.</li>
+<li>Payments are made in USDC on the Solana blockchain, from your own wallet to the bar's wallet. We never hold your funds or your keys.</li>
+<li>Blockchain transactions are final. Check the amount before you confirm in your wallet. If you paid for a coffee bag that we can't deliver, contact us and we will refund it to the paying wallet.</li>
+<li>You pay the network fee, and you are responsible for your wallet, its security and any taxes that apply to you.</li>
+<li>A coffee bag you paid for is picked up at the bar while stock lasts; the app shows how many are left.</li></ul>
+<h2>Using the app</h2><p>Use the app for its purpose and don't abuse it (for example, fake or automated orders). We may limit or block use that harms the bar or other guests.</p>
+<h2>No warranties</h2><p>The app is provided as is. It depends on third parties (Telegram, Solana, wallets, Cloudflare) and may be unavailable or have errors. As far as the law allows, Beach Coffee Co. is not liable for indirect losses, or for losses caused by those third parties, by the blockchain or by your wallet.</p>
+<h2>Privacy</h2><p>See our <a href="/privacy">Privacy Policy</a>.</p>
+<h2>Changes and law</h2><p>We may update these terms; the date above shows the latest version. These terms are governed by the laws of Brazil.</p>
+<h2>Contact</h2><p>X <a href="https://x.com/BeachCoffeco">@BeachCoffeco</a> · Instagram <a href="https://instagram.com/beachcoffee.co">@beachcoffee.co</a> · Telegram <a href="https://t.me/BeachCoffeeIslandBot">@BeachCoffeeIslandBot</a></p>
+</main></body></html>`;

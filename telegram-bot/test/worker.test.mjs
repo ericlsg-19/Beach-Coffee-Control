@@ -1077,4 +1077,5 @@ test("installable app: manifest, service worker, icons, asset links and the menu
   assert.match(page, /<script src="\/vendor\/mwa.js" defer><\/script>/);
   assert.match(page, /with my wallet/);
   assert.match(await (await get("/privacy")).text(), /No ads, no trackers/);
+  assert.match(await (await get("/terms")).text(), /Blockchain transactions are final/);
 });
