@@ -119,37 +119,8 @@ export function miniAppHtml(drinks, pay = null) {
   .btn.phantom { background: #a99eec; color: #fff; }
   .fallback { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   .fallback .btn { width: 100%; }
-  .tabs { display: grid; grid-template-columns: repeat(var(--tabs, 4), 1fr); gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
-  .tab { height: 42px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 .88rem/1 var(--body); cursor: pointer; padding: 0 4px; white-space: nowrap; }
-  .how3 { display: grid; gap: 8px; margin-bottom: 14px; }
-  .how3 div { display: grid; grid-template-columns: 34px 1fr; column-gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 16px; background: var(--card); padding: 10px 12px; color: var(--muted); font-size: .88rem; }
-  .how3 span { grid-row: span 2; font-size: 1.4rem; text-align: center; }
-  .how3 b { color: var(--text); font-size: .95rem; }
-  .rush { border-color: var(--gold) !important; color: var(--gold); padding: 12px 16px !important; margin-bottom: 12px; font-weight: 600; font-size: .92rem; }
-  .qrow { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); }
-  .qrow:last-child { border-bottom: 0; }
-  .qrow .pos { width: 30px; font: 500 .85rem/1 var(--mono); color: var(--muted); }
-  .qrow .name { flex: 1; font-weight: 500; font-size: .95rem; }
-  .qrow .tag { font: 600 .74rem/1 var(--body); padding: 5px 9px; border-radius: 999px; background: rgba(232,184,106,.16); color: var(--gold); }
-  .qrow .tag.wait { background: rgba(168,230,184,.12); color: var(--mint); }
-  .qrow.mine { background: linear-gradient(90deg, rgba(168,230,184,.10), transparent); margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
-  .qrow.mine .name { color: var(--mint); }
-  .boost { border-color: rgba(232,184,106,.45); margin-top: 14px; }
-  .boost .chips button.on, .boost .chip.on { border-color: var(--gold); color: var(--gold); box-shadow: 0 0 0 1px var(--gold) inset; }
-  .pts-card { border: 1px solid rgba(232,184,106,.4); border-radius: 22px; padding: 18px 20px; margin-bottom: 12px; display: grid; gap: 6px;
-    background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.16), transparent 60%), var(--card); }
-  .pts-card .big { font: 900 2.4rem/1 var(--display); font-stretch: 125%; color: var(--gold); }
-  .pts-card .row { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .9rem; }
-  .pts-card .row b { color: var(--text); }
-  .logrow { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: .88rem; color: var(--muted); }
-  .logrow:last-child { border-bottom: 0; }
-  .logrow b { font-family: var(--mono); font-weight: 500; }
-  .logrow b.plus { color: var(--mint); } .logrow b.minus { color: var(--gold); }
-  .shop-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .shop-item:last-child { border-bottom: 0; }
-  .shop-item div { flex: 1; } .shop-item small { display: block; color: var(--muted); font-size: .8rem; margin-top: 2px; }
-  .shop-item button { height: 36px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--gold); color: var(--gold-ink); font: 600 .85rem/1 var(--body); cursor: pointer; }
-  .shop-item button[disabled] { opacity: .45; cursor: default; }
+  .tabs { display: grid; grid-template-columns: repeat(var(--tabs, 2), 1fr); gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+  .tab { height: 42px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 .95rem/1 var(--body); cursor: pointer; }
   .tab.active { background: var(--card-2); color: var(--mint); box-shadow: 0 0 0 1px var(--line) inset; }
   .me-card { border: 1px solid var(--line); border-radius: 22px; padding: 18px 20px; margin-bottom: 12px;
     background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.16), transparent 60%), var(--card); display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -215,9 +186,8 @@ export function miniAppHtml(drinks, pay = null) {
   </div>
   <div class="tabs" role="tablist">
     <button class="tab active" role="tab" data-tab="menu">Menu</button>
-    <button class="tab" role="tab" data-tab="queue">Queue ⚡</button>
-    <button class="tab" role="tab" data-tab="rank">Me 🪙</button>
-    <button class="tab" role="tab" data-tab="pay">Shop</button>
+    <button class="tab" role="tab" data-tab="rank">Ranking 🏆</button>
+    <button class="tab" role="tab" data-tab="pay" hidden>Tip & Bag</button>
   </div>
   <div id="tab-menu">
   <section id="mine" hidden>
@@ -247,40 +217,13 @@ export function miniAppHtml(drinks, pay = null) {
   <section id="done" class="center" hidden></section>
   <p class="note" id="msg"></p>
   </div>
-  <section id="tab-queue" hidden>
-    <div class="how3">
-      <div><span>☕</span><b>Free</b>Order and wait your turn.</div>
-      <div><span>⚡</span><b>Boost</b>In a hurry? A boost in USDC (or points) goes first.</div>
-      <div><span>🪙</span><b>Points</b>Your first coffee each day and every boost earn points.</div>
-    </div>
-    <div class="card rush" id="rushNote" hidden></div>
-    <p class="eyebrow" style="margin-bottom:10px">Live queue <span id="qCount" style="color:var(--muted)"></span></p>
-    <div class="card" id="queueList"></div>
-    <div class="pay-card boost" id="boostBox" hidden>
-      <h3>⚡ Skip the line</h3>
-      <p class="note" id="boostFor"></p>
-      <div class="chips" id="boostChips" style="grid-template-columns:repeat(3, 1fr)"></div>
-      <p class="note" id="boostPreview" style="color:var(--text)"></p>
-      <button class="btn solflare wide" id="boostSolflare">Boost with Solflare</button>
-      <button class="btn phantom wide" id="boostPhantom">Boost with Phantom</button>
-      <button class="btn ghost wide" id="boostPoints"></button>
-      <p class="note" id="boostMsg"></p>
-    </div>
-    <p class="note" style="margin-top:12px" id="guardNote"></p>
-  </section>
   <section id="tab-rank" hidden>
-    <div class="pts-card" id="ptsCard"></div>
-    <div class="card" id="ptsLog" style="margin-bottom:18px"></div>
     <p class="eyebrow" style="margin-bottom:10px">Top coffee lovers · Island DAO</p>
     <div class="me-card" id="meRank"></div>
     <div class="card" id="rankList"></div>
     <p class="note" style="margin-top:12px">Every drink you order here in Telegram counts. Keep ordering to climb 🏝️</p>
   </section>
   <section id="tab-pay" class="pay" hidden>
-    <div class="pay-card" id="ptsShop">
-      <h3>🪙 Spend your points <span id="shopPts" style="color:var(--gold);font-weight:600"></span></h3>
-      <div id="shopItems"></div>
-    </div>
     <div id="payPick" class="pay">
       <p class="eyebrow">Drinks are on the house ☕</p>
       <div class="pay-card">
@@ -410,119 +353,15 @@ export function miniAppHtml(drinks, pay = null) {
     $("tab-menu").hidden = name !== "menu";
     $("tab-rank").hidden = name !== "rank";
     $("tab-pay").hidden = name !== "pay";
-    $("tab-queue").hidden = name !== "queue";
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
-    if (name === "rank" || name === "queue" || name === "pay") refreshRanking();
+    if (name === "rank") refreshRanking();
     updateButton();
   }
 
   async function refreshRanking() {
-    if (!initData) return;
     const s = await api("/api/session", {});
-    if (s.ok) { renderRanking(s.ranking); game = s.game || null; renderGame(); if (s.orders) renderOrders(s.orders); }
+    if (s.ok) renderRanking(s.ranking);
   }
-
-  // ----- The bar game: queue, boost, points, shop -----
-  let game = null, boostNum = null, boostAmt = null, boostPoll = null;
-  const R = () => game.rules;
-  const streakMult = st => 1 + R().streakBonus * Math.min(Math.max(st || 0, 0), R().streakCap);
-  function cashback(usdc) {
-    const k = Math.min(R().cashbackMax, R().cashbackBase * Math.sqrt(usdc) * streakMult(game.streak) * (game.rush ? R().rushMult : 1));
-    return Math.round(k * usdc * R().pointsPerUsdc);
-  }
-  const mineInQueue = () => game ? game.queue.filter(q => q.mine) : [];
-  // Where an order would land with a boost of this size (equal boosts keep arrival order).
-  function placeWith(usdc) {
-    const me = game.queue.find(q => q.mine && q.num === boostNum);
-    const ahead = game.queue.filter(q => q !== me && (q.guarded || q.boost >= usdc + (me ? me.boost : 0)));
-    return ahead.length + 1;
-  }
-  function renderGame() {
-    if (!game) return;
-    // Queue tab
-    $("rushNote").hidden = !game.rush;
-    if (game.rush) $("rushNote").textContent = "⚡ Morning auction: boosts earn ×" + R().rushMult + " points until " + new Date(game.rush).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-    $("qCount").textContent = game.queue.length ? "· " + game.queue.length + " waiting" : "";
-    $("queueList").innerHTML = game.queue.length ? game.queue.slice(0, 12).map(q =>
-      '<div class="qrow' + (q.mine ? ' mine' : '') + '"><span class="pos">#' + q.position + '</span><span class="name">' +
-      esc(drinkName(q.drink)) + (q.mine ? ' · you' : '') + '</span>' +
-      (q.boost ? '<span class="tag">⚡ ' + q.boost + '</span>' : q.guarded ? '<span class="tag wait">⏰ next</span>' : '') +
-      (q.mine ? '<span class="tag wait">~' + q.eta + ' min</span>' : '') + '</div>').join("")
-      : '<div class="qrow"><span class="name" style="color:var(--muted)">Nobody in line. Order and it\\'s yours next ☕</span></div>';
-    $("guardNote").textContent = "Free orders never wait more than ~" + R().freeGuardMin + " min behind boosts. Boosts up to " + R().boostMax + " USDC per order.";
-    const mine = mineInQueue();
-    if (!mine.some(q => q.num === boostNum)) { boostNum = mine.length ? mine[0].num : null; boostAmt = null; }
-    $("boostBox").hidden = !boostNum;
-    if (boostNum) {
-      const me = mine.find(q => q.num === boostNum);
-      const room = R().boostMax - me.boost;
-      $("boostFor").textContent = "Your " + drinkName(me.drink) + " is #" + me.position + (me.boost ? " with a " + me.boost + " USDC boost" : "") + ". Boost it to move up.";
-      const opts = R().boostOptions.filter(v => v <= room + 1e-9);
-      if (boostAmt && !opts.includes(boostAmt)) boostAmt = null;
-      if (!boostAmt && opts.length) boostAmt = opts[0];
-      $("boostChips").innerHTML = opts.map(v => '<button class="chip' + (v === boostAmt ? ' on' : '') + '" data-boost="' + v + '">' + v + ' USDC</button>').join("");
-      const cost = Math.round((boostAmt || 0) * R().pointsPerUsdc);
-      $("boostPreview").innerHTML = boostAmt ? "→ about <b>#" + placeWith(boostAmt) + "</b> in the queue · 🪙 +" + cashback(boostAmt) + " points back" : "You're at the boost limit for this order.";
-      ["boostSolflare", "boostPhantom", "boostPoints"].forEach(id => { $(id).disabled = !boostAmt; $(id).hidden = !boostAmt; });
-      $("boostSolflare").hidden = $("boostPhantom").hidden = !boostAmt || !PAY;
-      $("boostPoints").textContent = "Pay with " + cost + " points (you have " + game.points + ")";
-      $("boostPoints").disabled = !boostAmt || game.points < cost;
-    }
-    // Me tab
-    const mult = Math.round((streakMult(game.streak) - 1) * 100);
-    $("ptsCard").innerHTML = '<div class="big">🪙 ' + game.points + '</div><div class="row"><span>points</span><span>100 points = 1 USDC of boost</span></div>' +
-      '<div class="row"><span>🔥 Streak</span><b>' + game.streak + (game.streak === 1 ? ' day' : ' days') + (mult ? ' · +' + mult + '% on rewards' : '') + '</b></div>' +
-      '<div class="row"><span>☕ First coffee today</span><b>' + (game.cupToday ? 'done ✓' : '+' + Math.round(R().firstCup * streakMult(game.streak + 1)) + ' when it\\'s served') + '</b></div>';
-    $("ptsLog").innerHTML = game.log.length ? game.log.map(l => '<div class="logrow"><span>' + esc(l.label) + '</span><b class="' + (l.delta > 0 ? 'plus' : 'minus') + '">' + (l.delta > 0 ? '+' : '') + l.delta + '</b></div>').join("")
-      : '<div class="logrow"><span>Your first coffee of the day earns points. Days in a row earn more 🔥</span></div>';
-    // Shop tab
-    $("shopPts").textContent = "· you have " + game.points;
-    $("shopItems").innerHTML = game.shop.length ? game.shop.map(it => '<div class="shop-item"><div><b>' + esc(it.name) + '</b><small>' + (it.left > 0 ? it.left + ' left' : 'Sold out') + '</small></div>' +
-      '<button data-shop="' + it.id + '"' + (it.left <= 0 || game.points < it.points ? ' disabled' : '') + '>' + it.points + ' 🪙</button></div>').join("")
-      : '<p class="note">Merch is coming. Keep collecting points 🪙</p>';
-  }
-  document.addEventListener("click", async e => {
-    const chip = e.target.closest("[data-boost]");
-    if (chip) { boostAmt = Number(chip.dataset.boost); renderGame(); return; }
-    if (e.target.closest("[data-goqueue]")) { showTab("queue"); return; }
-    const item = e.target.closest("[data-shop]");
-    if (item && game) {
-      const it = game.shop.find(i => String(i.id) === item.dataset.shop);
-      if (!it || !(await ask("Get " + it.name + " for " + it.points + " points?"))) return;
-      const r = await api("/api/shop", { item: it.id });
-      if (!r.ok) { if (tg && tg.showAlert) tg.showAlert(r.error); return; }
-      tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("success");
-      refreshRanking();
-    }
-  });
-  async function boostWith(how) {
-    if (!boostNum || !boostAmt) return;
-    $("boostMsg").textContent = "";
-    if (how === "points") {
-      const r = await api("/api/boost", { num: boostNum, amount: boostAmt, pay: "points" });
-      if (!r.ok) { $("boostMsg").textContent = r.error; return; }
-      tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("success");
-      $("boostMsg").textContent = "⚡ Boosted with points" + (r.position ? ": you're #" + r.position : "") + ".";
-      return refreshRanking();
-    }
-    const r = await api("/api/boost", { num: boostNum, amount: boostAmt, pay: "usdc" });
-    if (!r.ok) { $("boostMsg").textContent = r.error; return; }
-    openLink(how === "phantom" ? r.payment.phantom : r.payment.solflare);
-    $("boostMsg").textContent = "Confirm " + r.payment.amount + " USDC in your wallet. You move up as soon as it lands.";
-    clearInterval(boostPoll);
-    let tries = 0;
-    boostPoll = setInterval(async () => {
-      const st = await fetch("/api/pay/" + r.payment.ref).then(x => x.json()).catch(() => null);
-      if (st && st.ok && st.payment.status === "paid") {
-        clearInterval(boostPoll);
-        tg && tg.HapticFeedback && tg.HapticFeedback.notificationOccurred("success");
-        $("boostMsg").textContent = "⚡ Boost in!";
-        refreshRanking();
-      } else if (++tries > 200) clearInterval(boostPoll);
-    }, 3000);
-  }
-  // While the queue is open, it updates itself.
-  setInterval(() => { if (tab === "queue" && !document.hidden) refreshRanking(); }, 8000);
 
   // Step 1 the drink, step 2 the milk (drinks with milk only), step 3 the order.
   const needsMilk = () => { const d = MENU.find(x => x.id === selected); return !!(d && d.milk && !milk); };
@@ -557,11 +396,7 @@ export function miniAppHtml(drinks, pay = null) {
   let browsing = false;
   async function browse() {
     browsing = true;
-    // The ranking, points and the queue are per Telegram customer.
-    document.querySelector('[data-tab="rank"]').hidden = true;
-    document.querySelector('[data-tab="queue"]').hidden = true;
-    $("ptsShop").hidden = true;
-    document.querySelector('[data-tab="pay"]').hidden = !PAY;
+    document.querySelector('[data-tab="rank"]').hidden = true; // the ranking is per Telegram customer
     document.querySelector(".tabs").style.setProperty("--tabs", PAY ? 2 : 1);
     $("orderTg").hidden = false;
     $("pickTitle").textContent = "Our menu";
@@ -587,8 +422,6 @@ export function miniAppHtml(drinks, pay = null) {
     $("closedText").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
     lunch = s.lunch || null;
     checkinOn = !!s.checkin;
-    game = s.game || null;
-    renderGame();
     $("lunchNote").hidden = !lunch;
     if (lunch) $("lunchNote").innerHTML = "🍽️ <b>Lunch break</b> until " + esc(lunch.label) + ". You can still order: it'll be ready from " + esc(lunch.label) + ".";
     // The daily limit (normal days): a note once they've ordered, and no menu once they've reached it.
@@ -649,8 +482,9 @@ export function miniAppHtml(drinks, pay = null) {
       '<h2>' + esc(drinkName(r.order.drink)) + '<br><b>on the way</b></h2>' +
       '<p class="note">' + (r.order.lunch ? '🍽️ Ready from ' + esc(r.order.lunch) + ', after the barista\\'s lunch. We\\'ll message you in the chat ☕' : 'We\\'ll message you in the chat when it\\'s ready ☕') + '</p>' +
       '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
-      (game ? '<div class="pay-card boost"><h3>⚡ In a hurry? Skip the line</h3><p class="note">Boost from 1 USDC, or with points, and get points back. Your first coffee today earns points too 🪙</p>' +
-        '<button class="btn wide" data-goqueue>See the queue</button></div>' : '') +
+      (checkinOn ? '<div class="pay-card checkin-card"><h3>☕ Check in your coffee onchain</h3><p class="note">Like the event check-in: your wallet signs, the bar pays the fee. Free.</p>' +
+        '<button class="btn solflare wide" data-checkin="solflare" data-num="' + r.order.num + '">Check in with Solflare</button>' +
+        '<button class="btn phantom wide" data-checkin="phantom" data-num="' + r.order.num + '">Check in with Phantom</button></div>' : '') +
       (PAY ? '<div class="pay-card tip-after"><h3>💛 Tip the barista?</h3><p class="note">Optional, in USDC on Solana. Drinks stay on the house.</p>' +
         '<div class="chips">' + PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") +
         '<button class="chip" data-tip="other">Other</button></div>' + bagOffer() + '</div>' : '');
@@ -658,7 +492,6 @@ export function miniAppHtml(drinks, pay = null) {
     $("close").onclick = () => tg ? tg.close() : null;
     $("again").onclick = () => { selected = null; milk = null; renderMilk(); $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
     renderOrders(r.orders);
-    boostNum = r.order.num; boostAmt = null;
     refreshRanking();
     // Once per visit, a moment after the confirmation: the optional tip pop-up.
     if (PAY && !tipAsked) { tipAsked = true; setTimeout(() => { $("tipSheet").hidden = false; }, 700); }
@@ -773,10 +606,9 @@ export function miniAppHtml(drinks, pay = null) {
       : '<p class="eyebrow">' + esc(p.amount) + ' USDC</p><h2>Thank<br><b>you!</b></h2><p class="note">Your tip went straight to the barista 💛</p>';
     $("payDone").hidden = false;
   }
-  ["boostSolflare", "boostPhantom", "boostPoints"].forEach(id => $(id).addEventListener("click", () => boostWith(id.slice(5).toLowerCase())));
-  if (!PAY) $("payPick").hidden = true;
   if (PAY) {
     document.querySelector('[data-tab="pay"]').hidden = false;
+    document.querySelector(".tabs").style.setProperty("--tabs", 3);
     $("chips").innerHTML = PAY.presets.map(v => '<button class="chip" data-v="' + v + '">' + v + '</button>').join("") + '<button class="chip" data-v="other">Other</button>';
     $("bagDetail").textContent = PAY.products.bag.detail;
     const soldOut = PAY.bagsLeft === 0;

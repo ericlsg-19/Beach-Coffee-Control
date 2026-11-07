@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 07/11/2026, bot e Âncora na **v1.12.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 06/11/2026, bot e Âncora na **v1.11.2**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -57,7 +57,6 @@ Atualizado em 07/11/2026, bot e Âncora na **v1.12.0**, no domínio próprio **d
 - 06/11: v1.11.0: **check-in do café onchain**, como o check-in da Island DAO: a carteira do cliente assina um memo por pedido e a carteira de check-in do bar paga a taxa. Liga com o segredo `CHECKIN_KEY` no Cloudflare (ver OPERATIONS.md). `/checkins` para a barista. Telas em `design/app/checkin-*.png`.
 - 06/11: v1.11.1: **`/checkins setup`**: o bot cria a própria carteira que paga as taxas do check-in; mandar SOL para o endereço e `/checkins on`. `/checkins off` desliga.
 - 06/11: v1.11.2: "Solana is busy" no check-in: o blockhash agora tenta 3 vezes e fica em cache por 20 s (gorjetas e check-in). A solução de vez é o segredo `SOLANA_RPC_URL` (Helius grátis) no Cloudflare.
-- 07/11: v1.12.0 (na branch, esperando o OK do Eric): **jogo do bar** do protótipo Giants: boost em USDC ou pontos para furar a fila, pontos pelo primeiro café do dia e por boost, sequência, leilão da manhã (`/rush`), loja com pontos (`/shop`). Ver OPERATIONS.md. O card de check-in depois do pedido saiu (o botão por pedido fica se `/checkins on`).
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

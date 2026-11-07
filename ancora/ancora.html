@@ -126,8 +126,6 @@
   .info strong { font: 500 1.15rem/1.25 var(--body); }
   .info span { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
   .info span.milk { color: var(--gold); font-weight: 600; }
-  .info .qpos { font: 500 .85rem/1 var(--mono); color: var(--muted); }
-  .info .boostb { display: inline-block; font: 600 .72rem/1 var(--body); color: var(--gold-ink); background: var(--gold); padding: 4px 8px; border-radius: 999px; vertical-align: middle; }
   li.done .info strong, li.done .info time { color: var(--faint); }
   .chip {
     height: 36px; padding: 0 14px; border-radius: 999px; cursor: pointer;
@@ -282,7 +280,7 @@
     </div>
   </section>
 
-  <p class="version">Âncora v1.12.0 · same menu as @BeachCoffeeIslandBot</p>
+  <p class="version">Âncora v1.11.2 · same menu as @BeachCoffeeIslandBot</p>
 </div>
 
 <nav class="dock" aria-label="Sections">
@@ -371,8 +369,8 @@
     $("salesList").innerHTML = list.length
       ? list.map(p => `
           <li>
-            <span class="pos medal">${p.kind === "bag" ? "🛍️" : p.kind === "boost" ? "⚡" : "💛"}</span>
-            <div class="who"><strong>${p.kind === "bag" ? `Coffee bag #${p.id}` : p.kind === "boost" ? "⚡ Boost" : "Tip"} · ${escapeHtml(p.customer)}</strong>
+            <span class="pos medal">${p.kind === "bag" ? "🛍️" : "💛"}</span>
+            <div class="who"><strong>${p.kind === "bag" ? `Coffee bag #${p.id}` : "Tip"} · ${escapeHtml(p.customer)}</strong>
               <span>${formatTime(p.time)} · <a href="https://solscan.io/tx/${encodeURIComponent(p.signature)}" target="_blank" rel="noopener">Solscan</a></span></div>
             ${p.kind === "bag" ? `<button class="chip ${p.handed ? "" : "go"}" data-handed="${p.id}" data-on="${p.handed ? 0 : 1}">${p.handed ? "Handed ✓" : "Hand over"}</button>` : ""}
             <span class="n">${p.amount}</span>
@@ -494,8 +492,7 @@
   function render() {
     const day = dayInput.value || localDay();
     const isToday = day === localDay();
-    // Waiting orders in queue order (boosted first, as the bot ranks them), then the served ones, newest first.
-    const dayOrders = ordersFor(day).sort((a, b) => (a.done - b.done) || (!a.done && a.queue && b.queue ? a.queue - b.queue : 0) || b.time.localeCompare(a.time));
+    const dayOrders = ordersFor(day).sort((a, b) => b.time.localeCompare(a.time));
     const counts = countByDrink(dayOrders);
     const n = dayOrders.length;
 
@@ -523,7 +520,7 @@
           <li class="${o.done ? "done" : ""}">
             <div class="info">
               <time>${formatTime(o.time)}</time>
-              <strong>${!o.done && o.queue ? `<span class="qpos">#${o.queue}</span> ` : ""}${drinkById(o.drink).name}${o.boost ? ` <span class="boostb">⚡ ${o.boost} USDC</span>` : ""}</strong>
+              <strong>${drinkById(o.drink).name}</strong>
               ${o.milk ? `<span class="milk">🥛 ${escapeHtml(o.milk)}</span>` : ""}
               ${o.customer ? `<span>${escapeHtml(o.customer)}</span>` : ""}
             </div>
