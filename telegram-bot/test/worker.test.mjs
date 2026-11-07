@@ -1104,7 +1104,7 @@ test("coffee check-in onchain: the guest's wallet signs a memo, the bar's check-
   const session = await (await apiCall(env, "/api/session", { initData })).json();
   assert.equal(session.checkin, true);
   const app = await (await worker.fetch(new Request("https://bot/app"), env)).text();
-  assert.match(app, /Check in your coffee onchain/);
+  assert.match(app, /☕ Check in<\/button>/); // the check-in chip on each order (the card after ordering is now the boost)
   const order = (await (await apiCall(env, "/api/order", { initData, drink: "espresso" })).json()).order;
 
   // Someone else's order, or a made-up one, can't be checked in.
@@ -1211,4 +1211,114 @@ test("/checkins setup: the bot makes its own fee wallet; /checkins on once it ha
 
   await post(msg(BARISTA, "/checkins off"));
   assert.equal(await on(), false);
+});
+
+// ---------- The bar game: points, streak, boosts, queue, shop ----------
+
+const { previousOpenDay } = await import("../src/game.js");
+
+test("game: the first coffee served each day earns points, a streak earns more, the ready message says so", async () => {
+  const { env, calls, post } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  const order = async () => (await (await apiCall(env, "/api/order", { initData: ana, drink: "espresso" })).json()).order;
+  const idOf = async num => (await env.DB.prepare("SELECT id FROM orders WHERE num = ? AND customer_chat = ?").bind(num, ANA).first()).id;
+  const o1 = await order();
+  calls.length = 0;
+  await post(tap(BARISTA, `r:${await idOf(o1.num)}`));
+  const ready = calls.find(c => c.method === "sendMessage" && String(c.body.chat_id) === String(ANA));
+  assert.match(ready.body.text, /🪙 \+22 points for your first coffee today · 🔥 1-day streak/);
+  const o2 = await order();
+  calls.length = 0;
+  await post(tap(BARISTA, `r:${await idOf(o2.num)}`));
+  assert.doesNotMatch(calls.find(c => String(c.body.chat_id) === String(ANA)).body.text, /points/, "once a day");
+  let game = (await (await apiCall(env, "/api/session", { initData: ana })).json()).game;
+  assert.deepEqual([game.points, game.streak, game.cupToday], [22, 1, true]);
+  assert.equal(game.log[0].delta, 22);
+
+  // Next open day: the streak grows (+20% → 24 points).
+  const today = localDayForTest();
+  await env.DB.prepare("UPDATE islanders SET last_day = ? WHERE chat = ?").bind(previousOpenDay(today), ANA).run();
+  await env.DB.prepare("DELETE FROM points_log WHERE reason = 'first_cup'").run();
+  const o3 = await order();
+  calls.length = 0;
+  await post(tap(BARISTA, `r:${await idOf(o3.num)}`));
+  assert.match(calls.find(c => String(c.body.chat_id) === String(ANA)).body.text, /\+24 points .* 🔥 2-day streak/);
+  game = (await (await apiCall(env, "/api/session", { initData: ana })).json()).game;
+  assert.equal(game.points, 46);
+});
+
+test("game: boosts move an order up (points or USDC), cashback in points, free orders waiting long go first", async () => {
+  const { env, calls, post, chain } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const BEN = 3, CAL = 4;
+  const who = id => signedInitData("t", { id, first_name: ["", "", "", "Ben", "Cal"][id] || "Ana" });
+  const order = async id => (await (await apiCall(env, "/api/order", { initData: who(id), drink: "latte", milk: "regular" })).json()).order;
+  const a = await order(ANA), b = await order(BEN), c = await order(CAL);
+  const game = async id => (await (await apiCall(env, "/api/session", { initData: who(id) })).json()).game;
+  assert.deepEqual((await game(BEN)).queue.map(q => [q.num, q.mine]), [[a.num, false], [b.num, true], [c.num, false]]);
+
+  // Ben boosts 1 USDC with points.
+  await env.DB.prepare("INSERT INTO islanders (chat, name, points) VALUES (?, 'Ben', 150)").bind(BEN).run();
+  calls.length = 0;
+  const viaPoints = await (await apiCall(env, "/api/boost", { initData: who(BEN), num: b.num, amount: 1, pay: "points" })).json();
+  assert.equal(viaPoints.ok, true);
+  assert.equal(viaPoints.position, 1);
+  assert.equal(viaPoints.points, 50);
+  assert.match(calls.find(x => String(x.body.chat_id) === String(BARISTA)).body.text, /⚡ <b>#\d+ · Latte boosted<\/b> · 1 USDC in points[\s\S]*Now <b>#1<\/b>/);
+  assert.equal((await (await apiCall(env, "/api/boost", { initData: who(BEN), num: b.num, amount: 1, pay: "points" })).json()).error, "You need 100 points for that boost.");
+  assert.match((await (await apiCall(env, "/api/boost", { initData: who(BEN), num: b.num, amount: 5, pay: "points" })).json()).error, /up to 5 USDC/);
+  assert.match((await pay(env, { kind: "boost", amount: "2" })).error, /Queue tab/, "boosts only from an order");
+
+  // Cal boosts 2 USDC in USDC, during the morning auction: first in line, cashback ×2.
+  await post(msg(BARISTA, "/rush"));
+  assert.match(calls.at(-1).body.text, /Morning auction open/);
+  const r = await (await apiCall(env, "/api/boost", { initData: who(CAL), num: c.num, amount: 2, pay: "usdc" })).json();
+  assert.equal(r.ok, true);
+  assert.equal(r.payment.kind, "boost");
+  assert.match(r.payment.solflare, /solflare\.com/);
+  chain[r.payment.ref] = [{ signature: "boostsig", received: 2 }];
+  calls.length = 0;
+  await runMinuteCron(env);
+  const toCal = calls.find(x => String(x.body.chat_id) === String(CAL));
+  // 12% × √2 × 1.0 (no streak) × 2 (auction) = 33.9% of 2 USDC = 68 points.
+  assert.match(toCal.body.text, /Boost in!<\/b> Your Latte #\d+ is now <b>#1<\/b>[\s\S]*\+68 points back/);
+  assert.deepEqual((await game(ANA)).queue.map(q => [q.num, q.boost]), [[c.num, 2], [b.num, 1], [a.num, 0]]);
+
+  // Ana has waited 13 minutes for a free coffee: she goes before the boosts.
+  await env.DB.prepare("UPDATE orders SET created_at = ? WHERE num = ?").bind(new Date(Date.now() - 13 * 60000).toISOString(), a.num).run();
+  const q = (await game(ANA)).queue;
+  assert.deepEqual(q.map(x => x.num), [a.num, c.num, b.num]);
+  assert.equal(q[0].guarded, true);
+  await post(msg(BARISTA, "/queue"));
+  assert.match(calls.at(-1).body.text, /1\. #\d+ · Latte · Ana · ⏰ waited\n2\. #\d+ · Latte · Cal · ⚡ 2 USDC\n3\. #\d+ · Latte · Ben · ⚡ 1 USDC/);
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /⚡ Boosts: 1 · 2 USDC/);
+
+  // The panel shows the queue position and the boost.
+  const panelOrders = (await (await worker.fetch(new Request("https://bot/api/panel/orders", { headers: { "X-Barista-Code": "beach123" } }), env)).json()).orders;
+  const cp = panelOrders.find(o => o.customer.startsWith("Cal"));
+  assert.deepEqual([cp.queue, cp.boost], [2, 2]);
+});
+
+test("game: the shop sells items for points; the barista adds them and sees what to hand over", async () => {
+  const { env, calls, post } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" });
+  await post(msg(BARISTA, "/shop add 60 1 Beach Coffee sticker"));
+  assert.match(calls.at(-1).body.text, /1\. Beach Coffee sticker · 60 🪙 · 1 of 1 left/);
+  assert.equal((await (await apiCall(env, "/api/shop", { initData: ana, item: 1 })).json()).error, "You need 60 points for Beach Coffee sticker.");
+  await env.DB.prepare("INSERT INTO islanders (chat, name, points) VALUES (?, 'Ana', 70)").bind(ANA).run();
+  calls.length = 0;
+  const r = await (await apiCall(env, "/api/shop", { initData: ana, item: 1 })).json();
+  assert.deepEqual([r.ok, r.points], [true, 10]);
+  assert.match(calls.find(x => String(x.body.chat_id) === String(BARISTA)).body.text, /🛍️ <b>Beach Coffee sticker<\/b> for 60 🪙/);
+  assert.match(calls.find(x => String(x.body.chat_id) === String(ANA)).body.text, /is yours!/);
+  assert.match((await (await apiCall(env, "/api/shop", { initData: ana, item: 1 })).json()).error, /sold out/);
+  await post(msg(BARISTA, "/shop"));
+  assert.match(calls.at(-1).body.text, /0 of 1 left[\s\S]*To hand over<\/b>\n• Beach Coffee sticker → Ana/);
+  await post(msg(BARISTA, "/points"));
+  assert.match(calls.at(-1).body.text, /1\. Ana · <b>10<\/b> 🪙/);
+  const game = (await (await apiCall(env, "/api/session", { initData: ana })).json()).game;
+  assert.deepEqual(game.shop, [{ id: 1, name: "Beach Coffee sticker", points: 60, left: 0 }]);
 });

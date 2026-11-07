@@ -160,3 +160,14 @@ Como o check-in da Island DAO: depois do pedido, o cliente toca **"Check in with
 - **Segurança:** o servidor monta a transação e assina como pagador; só envia se a carteira devolver exatamente a mesma transação (mesmo memo, mesmas contas) com uma assinatura válida do cliente. Um check-in por pedido, só pedidos de hoje, no máximo 500 por dia.
 - **Sem SOL na carteira de check-in:** o cliente vê "The bar's check-in wallet is out of SOL" e a barista recebe um aviso (uma vez por dia) com o endereço para recarregar.
 - Tabela `checkins`. Logs: `checkin sent`, `checkin done`, `checkin send failed`, `checkin rejected`.
+
+## O jogo do bar: fila, boost, pontos, sequência e loja (v1.12.0)
+
+Inspirado no protótipo "Beach Coffee × Giants" (`design/giants/`). Regras em `telegram-bot/src/game.js` (`GAME`).
+
+- **Café grátis, fila por ordem de chegada.** Um **boost** passa o pedido na frente: em USDC (Solflare/Phantom, como a gorjeta) ou com pontos (100 pontos = 1 USDC). Boost maior vai primeiro; boosts iguais mantêm a ordem de chegada; até 5 USDC por pedido.
+- **Garantia:** um pedido grátis que espera 12 min passa na frente dos boosts ("⏰ waited" no `/queue`).
+- **Pontos** (não são token, não valem dinheiro, só servem no bar): o primeiro café do dia, quando fica pronto, dá 20 pontos × sequência (+10% por dia seguido, até +50%); fins de semana não quebram a sequência; um dia útil sem café corta a sequência pela metade. Boost em USDC devolve pontos: 12% × √USDC, × sequência, ×2 no leilão da manhã, no máximo 40%.
+- **Barista:** `/queue` (ordem da fila com ⚡), `/rush` (leilão da manhã por 15 min; `/rush off`), `/points` (quem tem mais pontos), `/shop` (itens e o que entregar; `/shop add 300 10 Nome`, `/shop remove ID`, `/shop stock ID N`). O Âncora mostra a posição na fila e ⚡ nos pedidos com boost.
+- **Mini app:** abas Menu · Queue ⚡ · Me 🪙 · Shop. Depois do pedido aparece "⚡ In a hurry? Skip the line".
+- Tabelas `islanders`, `points_log`, `order_boosts`, `boost_payments`, `shop_redemptions`. Pagamentos de boost ficam em `payments` com `kind = 'boost'` e aparecem no `/today` como "⚡ Boosts".

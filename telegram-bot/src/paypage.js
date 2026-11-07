@@ -211,7 +211,7 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
 
   // ----- Checkout -----
   function renderCheckout(p) {
-    $("item").textContent = p.kind === "bag" ? "🛍️ " + C.products.bag.title : "💛 " + C.products.tip.title;
+    $("item").textContent = p.kind === "bag" ? "🛍️ " + C.products.bag.title : p.kind === "boost" ? "⚡ " + C.products.boost.title : "💛 " + C.products.tip.title;
     $("amount").innerHTML = esc(p.amount) + "<small>USDC</small>";
     $("addr").textContent = C.recipient;
     $("amt").textContent = p.amount;
@@ -250,6 +250,8 @@ export function payPageHtml({ recipient, bagPrice, bagStock, bagsLeft, payment }
     $("checkout").hidden = true;
     $("paid").innerHTML = p.kind === "bag"
       ? '<div class="big">🛍️</div><h1>Bag #' + p.bagNo + '<b>is yours</b></h1><p class="note">Show this screen at the bar to pick up your Island DAO Limited Edition bag.</p>'
+      : p.kind === "boost"
+      ? '<div class="big">⚡</div><h1>Boost<b>in!</b></h1><p class="note">Your coffee moved up the queue, and points are on the way. Head back to Telegram ☕</p>'
       : '<div class="big">💛</div><h1>Thank<b>you!</b></h1><p class="note">Your ' + esc(p.amount) + ' USDC tip reached the barista. See you at the bar ☕</p>';
     $("paid").hidden = false;
   }

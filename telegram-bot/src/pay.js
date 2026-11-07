@@ -20,7 +20,9 @@ const TIP_MIN = 1, TIP_MAX = 500;
 export const PRODUCTS = {
   tip: { title: "Tip the barista", short: "Tip" },
   bag: { title: "Island DAO Limited Edition coffee bag", short: "Coffee bag", detail: "250 g arabica · special edition" },
+  boost: { title: "Queue boost: skip the line", short: "Boost" },
 };
+export const BOOST_MIN = 0.5, BOOST_MAX = 5;
 
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 export function base58(bytes) {
@@ -50,6 +52,11 @@ export function priceFor(env, kind, amount) {
   if (kind === "tip") {
     const micro = toMicro(amount);
     if (!micro || micro < TIP_MIN * 1e6 || micro > TIP_MAX * 1e6) return { error: `Pick a tip between ${TIP_MIN} and ${TIP_MAX} USDC.` };
+    return { kind, micro };
+  }
+  if (kind === "boost") {
+    const micro = toMicro(amount);
+    if (!micro || micro < BOOST_MIN * 1e6 || micro > BOOST_MAX * 1e6) return { error: `A boost is between ${BOOST_MIN} and ${BOOST_MAX} USDC.` };
     return { kind, micro };
   }
   return { error: "Pick a tip or the coffee bag." };

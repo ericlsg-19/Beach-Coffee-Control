@@ -92,3 +92,51 @@ CREATE TABLE IF NOT EXISTS checkins (
   done_at TEXT
 );
 CREATE INDEX IF NOT EXISTS checkins_day ON checkins (day, status);
+
+-- The bar game (points, streaks, boosts, shop). Points are loyalty points, only spent at the bar.
+CREATE TABLE IF NOT EXISTS islanders (
+  chat INTEGER PRIMARY KEY,
+  name TEXT NOT NULL DEFAULT '',
+  points INTEGER NOT NULL DEFAULT 0,
+  streak INTEGER NOT NULL DEFAULT 0,
+  last_day TEXT
+);
+-- Every change of points. (chat, reason, ref) is unique, so a reward is never given twice.
+-- reason: first_cup, cashback, boost, shop.
+CREATE TABLE IF NOT EXISTS points_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat INTEGER NOT NULL,
+  delta INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  ref TEXT NOT NULL DEFAULT '',
+  label TEXT NOT NULL DEFAULT '',
+  day TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS points_once ON points_log (chat, reason, ref);
+-- Boosts on an order (USDC or points); the queue sorts by their sum.
+CREATE TABLE IF NOT EXISTS order_boosts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL,
+  micro INTEGER NOT NULL,
+  paid_with TEXT NOT NULL,
+  ref TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS order_boosts_order ON order_boosts (order_id);
+-- Which order a USDC boost payment is for.
+CREATE TABLE IF NOT EXISTS boost_payments (
+  payment_id INTEGER PRIMARY KEY,
+  order_id INTEGER NOT NULL
+);
+-- Shop items redeemed with points, to hand over at the bar.
+CREATE TABLE IF NOT EXISTS shop_redemptions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat INTEGER NOT NULL,
+  customer_name TEXT NOT NULL DEFAULT '',
+  item TEXT NOT NULL,
+  name TEXT NOT NULL,
+  points INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  handed INTEGER NOT NULL DEFAULT 0
+);

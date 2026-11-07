@@ -30,6 +30,7 @@ import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML, TERMS_HTML } from "
 import { checkinSigner, newCheckinKey, memoMessage, memoText, transactionBytes, parseTransaction, verifySignature, base58Decode, b64, unb64,
   latestFinalizedBlockhash, sendRaw, signatureStatus, solBalance } from "./checkin.js";
 import { checkinPageHtml } from "./checkinpage.js";
+import { GAME, firstCupPoints, cashbackPoints, nextStreak, previousOpenDay, queueOrder } from "./game.js";
 import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, base58, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
 
 const DRINKS = [
@@ -50,7 +51,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.11.2";
+const VERSION = "1.12.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -385,7 +386,9 @@ async function finishOrder(env, chatId, messageId, orderId, status) {
   console.log(`order ${status}`, JSON.stringify({ num: order.num, drink: order.drink }));
 
   if (status === "ready") {
-    await send(env, order.customer_chat, `🏝️ <b>Your ${drink.name} is ready!</b>\nOrder #${order.num}. Pick it up at the bar ☕`);
+    const reward = await awardFirstCup(env, order).catch(e => { console.log("points failed", String(e && e.message || e)); return null; });
+    await send(env, order.customer_chat, `🏝️ <b>Your ${drink.name} is ready!</b>\nOrder #${order.num}. Pick it up at the bar ☕` +
+      (reward ? `\n🪙 +${reward.points} points for your first coffee today · 🔥 ${reward.streak}-day streak` : ""));
   } else {
     await send(env, order.customer_chat, `Sorry, we couldn't make order #${order.num} (${drink.name}). Please come talk to us at the bar 🙏`);
   }
@@ -483,16 +486,15 @@ async function sendDailyReport(env) {
 }
 
 async function queue(env, chatId) {
-  const { results } = await env.DB.prepare(
-    "SELECT num, drink, customer_name FROM orders WHERE status = 'pending' ORDER BY id"
-  ).all();
+  const results = await pendingQueue(env);
   if (!results.length) return send(env, chatId, "🙌 No drinks waiting.");
-  const lines = results.map(o => `#${o.num} · ${(drinkById(o.drink) || { name: o.drink }).name} · ${escapeHtml(o.customer_name)}`);
+  const lines = results.map(o => `${o.position}. #${o.num} · ${(drinkById(o.drink) || { name: o.drink }).name} · ${escapeHtml(o.customer_name)}` +
+    (o.boost ? ` · ⚡ ${usdc(o.boost)}` : o.guarded ? " · ⏰ waited" : ""));
   return send(env, chatId, `⏳ <b>Waiting (${results.length})</b>\n${lines.join("\n")}`);
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain and the wallet that pays their fees (/checkins setup, /checkins on, /checkins off)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting, in queue order (⚡ boosted first)\n/rush: open the morning auction, boosts earn ×2 points for 15 min (/rush off)\n/points: the islanders with the most points\n/shop: what guests can get with points (/shop add 300 10 Sticker pack, /shop remove 2)\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain and the wallet that pays their fees (/checkins setup, /checkins on, /checkins off)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -530,6 +532,9 @@ async function onMessage(env, message) {
     if (cmd === "/bags") return send(env, chatId, await bagsCommand(env, args));
     if (cmd === "/payments") return send(env, chatId, await paymentsReport(env));
     if (cmd === "/checkins") return send(env, chatId, await checkinsCommand(env, args));
+    if (cmd === "/rush") return send(env, chatId, await rushCommand(env, args));
+    if (cmd === "/points") return send(env, chatId, await pointsReport(env));
+    if (cmd === "/shop") return send(env, chatId, await shopCommand(env, args));
     if (cmd === "/close") {
       await setSetting(env, "open", "0"); await setSetting(env, "open_day", "");
       return send(env, chatId, "🌙 Closed. New orders are paused until /open.");
@@ -688,9 +693,11 @@ async function handlePanelApi(request, env, path) {
 
   if (path === "/api/panel/orders" && request.method === "GET") {
     const { results } = await env.DB.prepare(
-      "SELECT o.*, e.milk FROM orders o LEFT JOIN order_extras e ON e.order_id = o.id WHERE o.status != 'cancelled' ORDER BY o.id"
+      `SELECT o.*, e.milk, (SELECT COALESCE(SUM(micro), 0) FROM order_boosts b WHERE b.order_id = o.id) AS boost
+       FROM orders o LEFT JOIN order_extras e ON e.order_id = o.id WHERE o.status != 'cancelled' ORDER BY o.id`
     ).all();
-    return json({ ok: true, orders: results.map(panelOrder) });
+    const positions = new Map((await pendingQueue(env)).map(o => [o.id, o.position]));
+    return json({ ok: true, orders: results.map(o => ({ ...panelOrder(o), boost: (o.boost || 0) / 1e6, queue: positions.get(o.id) || null })) });
   }
   if (path === "/api/panel/ranking") {
     return json({ ok: true, ranking: (await ranking(env)).map(({ rank, name, drinks, last }) => ({ rank, name, drinks, last })) });
@@ -761,8 +768,11 @@ async function handleApi(request, env, path) {
   if (path === "/api/session") {
     return json({ ok: true, user: { first_name: user.first_name || "" }, open: await isOpen(env), orders: await todaysOrders(env, user.id),
       event: await eventStatus(env, user.id), out: await outList(env), daily: (await eventDay(env)) ? null : await dailyStatus(env, user.id), lunch: (await isOpen(env)) ? await lunchBreak(env) : null,
-      closed: await closedText(env), ranking: await rankingForCustomer(env, user.id), checkin: !!(await checkinActive(env)) });
+      closed: await closedText(env), ranking: await rankingForCustomer(env, user.id), checkin: !!(await checkinActive(env)),
+      game: await gameFor(env, user.id) });
   }
+  if (path === "/api/boost") return boostApi(env, user, body);
+  if (path === "/api/shop") return shopApi(env, user, body);
   if (path === "/api/order") {
     const drink = drinkById(body.drink);
     if (!drink) return json({ ok: false, error: "Pick a drink from the menu." }, 400);
@@ -895,6 +905,7 @@ async function checkPayment(env, p) {
 }
 
 async function announcePayment(env, p) {
+  if (p.kind === "boost") return boostPaid(env, p);
   const link = `<a href="https://solscan.io/tx/${p.signature}">View on Solscan</a>`;
   const baristaChat = await getSetting(env, "barista_chat");
   if (baristaChat && p.kind === "bag") {
@@ -992,6 +1003,195 @@ async function settleDirect(env, t) {
   if (baristaChat) {
     await send(env, baristaChat, `💸 <b>${usdc(micro)} arrived outside the app</b>\nFrom ${shortKey(t.payer)}, with no checkout (an exchange or a plain transfer). If someone tipped this way, thank them at the bar.\n<a href="https://solscan.io/tx/${t.signature}">View on Solscan</a>`);
   }
+}
+
+// ---------- The bar game: queue, boosts, points, streaks, shop (game.js) ----------
+
+// Pending orders in queue order, with their boost (USDC micro, points boosts counted at 1 USDC = 100 points).
+async function pendingQueue(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT o.id, o.num, o.drink, o.customer_chat, o.customer_name, o.created_at, COALESCE(SUM(b.micro), 0) AS boost
+     FROM orders o LEFT JOIN order_boosts b ON b.order_id = o.id WHERE o.status = 'pending' GROUP BY o.id`
+  ).all();
+  return queueOrder(results);
+}
+const queuePosition = async (env, orderId) => (await pendingQueue(env)).find(o => o.id === orderId) || null;
+
+const islander = async (env, chat) =>
+  (await env.DB.prepare("SELECT * FROM islanders WHERE chat = ?").bind(chat).first()) || { chat, points: 0, streak: 0, last_day: null, name: "" };
+
+// Adds (or takes) points once per (chat, reason, ref). Returns the new balance, or null if it was
+// already given (or, for a spend, if there aren't enough points).
+async function addPoints(env, chat, delta, reason, ref, label, name = "") {
+  if (delta < 0) {
+    const ok = await env.DB.prepare("UPDATE islanders SET points = points + ? WHERE chat = ? AND points + ? >= 0 RETURNING points").bind(delta, chat, delta).first();
+    if (!ok) return null;
+  }
+  const row = await env.DB.prepare(
+    "INSERT OR IGNORE INTO points_log (chat, delta, reason, ref, label, day, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id"
+  ).bind(chat, delta, reason, String(ref), label, localDay(), new Date().toISOString()).first();
+  if (!row) {
+    if (delta < 0) await env.DB.prepare("UPDATE islanders SET points = points - ? WHERE chat = ?").bind(delta, chat).run();
+    return null;
+  }
+  if (delta > 0) {
+    await env.DB.prepare(
+      "INSERT INTO islanders (chat, name, points) VALUES (?, ?, ?) ON CONFLICT(chat) DO UPDATE SET points = points + excluded.points, name = CASE WHEN excluded.name != '' THEN excluded.name ELSE name END"
+    ).bind(chat, name, delta).run();
+  }
+  return (await islander(env, chat)).points;
+}
+
+// The first cup of the day that's served earns points; it also moves the streak.
+async function awardFirstCup(env, order) {
+  if (isBarOrder(order)) return null;
+  const today = localDay(), me = await islander(env, order.customer_chat);
+  if (me.last_day === today) return null;
+  const streak = nextStreak(me.streak, me.last_day, today);
+  const points = firstCupPoints(streak);
+  const name = order.customer_name || "";
+  const balance = await addPoints(env, order.customer_chat, points, "first_cup", today, `First coffee of the day · 🔥 ${streak}`, name);
+  if (balance === null) return null;
+  await env.DB.prepare("UPDATE islanders SET streak = ?, last_day = ? WHERE chat = ?").bind(streak, today, order.customer_chat).run();
+  return { points, streak, balance };
+}
+
+const rushUntil = async env => { const u = await getSetting(env, "rush_until"); return u && Date.parse(u) > Date.now() ? u : null; };
+async function rushCommand(env, args) {
+  if ((args[0] || "").toLowerCase() === "off") { await setSetting(env, "rush_until", ""); return "⚡ Morning auction closed."; }
+  const until = new Date(Date.now() + GAME.rushMinutes * 60000).toISOString();
+  await setSetting(env, "rush_until", until);
+  return `⚡ <b>Morning auction open</b> until ${localTime(until)}: boosts earn ×${GAME.rushMult} points. /rush off to close it.`;
+}
+
+// Shop items: settings.shop = [{ id, name, points, stock, sold }].
+const shopItems = async env => { try { return JSON.parse(await getSetting(env, "shop") || "[]"); } catch (e) { return []; } };
+async function shopCommand(env, args) {
+  const items = await shopItems(env);
+  const sub = (args[0] || "").toLowerCase();
+  if (sub === "add") {
+    const [points, stock, ...name] = args.slice(1);
+    if (!/^\d+$/.test(points || "") || !/^\d+$/.test(stock || "") || !name.length) return "Use /shop add POINTS STOCK NAME, e.g. /shop add 300 10 Sticker pack";
+    const id = items.reduce((m, i) => Math.max(m, i.id), 0) + 1;
+    items.push({ id, name: name.join(" ").slice(0, 40), points: Number(points), stock: Number(stock), sold: 0 });
+    await setSetting(env, "shop", JSON.stringify(items));
+  } else if (sub === "remove") {
+    const id = Number(args[1]);
+    if (!items.some(i => i.id === id)) return "Use /shop remove ID (the number in /shop).";
+    await setSetting(env, "shop", JSON.stringify(items.filter(i => i.id !== id)));
+    return shopCommand(env, []);
+  } else if (sub === "stock") {
+    const it = items.find(i => i.id === Number(args[1]));
+    if (!it || !/^\d+$/.test(args[2] || "")) return "Use /shop stock ID N (how many in total).";
+    it.stock = Number(args[2]);
+    await setSetting(env, "shop", JSON.stringify(items));
+  }
+  const now = await shopItems(env);
+  const { results } = await env.DB.prepare("SELECT * FROM shop_redemptions WHERE handed = 0 ORDER BY id").all();
+  return [`🛍️ <b>Shop</b> (points)`, ...(now.length ? now.map(i => `${i.id}. ${escapeHtml(i.name)} · ${i.points} 🪙 · ${i.stock - i.sold} of ${i.stock} left`) : ["Nothing yet. /shop add 300 10 Sticker pack"]),
+    ...(results.length ? ["", "<b>To hand over</b>", ...results.map(r => `• ${escapeHtml(r.name)} → ${escapeHtml(r.customer_name)}`)] : [])].join("\n");
+}
+
+async function pointsReport(env) {
+  const { results } = await env.DB.prepare("SELECT name, points, streak FROM islanders ORDER BY points DESC LIMIT 10").all();
+  const tot = await env.DB.prepare("SELECT COUNT(*) AS n, COALESCE(SUM(points), 0) AS pts FROM islanders").first();
+  const spent = await env.DB.prepare("SELECT COALESCE(-SUM(delta), 0) AS pts FROM points_log WHERE delta < 0").first();
+  return [`🪙 <b>Islanders</b> · ${tot.n} with points · ${tot.pts} held · ${spent.pts} spent`,
+    ...results.map((r, i) => `${i + 1}. ${escapeHtml(r.name || "Islander")} · <b>${r.points}</b> 🪙 · 🔥 ${r.streak}`)].join("\n");
+}
+
+// What the Mini App needs: points, streak, the live queue (no names), the guest's orders in it, the shop.
+async function gameFor(env, chat) {
+  const me = await islander(env, chat), today = localDay();
+  const q = await pendingQueue(env);
+  const { results: log } = await env.DB.prepare("SELECT delta, label, created_at FROM points_log WHERE chat = ? ORDER BY id DESC LIMIT 8").bind(chat).all();
+  return {
+    // The streak as it stands: alive if the last coffee was today or the previous open day, else halved.
+    points: me.points, streak: [today, previousOpenDay(today)].includes(me.last_day) ? me.streak : Math.floor((me.streak || 0) / 2),
+    cupToday: me.last_day === today, rush: await rushUntil(env),
+    queue: q.map(o => ({ position: o.position, num: o.num, drink: o.drink, boost: o.boost / 1e6, mine: o.customer_chat === chat, eta: o.eta, guarded: o.guarded })),
+    log, shop: (await shopItems(env)).map(i => ({ id: i.id, name: i.name, points: i.points, left: i.stock - i.sold })),
+    rules: GAME,
+  };
+}
+
+// Boost one of the guest's pending orders: { num, amount (USDC), pay: "usdc" | "points" }.
+async function boostApi(env, user, body) {
+  const order = await env.DB.prepare("SELECT * FROM orders WHERE customer_chat = ? AND num = ? AND day = ? AND status = 'pending'")
+    .bind(user.id, Number(body.num) || 0, localDay()).first();
+  if (!order) return json({ ok: false, error: "That order isn't waiting in the queue anymore." });
+  const amount = Number(body.amount);
+  const current = await env.DB.prepare("SELECT COALESCE(SUM(micro), 0) AS m FROM order_boosts WHERE order_id = ?").bind(order.id).first();
+  if (!(amount > 0) || current.m + Math.round(amount * 1e6) > GAME.boostMax * 1e6) {
+    return json({ ok: false, error: `Boosts go up to ${GAME.boostMax} USDC per order.` });
+  }
+  if (body.pay === "points") {
+    const cost = Math.round(amount * GAME.pointsPerUsdc);
+    const ref = `${order.id}:${Date.now()}`;
+    const left = await addPoints(env, user.id, -cost, "boost", ref, `Boost #${order.num} · ${amount} USDC`);
+    if (left === null) return json({ ok: false, error: `You need ${cost} points for that boost.` });
+    await applyBoost(env, order, Math.round(amount * 1e6), "points", `pts:${ref}`);
+    return json({ ok: true, position: (await queuePosition(env, order.id) || {}).position || null, points: left });
+  }
+  const { payment, error } = await createPayment(env, { kind: "boost", amount: String(amount), chat: user.id, name: customerName(user) });
+  if (error) return json({ ok: false, error });
+  await env.DB.prepare("INSERT INTO boost_payments (payment_id, order_id) VALUES (?, ?)").bind(payment.id, order.id).run();
+  return json({ ok: true, payment: publicPayment(env, payment, env.WEBHOOK_URL || "") });
+}
+
+// A boost lands: the order moves up, the barista and the guest are told.
+async function applyBoost(env, order, micro, paidWith, ref) {
+  const row = await env.DB.prepare("INSERT OR IGNORE INTO order_boosts (order_id, micro, paid_with, ref, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id")
+    .bind(order.id, micro, paidWith, ref, new Date().toISOString()).first();
+  if (!row) return null;
+  const drink = (drinkById(order.drink) || { name: order.drink }).name;
+  const pos = await queuePosition(env, order.id);
+  console.log("order boosted", JSON.stringify({ num: order.num, micro, paidWith }));
+  const baristaChat = await getSetting(env, "barista_chat");
+  if (baristaChat) {
+    await send(env, baristaChat, `⚡ <b>#${order.num} · ${drink} boosted</b> · ${usdc(micro)}${paidWith === "points" ? " in points" : ""}\n👤 ${escapeHtml(order.customer_name)}` +
+      (pos ? `\nNow <b>#${pos.position}</b> in the queue (/queue)` : ""));
+  }
+  return pos;
+}
+
+async function boostPaid(env, p) {
+  const link = order => (order ? "" : `\n<a href="https://solscan.io/tx/${p.signature}">View on Solscan</a>`);
+  const map = await env.DB.prepare("SELECT order_id FROM boost_payments WHERE payment_id = ?").bind(p.id).first();
+  const order = map ? await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(map.order_id).first() : null;
+  const me = await islander(env, p.customer_chat);
+  const points = cashbackPoints(p.amount_micro / 1e6, me.streak, !!(await rushUntil(env)));
+  const balance = p.customer_chat ? await addPoints(env, p.customer_chat, points, "cashback", p.id, `Boost cashback · ${usdc(p.amount_micro)}`, p.customer_name) : null;
+  const pos = order && order.status === "pending" ? await applyBoost(env, order, p.amount_micro, "usdc", `pay:${p.id}`) : null;
+  if (order && order.status !== "pending") {
+    await env.DB.prepare("INSERT OR IGNORE INTO order_boosts (order_id, micro, paid_with, ref, created_at) VALUES (?, ?, 'usdc', ?, ?)").bind(order.id, p.amount_micro, `pay:${p.id}`, new Date().toISOString()).run();
+    const baristaChat = await getSetting(env, "barista_chat");
+    if (baristaChat) await send(env, baristaChat, `⚡ Boost ${usdc(p.amount_micro)} paid after #${order.num} was served 👤 ${escapeHtml(payerName(p))}${link(null)}`);
+  }
+  if (!p.customer_chat) return;
+  const drink = order ? (drinkById(order.drink) || { name: order.drink }).name : "";
+  await send(env, p.customer_chat, (pos ? `⚡ <b>Boost in!</b> Your ${drink} #${order.num} is now <b>#${pos.position}</b> in the queue.`
+    : order ? `⚡ <b>Boost paid</b>, but your ${drink} was already ready. Thanks, it goes to the barista 💛` : `⚡ <b>Boost paid.</b> Thanks!`) +
+    (balance !== null ? `\n🪙 +${points} points back · you have ${balance}` : ""));
+}
+
+// Redeem a shop item with points: { item }.
+async function shopApi(env, user, body) {
+  const items = await shopItems(env);
+  const it = items.find(i => i.id === Number(body.item));
+  if (!it) return json({ ok: false, error: "That isn't in the shop anymore." });
+  if (it.sold >= it.stock) return json({ ok: false, error: `${it.name} is sold out 🙏` });
+  const ref = `${it.id}:${Date.now()}`;
+  const left = await addPoints(env, user.id, -it.points, "shop", ref, `Shop · ${it.name}`);
+  if (left === null) return json({ ok: false, error: `You need ${it.points} points for ${it.name}.` });
+  it.sold += 1;
+  await setSetting(env, "shop", JSON.stringify(items));
+  await env.DB.prepare("INSERT INTO shop_redemptions (chat, customer_name, item, name, points, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(user.id, customerName(user), String(it.id), it.name, it.points, new Date().toISOString()).run();
+  const baristaChat = await getSetting(env, "barista_chat");
+  if (baristaChat) await send(env, baristaChat, `🛍️ <b>${escapeHtml(it.name)}</b> for ${it.points} 🪙\n👤 ${escapeHtml(customerName(user))}\nHand it over at the bar (/shop shows the list).`);
+  await send(env, user.id, `🛍️ <b>${escapeHtml(it.name)} is yours!</b>\nShow this message at the bar to pick it up. 🪙 ${left} points left.`);
+  return json({ ok: true, points: left });
 }
 
 // ---------- Coffee check-in onchain (like the Island DAO check-in) ----------
@@ -1269,6 +1469,7 @@ async function salesLines(env, day) {
   return [
     ...(of("tip") ? [`💛 Tips: ${of("tip").n} · ${usdc(of("tip").micro)}`] : []),
     ...(of("bag") ? [`🛍️ Coffee bags: ${of("bag").n} · ${usdc(of("bag").micro)}${left === null ? "" : ` (${left} left)`}`] : []),
+    ...(of("boost") ? [`⚡ Boosts: ${of("boost").n} · ${usdc(of("boost").micro)}`] : []),
     ...(direct.n ? [`💸 Outside the app: ${direct.n} · ${usdc(direct.micro)}`] : []),
     ...(checked.n ? [`☕ Checked in onchain: ${checked.n} · ${checked.wallets} wallet${checked.wallets === 1 ? "" : "s"}`] : []),
   ];
@@ -1285,6 +1486,7 @@ function panelPayment(p) {
 async function handlePayApi(request, env, path, base) {
   if (path === "/api/pay" && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
+    if (body.kind === "boost") return json({ ok: false, error: "Boost an order from the Queue tab." });
     const user = body.initData ? await verifyInitData(body.initData, env.BOT_TOKEN) : null;
     const { payment, error } = await createPayment(env, {
       kind: body.kind, amount: body.amount,
