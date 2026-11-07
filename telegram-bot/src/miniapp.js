@@ -174,6 +174,18 @@ export function miniAppHtml(drinks, pay = null) {
   .waiting { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .92rem; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); animation: pulse 1.4s infinite; }
   @keyframes pulse { 50% { opacity: .3; } }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); margin-bottom: 12px; }
+  .seg button { height: 38px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 .9rem/1 var(--body); cursor: pointer; }
+  .seg button.on { background: var(--card-2); color: var(--mint); box-shadow: 0 0 0 1px var(--line) inset; }
+  .race-boost { border: 1px solid rgba(232,184,106,.45); border-radius: 20px; padding: 14px 16px; margin: 12px 0; display: flex; gap: 12px; align-items: center;
+    background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.14), transparent 60%), var(--card); }
+  .race-boost div { flex: 1; } .race-boost b { display: block; } .race-boost small { color: var(--muted); font-size: .82rem; }
+  .race-boost button { flex: none; height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--gold); color: var(--gold-ink); font: 600 .9rem/1 var(--body); cursor: pointer; }
+  .race-boost button[disabled] { opacity: .5; cursor: default; }
+  .zb { display: inline-block; margin-left: 6px; font: 600 .72rem/1 var(--body); color: var(--gold); background: rgba(232,184,106,.16); border: 1px solid rgba(232,184,106,.4); padding: 3px 7px; border-radius: 999px; vertical-align: 2px; }
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .pop { animation: pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+  @media (prefers-reduced-motion: reduce) { .pop { animation: none !important; } }
   [hidden] { display: none !important; }
 </style>
 </head><body>
@@ -218,10 +230,20 @@ export function miniAppHtml(drinks, pay = null) {
   <p class="note" id="msg"></p>
   </div>
   <section id="tab-rank" hidden>
-    <p class="eyebrow" style="margin-bottom:10px">Top coffee lovers · Island DAO</p>
-    <div class="me-card" id="meRank"></div>
-    <div class="card" id="rankList"></div>
-    <p class="note" style="margin-top:12px">Every drink you order here in Telegram counts. Keep ordering to climb 🏝️</p>
+    <div class="seg" id="rankSeg"><button class="on" data-board="race">☕ Coffee race</button><button data-board="patrons">💛 Top patrons</button></div>
+    <div id="boardRace">
+      <div class="me-card" id="meRank"></div>
+      <div class="race-boost" id="raceBoost" hidden>
+        <div><b>⚡ +1 cup in the race</b><small>1 USDC, one a day. It shows as ⚡ on the board.</small></div>
+        <button id="raceBoostBtn">Boost</button>
+      </div>
+      <div class="card" id="rankList"></div>
+      <p class="note" style="margin-top:12px">Every drink you order here in Telegram counts. Keep ordering to climb 🏝️</p>
+    </div>
+    <div id="boardPatrons" hidden>
+      <div class="card" id="patronList"></div>
+      <p class="note" style="margin-top:12px">USDC tips to the barista, on Solana. A board of its own: tips never move the coffee race 💛</p>
+    </div>
   </section>
   <section id="tab-pay" class="pay" hidden>
     <div id="payPick" class="pay">
@@ -337,14 +359,24 @@ export function miniAppHtml(drinks, pay = null) {
 
   function renderRanking(r) {
     if (!r) return;
+    const zb = n => n ? '<span class="zb">+' + n + '⚡</span>' : '';
     $("meRank").innerHTML = r.me
-      ? '<b>#' + r.me.rank + '</b><span>' + r.me.drinks + ' drink' + (r.me.drinks === 1 ? '' : 's') + '<br>out of ' + r.total + ' coffee lovers</span>'
+      ? '<b>#' + r.me.rank + '</b><span>' + r.me.drinks + ' drink' + (r.me.drinks === 1 ? '' : 's') + zb(r.me.boosts) + '<br>out of ' + r.total + ' coffee lovers</span>'
       : '<span style="text-align:left">Order your first drink to join the ranking ☕</span>';
     const medal = n => ["🥇", "🥈", "🥉"][n - 1];
     $("rankList").innerHTML = r.top.length
       ? r.top.map(x => '<div class="rank' + (x.me ? ' me' : '') + '"><span class="pos' + (medal(x.rank) ? ' medal' : '') + '">' +
-          (medal(x.rank) || '#' + x.rank) + '</span><span class="who">' + esc(x.name) + '</span><span class="n">' + x.drinks + '</span></div>').join("")
+          (medal(x.rank) || '#' + x.rank) + '</span><span class="who">' + esc(x.name) + '</span><span class="n">' + x.drinks + zb(x.boosts) + '</span></div>').join("")
       : '<div class="rank"><span class="who" style="color:var(--muted)">No orders yet. Be the first!</span></div>';
+    // Race boost: only with tips on, for someone already in the race.
+    $("raceBoost").hidden = !PAY || !r.me;
+    $("raceBoostBtn").disabled = !!r.boostedToday;
+    $("raceBoostBtn").textContent = r.boostedToday ? "Done today ✓" : "Boost · 1 USDC";
+    const pt = r.patrons || [];
+    $("patronList").innerHTML = pt.length
+      ? pt.map(x => '<div class="rank' + (x.me ? ' me' : '') + '"><span class="pos' + (medal(x.rank) ? ' medal' : '') + '">' +
+          (medal(x.rank) || '#' + x.rank) + '</span><span class="who">' + esc(x.name) + '</span><span class="n">' + x.usdc + ' <small style="font-size:.7rem;color:var(--muted)">USDC</small></span></div>').join("")
+      : '<div class="rank"><span class="who" style="color:var(--muted)">No tips yet. Be the first patron 💛</span></div>';
   }
 
   function showTab(name) {
@@ -355,9 +387,27 @@ export function miniAppHtml(drinks, pay = null) {
     $("tab-pay").hidden = name !== "pay";
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     if (name === "rank") refreshRanking();
+    popIn($(name === "menu" ? "tab-menu" : "tab-" + name));
     updateButton();
   }
 
+  // Cards and rows pop in with a little spring when a tab opens (not with "reduce motion").
+  function popIn(section) {
+    if (!section || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let i = 0;
+    section.querySelectorAll(".me-card, .race-boost, .rank, .drink, .pay-card, .order, .seg").forEach(n => {
+      if (i >= 20 || n.offsetParent === null) return;
+      n.classList.remove("pop"); void n.offsetWidth; n.style.animationDelay = (i++ * 35) + "ms"; n.classList.add("pop");
+      n.addEventListener("animationend", () => { n.classList.remove("pop"); n.style.animationDelay = ""; }, { once: true });
+    });
+  }
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-board]"); if (!b) return;
+    document.querySelectorAll("#rankSeg button").forEach(x => x.classList.toggle("on", x === b));
+    $("boardRace").hidden = b.dataset.board !== "race";
+    $("boardPatrons").hidden = b.dataset.board !== "patrons";
+    popIn($(b.dataset.board === "race" ? "boardRace" : "boardPatrons"));
+  });
   async function refreshRanking() {
     const s = await api("/api/session", {});
     if (s.ok) renderRanking(s.ranking);
@@ -561,6 +611,15 @@ export function miniAppHtml(drinks, pay = null) {
     $("bagCard").classList.toggle("on", !!payPick && payPick.kind === "bag");
     $("custom").hidden = !(payPick && payPick.v === "other");
   }
+  // Race boost: the same checkout as a tip, for 1 USDC.
+  $("raceBoostBtn").addEventListener("click", async () => {
+    $("raceBoostBtn").disabled = true;
+    const r = await api("/api/pay", { kind: "boost" });
+    if (!r.ok) { $("raceBoostBtn").disabled = false; if (tg && tg.showAlert) tg.showAlert(r.error || "Try again."); else alert(r.error || "Try again."); return; }
+    showTab("pay");
+    $("payDone").hidden = true;
+    showPayment(r.payment);
+  });
   async function startPay() {
     $("payGo").disabled = true;
     const r = await api("/api/pay", { kind: payPick.kind, amount: payAmountPicked() });
@@ -581,7 +640,7 @@ export function miniAppHtml(drinks, pay = null) {
   }
   function showPayment(p) {
     $("payPick").hidden = true; $("payMsg").textContent = "";
-    $("payItem").textContent = p.kind === "bag" ? "🛍️ " + PAY.products.bag.title : "💛 " + PAY.products.tip.title;
+    $("payItem").textContent = p.kind === "bag" ? "🛍️ " + PAY.products.bag.title : p.kind === "boost" ? "⚡ " + PAY.products.boost.title : "💛 " + PAY.products.tip.title;
     $("payAmount").innerHTML = esc(p.amount) + "<small>USDC</small>";
     $("payAddr").textContent = PAY.recipient;
     $("payAmt").textContent = p.amount;
@@ -603,6 +662,8 @@ export function miniAppHtml(drinks, pay = null) {
     $("payBox").hidden = true;
     $("payDone").innerHTML = p.kind === "bag"
       ? '<p class="eyebrow">Coffee bag #' + p.bagNo + '</p><h2>Paid!<br><b>It\\'s yours</b></h2><p class="note">Show the message in the chat at the bar to pick up your bag 🛍️</p>'
+      : p.kind === "boost"
+      ? '<p class="eyebrow">Coffee race</p><h2>+1 cup<br><b>⚡ in the race!</b></h2><p class="note">Check the ranking 🏆</p>'
       : '<p class="eyebrow">' + esc(p.amount) + ' USDC</p><h2>Thank<br><b>you!</b></h2><p class="note">Your tip went straight to the barista 💛</p>';
     $("payDone").hidden = false;
   }
