@@ -203,6 +203,22 @@ export function miniAppHtml(drinks, pay = null) {
   .waiting { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .92rem; }
   .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gold); animation: pulse 1.4s infinite; }
   @keyframes pulse { 50% { opacity: .3; } }
+  /* Motion, after the Giants prototype: things pop in with a little spring, the queue slides,
+     points fly up, the ⚡ pulses, a ready drink steams. Off with "reduce motion". */
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .pop { animation: pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes zap { 0%, 100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.3) rotate(12deg); } }
+  .zap { display: inline-block; animation: zap 1s ease-in-out infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-4deg); } }
+  .bob { display: inline-block; animation: bob 3s ease-in-out infinite; }
+  @keyframes steam { 0%, 100% { transform: translateY(0) scale(1); opacity: .65; } 50% { transform: translateY(-4px) scale(1.15); opacity: 1; } }
+  .steam { display: inline-block; margin-right: 4px; animation: steam 1.8s ease-in-out infinite; }
+  @keyframes coin { 0% { transform: translate(-50%, 20px) scale(.6); opacity: 0; } 25% { transform: translate(-50%, -6px) scale(1.15); opacity: 1; }
+    75% { opacity: 1; } 100% { transform: translate(-50%, -46px) scale(1); opacity: 0; } }
+  .coin { position: fixed; z-index: 60; pointer-events: none; font: 800 1.5rem/1 var(--mono); color: var(--gold); white-space: nowrap;
+    text-shadow: 0 2px 12px rgba(0,0,0,.6); animation: coin 1.6s ease-out forwards; }
+  .coin.minus { color: var(--mint); }
+  @media (prefers-reduced-motion: reduce) { .pop, .zap, .bob, .steam, .coin { animation: none !important; } .coin { display: none; } }
   [hidden] { display: none !important; }
 </style>
 </head><body>
@@ -386,7 +402,7 @@ export function miniAppHtml(drinks, pay = null) {
     const label = { pending: "Preparing", ready: "Ready", cancelled: "Cancelled" };
     $("orders").innerHTML = list.map(o =>
       '<div class="order"><span class="num">#' + o.num + '</span><span class="name">' + esc(drinkName(o.drink)) + '</span>' +
-      '<span class="pill ' + o.status + '">' + (label[o.status] || o.status) + '</span>' +
+      '<span class="pill ' + o.status + '">' + (o.status === "ready" ? '<span class="steam">♨️</span>' : '') + (label[o.status] || o.status) + '</span>' +
       (checkinOn && o.status !== "cancelled" ? (o.checkin === "done" ? '<span class="ck on">✓ Onchain</span>' : '<button class="ck" data-checkin="ask" data-num="' + o.num + '">☕ Check in</button>') : '') +
       '</div>').join("");
     $("mine").hidden = false;
@@ -411,6 +427,7 @@ export function miniAppHtml(drinks, pay = null) {
     $("tab-rank").hidden = name !== "rank";
     $("tab-pay").hidden = name !== "pay";
     $("tab-queue").hidden = name !== "queue";
+    popIn($(name === "menu" ? "tab-menu" : "tab-" + name));
     tg && tg.HapticFeedback && tg.HapticFeedback.selectionChanged();
     if (name === "rank" || name === "queue" || name === "pay") refreshRanking();
     updateButton();
@@ -419,8 +436,57 @@ export function miniAppHtml(drinks, pay = null) {
   async function refreshRanking() {
     if (!initData) return;
     const s = await api("/api/session", {});
-    if (s.ok) { renderRanking(s.ranking); game = s.game || null; renderGame(); if (s.orders) renderOrders(s.orders); }
+    if (!s.ok) return;
+    const before = game ? game.points : null;
+    renderRanking(s.ranking); game = s.game || null; renderGame(); if (s.orders) renderOrders(s.orders);
+    if (game && before !== null && game.points !== before) {
+      const d = game.points - before;
+      coin((d > 0 ? "+" : "−") + Math.abs(d) + " 🪙", coinAnchor(), d < 0);
+    }
   }
+
+  // ----- Motion -----
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function popEl(n, delay) {
+    if (reduced) return;
+    n.classList.remove("pop"); void n.offsetWidth;
+    n.style.animationDelay = (delay || 0) + "ms"; n.classList.add("pop");
+    n.addEventListener("animationend", () => { n.classList.remove("pop"); n.style.animationDelay = ""; }, { once: true });
+  }
+  // A tab's cards and rows pop in one after another.
+  function popIn(section) {
+    let i = 0;
+    section.querySelectorAll(".how3 > div, .rush, .pts-card, .me-card, .pay-card, .drink, .qrow, .shop-item, .logrow, .rank, .order, #done > *").forEach(n => {
+      if (i < 24 && n.offsetParent !== null) popEl(n, (i++) * 35);
+    });
+  }
+  // Re-renders a list and slides the rows that moved to their new place (new rows pop in).
+  function flipList(el, html) {
+    const prev = {};
+    el.querySelectorAll("[data-k]").forEach(n => { prev[n.dataset.k] = n.getBoundingClientRect().top; });
+    el.innerHTML = html;
+    if (reduced || el.offsetParent === null) return;
+    const had = Object.keys(prev).length > 0;
+    el.querySelectorAll("[data-k]").forEach(n => {
+      const p = prev[n.dataset.k];
+      if (p === undefined) { if (had) popEl(n); return; }
+      const dy = p - n.getBoundingClientRect().top;
+      if (Math.abs(dy) < 1) return;
+      n.style.transition = "none"; n.style.transform = "translateY(" + dy + "px)";
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        n.style.transition = "transform .6s cubic-bezier(.2,.9,.3,1.15)"; n.style.transform = "";
+      }));
+    });
+  }
+  // "+26 🪙" flying up from where it happened.
+  function coin(text, near, minus) {
+    if (reduced || !near || near.offsetParent === null) return;
+    const r = near.getBoundingClientRect(), c = document.createElement("div");
+    c.className = "coin" + (minus ? " minus" : ""); c.textContent = text;
+    c.style.left = (r.left + r.width / 2) + "px"; c.style.top = (r.top + Math.min(r.height / 2, 50)) + "px";
+    document.body.appendChild(c); setTimeout(() => c.remove(), 1700);
+  }
+  const coinAnchor = () => tab === "queue" ? ($("boostBox").hidden ? $("queueList") : $("boostBox")) : tab === "rank" ? $("ptsCard") : tab === "pay" ? $("ptsShop") : $("done").hidden ? $("orders") : $("done");
 
   // ----- The bar game: queue, boost, points, shop -----
   let game = null, boostNum = null, boostAmt = null, boostPoll = null;
@@ -443,12 +509,12 @@ export function miniAppHtml(drinks, pay = null) {
     $("rushNote").hidden = !game.rush;
     if (game.rush) $("rushNote").textContent = "⚡ Morning auction: boosts earn ×" + R().rushMult + " points until " + new Date(game.rush).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
     $("qCount").textContent = game.queue.length ? "· " + game.queue.length + " waiting" : "";
-    $("queueList").innerHTML = game.queue.length ? game.queue.slice(0, 12).map(q =>
-      '<div class="qrow' + (q.mine ? ' mine' : '') + '"><span class="pos">#' + q.position + '</span><span class="name">' +
+    flipList($("queueList"), game.queue.length ? game.queue.slice(0, 12).map(q =>
+      '<div class="qrow' + (q.mine ? ' mine' : '') + '" data-k="' + q.num + '"><span class="pos">#' + q.position + '</span><span class="name">' +
       esc(drinkName(q.drink)) + (q.mine ? ' · you' : '') + '</span>' +
-      (q.boost ? '<span class="tag">⚡ ' + q.boost + '</span>' : q.guarded ? '<span class="tag wait">⏰ next</span>' : '') +
+      (q.boost ? '<span class="tag"><span class="zap">⚡</span> ' + q.boost + '</span>' : q.guarded ? '<span class="tag wait">⏰ next</span>' : '') +
       (q.mine ? '<span class="tag wait">~' + q.eta + ' min</span>' : '') + '</div>').join("")
-      : '<div class="qrow"><span class="name" style="color:var(--muted)">Nobody in line. Order and it\\'s yours next ☕</span></div>';
+      : '<div class="qrow"><span class="name" style="color:var(--muted)">Nobody in line. Order and it\\'s yours next ☕</span></div>');
     $("guardNote").textContent = "Free orders never wait more than ~" + R().freeGuardMin + " min behind boosts. Boosts up to " + R().boostMax + " USDC per order.";
     const mine = mineInQueue();
     if (!mine.some(q => q.num === boostNum)) { boostNum = mine.length ? mine[0].num : null; boostAmt = null; }
@@ -470,7 +536,7 @@ export function miniAppHtml(drinks, pay = null) {
     }
     // Me tab
     const mult = Math.round((streakMult(game.streak) - 1) * 100);
-    $("ptsCard").innerHTML = '<div class="big">🪙 ' + game.points + '</div><div class="row"><span>points</span><span>100 points = 1 USDC of boost</span></div>' +
+    $("ptsCard").innerHTML = '<div class="big"><span class="bob">🪙</span> ' + game.points + '</div><div class="row"><span>points</span><span>100 points = 1 USDC of boost</span></div>' +
       '<div class="row"><span>🔥 Streak</span><b>' + game.streak + (game.streak === 1 ? ' day' : ' days') + (mult ? ' · +' + mult + '% on rewards' : '') + '</b></div>' +
       '<div class="row"><span>☕ First coffee today</span><b>' + (game.cupToday ? 'done ✓' : '+' + Math.round(R().firstCup * streakMult(game.streak + 1)) + ' when it\\'s served') + '</b></div>';
     $("ptsLog").innerHTML = game.log.length ? game.log.map(l => '<div class="logrow"><span>' + esc(l.label) + '</span><b class="' + (l.delta > 0 ? 'plus' : 'minus') + '">' + (l.delta > 0 ? '+' : '') + l.delta + '</b></div>').join("")
@@ -615,6 +681,7 @@ export function miniAppHtml(drinks, pay = null) {
       }
     }
     renderDrinks();
+    popIn($("tab-menu"));
     renderOrders(s.orders);
     renderRanking(s.ranking);
     updateButton();
@@ -655,6 +722,7 @@ export function miniAppHtml(drinks, pay = null) {
         '<div class="chips">' + PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") +
         '<button class="chip" data-tip="other">Other</button></div>' + bagOffer() + '</div>' : '');
     $("done").hidden = false;
+    popIn($("done"));
     $("close").onclick = () => tg ? tg.close() : null;
     $("again").onclick = () => { selected = null; milk = null; renderMilk(); $("done").hidden = true; $("pick").hidden = false; renderDrinks(); load(); };
     renderOrders(r.orders);
