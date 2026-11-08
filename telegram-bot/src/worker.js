@@ -51,7 +51,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.12.0";
+const VERSION = "1.14.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -488,7 +488,7 @@ async function financeReport(env, day) {
     ...(hasFinance(row) ? [] : ["", "Add costs and income in /panel → Finance."]),
     "",
     `📈 <b>Event so far</b> (${total.days} day${total.days === 1 ? "" : "s"})`,
-    `Costs ${brlShort(total.costs)} · Income ${brlShort(total.income + total.bagsCents)} · Profit <b>${brlShort(total.profit)}</b> · Tips ${brlShort(total.tipsCents)}`,
+    `Costs ${brlShort(total.costs)} · Income ${brlShort(total.income + total.appCents)} · Profit <b>${brlShort(total.profit)}</b> · Tips ${brlShort(total.tipsCents)}`,
   ].join("\n");
 }
 const brlShort = cents => (cents < 0 ? "−" : "") + "R$ " + Math.round(Math.abs(cents) / 100).toLocaleString("pt-BR");
@@ -631,15 +631,33 @@ async function ensureMenuButton(env) {
 // Telegram customers ordered by drinks (cancelled orders don't count). On a tie, whoever got
 // there first stays ahead. Bar orders have no customer identity, so they're not ranked.
 
+// The coffee race: drinks ordered on Telegram, plus race boosts (paid, at most one a day), shown as ⚡.
+// score = drinks + boosts; ties go to whoever got there first.
 async function ranking(env, day) {
+  const when = day ? "AND day = ?" : "";
   const stmt = env.DB.prepare(
-    `SELECT customer_chat AS chat, MAX(customer_name) AS name, COUNT(*) AS drinks, MAX(created_at) AS last
-     FROM orders WHERE customer_chat != 0 AND status != 'cancelled' ${day ? "AND day = ?" : ""}
-     GROUP BY customer_chat ORDER BY drinks DESC, last ASC`
+    `SELECT chat, MAX(name) AS name, SUM(d) AS drinks, SUM(b) AS boosts, MAX(t) AS last FROM (
+       SELECT customer_chat AS chat, customer_name AS name, 1 AS d, 0 AS b, created_at AS t FROM orders
+         WHERE customer_chat != 0 AND status != 'cancelled' ${when}
+       UNION ALL
+       SELECT customer_chat, customer_name, 0, 1, '' FROM payments WHERE kind = 'boost' AND status = 'paid' AND customer_chat != 0 ${when}
+     ) GROUP BY chat HAVING SUM(d) > 0 ORDER BY SUM(d) + SUM(b) DESC, MAX(t) ASC`
   );
-  const { results } = await (day ? stmt.bind(day) : stmt).all();
+  const { results } = await (day ? stmt.bind(day, day) : stmt).all();
+  return results.map((r, i) => ({ rank: i + 1, ...r, score: r.drinks + r.boosts }));
+}
+
+// Top patrons: Telegram guests by USDC tipped (a separate board; tips never move the coffee race).
+async function patrons(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT customer_chat AS chat, MAX(customer_name) AS name, SUM(amount_micro) AS micro, COUNT(*) AS n FROM payments
+     WHERE kind = 'tip' AND status = 'paid' AND customer_chat != 0 GROUP BY customer_chat ORDER BY micro DESC LIMIT 10`
+  ).all();
   return results.map((r, i) => ({ rank: i + 1, ...r }));
 }
+const boostedToday = async (env, chat) => (await env.DB.prepare(
+  "SELECT COUNT(*) AS n FROM payments WHERE kind = 'boost' AND customer_chat = ? AND day = ? AND (status = 'paid' OR (status = 'pending' AND created_at > ?))"
+).bind(chat, localDay(), new Date(Date.now() - 15 * 60000).toISOString()).first()).n > 0;
 
 // "Ana Souza (@ana)" → "Ana S.": what other customers see in the Mini App.
 function publicName(name) {
@@ -652,9 +670,11 @@ async function rankingForCustomer(env, chatId) {
   const all = await ranking(env);
   const me = all.find(r => r.chat === chatId);
   return {
-    top: all.slice(0, 10).map(r => ({ rank: r.rank, name: publicName(r.name), drinks: r.drinks, me: r.chat === chatId })),
-    me: me ? { rank: me.rank, drinks: me.drinks } : null,
+    top: all.slice(0, 10).map(r => ({ rank: r.rank, name: publicName(r.name), drinks: r.drinks, boosts: r.boosts, me: r.chat === chatId })),
+    me: me ? { rank: me.rank, drinks: me.drinks, boosts: me.boosts } : null,
     total: all.length,
+    boostedToday: await boostedToday(env, chatId),
+    patrons: (await patrons(env)).map(p => ({ rank: p.rank, name: publicName(p.name), usdc: Number(fromMicro(p.micro)), me: p.chat === chatId })),
   };
 }
 
@@ -662,7 +682,9 @@ async function rankingText(env) {
   const all = await ranking(env);
   if (!all.length) return "🏆 <b>Ranking</b>\nNo Telegram orders yet.";
   const medal = r => ["🥇", "🥈", "🥉"][r.rank - 1] || `${r.rank}.`;
-  return ["🏆 <b>Ranking · whole event</b>", ...all.slice(0, 10).map(r => `${medal(r)} ${escapeHtml(r.name)} · <b>${r.drinks}</b>`)].join("\n");
+  const p = await patrons(env);
+  return ["🏆 <b>Ranking · whole event</b>", ...all.slice(0, 10).map(r => `${medal(r)} ${escapeHtml(r.name)} · <b>${r.drinks}</b>${r.boosts ? ` +${r.boosts}⚡` : ""}`),
+    ...(p.length ? ["", "💛 <b>Top patrons</b>", ...p.slice(0, 5).map(x => `${x.rank}. ${escapeHtml(x.name)} · ${usdc(x.micro)}`)] : [])].join("\n");
 }
 
 async function todaysOrders(env, chatId) {
@@ -881,6 +903,13 @@ async function createPayment(env, { kind, amount, chat = 0, name = "" }) {
   if (!paymentsOn(env)) return { error: "Tips and coffee bags aren't open yet. Ask at the bar 🙏" };
   const price = priceFor(env, kind, amount);
   if (price.error) return price;
+  if (price.kind === "boost") {
+    if (!chat) return { error: "Boost from the bot's menu in Telegram ☕" };
+    if (!(await env.DB.prepare("SELECT 1 FROM orders WHERE customer_chat = ? AND status != 'cancelled' LIMIT 1").bind(chat).first())) {
+      return { error: "Order your first coffee to join the race ☕" };
+    }
+    if (await boostedToday(env, chat)) return { error: "You already boosted today ⚡ Come back tomorrow." };
+  }
   const left = price.kind === "bag" ? await bagsLeft(env) : null;
   if (left !== null) {
     if (left <= 0) return { error: "The Island DAO coffee bags are sold out 🙏" };
@@ -938,6 +967,14 @@ async function checkPayment(env, p) {
 
 async function announcePayment(env, p) {
   const link = `<a href="https://solscan.io/tx/${p.signature}">View on Solscan</a>`;
+  if (p.kind === "boost") {
+    const baristaChat = await getSetting(env, "barista_chat");
+    if (baristaChat) await send(env, baristaChat, `⚡ <b>Race boost · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\n${link}`);
+    if (!p.customer_chat) return;
+    const me = (await ranking(env)).find(r => r.chat === p.customer_chat);
+    return send(env, p.customer_chat, `⚡ <b>+1 cup in the coffee race!</b>` +
+      (me ? `\nYou're <b>#${me.rank}</b> with ${me.drinks} ☕ +${me.boosts}⚡.` : "") + `\nSee you at the bar ☕`);
+  }
   const baristaChat = await getSetting(env, "barista_chat");
   if (baristaChat && p.kind === "bag") {
     const left = await bagsLeft(env);
@@ -1311,6 +1348,7 @@ async function salesLines(env, day) {
   return [
     ...(of("tip") ? [`💛 Tips: ${of("tip").n} · ${usdc(of("tip").micro)}`] : []),
     ...(of("bag") ? [`🛍️ Coffee bags: ${of("bag").n} · ${usdc(of("bag").micro)}${left === null ? "" : ` (${left} left)`}`] : []),
+    ...(of("boost") ? [`⚡ Race boosts: ${of("boost").n} · ${usdc(of("boost").micro)}`] : []),
     ...(direct.n ? [`💸 Outside the app: ${direct.n} · ${usdc(direct.micro)}`] : []),
     ...(checked.n ? [`☕ Checked in onchain: ${checked.n} · ${checked.wallets} wallet${checked.wallets === 1 ? "" : "s"}`] : []),
   ];

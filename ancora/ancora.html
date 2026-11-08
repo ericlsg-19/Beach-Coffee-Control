@@ -332,7 +332,7 @@
         <label for="finRate">1 USDC =</label>
         <input type="text" id="finRate" class="amount" inputmode="decimal" aria-label="Reais per USDC">
         <button class="chip" id="finRateSave" type="button">Save rate</button>
-        <span>converts tips and app coffee bags to R$</span>
+        <span>converts tips, app coffee bags and race boosts to R$</span>
       </div>
     </div>
     <div class="card">
@@ -357,7 +357,7 @@
     </div>
   </section>
 
-  <p class="version">Âncora v1.12.0 · same menu as @BeachCoffeeIslandBot</p>
+  <p class="version">Âncora v1.14.0 · same menu as @BeachCoffeeIslandBot</p>
 </div>
 
 <nav class="dock" aria-label="Sections">
@@ -442,7 +442,7 @@
   let finance = null, finKind = "cost";
   const brl = cents => (cents < 0 ? "−" : "") + "R$ " + (Math.abs(cents) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const usdcOf = micro => `${+(micro / 1e6).toFixed(2)} USDC`;
-  const EMPTY_DAY = { drinks: 0, costs: 0, income: 0, tipsMicro: 0, tips: 0, tipsCents: 0, bagsMicro: 0, bagsCount: 0, bagsCents: 0, profit: 0, profitWithTips: 0, costPerDrink: null };
+  const EMPTY_DAY = { drinks: 0, costs: 0, income: 0, tipsMicro: 0, tips: 0, tipsCents: 0, bagsMicro: 0, bagsCount: 0, bagsCents: 0, boostsMicro: 0, boostsCount: 0, boostsCents: 0, appCents: 0, profit: 0, profitWithTips: 0, costPerDrink: null };
   function fillCategories() {
     if (!finance) return;
     const cats = finance.categories[finKind];
@@ -455,13 +455,13 @@
     const day = dayInput.value || localDay();
     const isToday = day === localDay();
     const row = finance.days.find(r => r.day === day) || { day, ...EMPTY_DAY };
-    const income = row.income + row.bagsCents;
+    const income = row.income + row.appCents;
     $("finTitle").textContent = isToday ? "FINANCE · TODAY" : "FINANCE · " + formatDay(day);
     $("finMeta").textContent = `${longDay(day)} · R$`;
     $("mCosts").textContent = brl(row.costs);
     $("mPer").textContent = row.drinks ? `${row.drinks} drinks · ${row.costs ? brl(row.costPerDrink) + " each" : "no costs yet"}` : "no drinks yet";
     $("mIncome").textContent = brl(income);
-    $("mIncomeNote").textContent = row.bagsCount ? `incl. ${row.bagsCount} app bag${row.bagsCount === 1 ? "" : "s"}` : "event fee, bags";
+    $("mIncomeNote").textContent = row.bagsCount || row.boostsCount ? "incl. app sales" : "event fee, bags";
     $("mProfit").textContent = brl(row.profit);
     $("mProfit").className = row.profit > 0 ? "pos" : row.profit < 0 ? "neg" : "";
     $("mTips").textContent = brl(row.tipsCents);
@@ -474,6 +474,7 @@
     const list = finance.entries.filter(e => e.day === day).reverse();
     const auto = [
       ...(row.bagsMicro ? [`<li><span class="pos medal">🛍️</span><div class="who"><strong>Coffee bags in the app · ${row.bagsCount}</strong><span>${usdcOf(row.bagsMicro)} · automatic</span></div><span class="n income">${brl(row.bagsCents)}</span></li>`] : []),
+      ...(row.boostsMicro ? [`<li><span class="pos medal">⚡</span><div class="who"><strong>Race boosts · ${row.boostsCount}</strong><span>${usdcOf(row.boostsMicro)} · automatic</span></div><span class="n income">${brl(row.boostsCents)}</span></li>`] : []),
       ...(row.tipsMicro ? [`<li><span class="pos medal">💛</span><div class="who"><strong>Tips · ${row.tips}</strong><span>${usdcOf(row.tipsMicro)} · automatic, not in profit</span></div><span class="n tip">${brl(row.tipsCents)}</span></li>`] : []),
     ];
     $("finList").innerHTML = list.length || auto.length
@@ -491,20 +492,20 @@
     const sum = k => days.reduce((a, r) => a + r[k], 0);
     const money = c => `<td class="${c < 0 ? "neg" : ""}">${brl(c)}</td>`;
     const drinks = sum("drinks"), costs = sum("costs");
-    const line = (label, r) => `<tr><td>${label}</td><td>${r.drinks}</td>${money(r.costs)}<td>${r.costPerDrink !== null && r.costs ? brl(r.costPerDrink) : "—"}</td>${money(r.income + r.bagsCents)}${money(r.profit)}${money(r.tipsCents)}${money(r.profitWithTips)}</tr>`;
+    const line = (label, r) => `<tr><td>${label}</td><td>${r.drinks}</td>${money(r.costs)}<td>${r.costPerDrink !== null && r.costs ? brl(r.costPerDrink) : "—"}</td>${money(r.income + r.appCents)}${money(r.profit)}${money(r.tipsCents)}${money(r.profitWithTips)}</tr>`;
     $("finTable").innerHTML = `
       <table>
         <thead><tr><th>Day</th><th>Drinks</th><th>Costs</th><th>Per drink</th><th>Income</th><th>Profit</th><th>Tips</th><th>Profit + tips</th></tr></thead>
         <tbody>${days.map(r => line(formatDay(r.day), r)).join("")}</tbody>
-        <tfoot>${line("Total", { drinks, costs, costPerDrink: drinks ? Math.round(costs / drinks) : null, income: sum("income"), bagsCents: sum("bagsCents"), profit: sum("profit"), tipsCents: sum("tipsCents"), profitWithTips: sum("profitWithTips") })}</tfoot>
+        <tfoot>${line("Total", { drinks, costs, costPerDrink: drinks ? Math.round(costs / drinks) : null, income: sum("income"), appCents: sum("appCents"), profit: sum("profit"), tipsCents: sum("tipsCents"), profitWithTips: sum("profitWithTips") })}</tfoot>
       </table>`;
   }
   function financeCsv() {
     if (!finance || !finance.days.length) return toast("Nothing to download yet");
     const cents = c => (c / 100).toFixed(2).replace(".", ",");
     const q = v => `"${String(v).replace(/"/g, '""')}"`;
-    const days = ["day;drinks;costs;cost_per_drink;income;app_bags;profit;tips_usdc;tips;profit_plus_tips",
-      ...[...finance.days].reverse().map(r => [formatDay(r.day), r.drinks, cents(r.costs), r.costPerDrink !== null && r.costs ? cents(r.costPerDrink) : "", cents(r.income), cents(r.bagsCents), cents(r.profit), +(r.tipsMicro / 1e6).toFixed(2), cents(r.tipsCents), cents(r.profitWithTips)].map(q).join(";"))];
+    const days = ["day;drinks;costs;cost_per_drink;income;app_sales;profit;tips_usdc;tips;profit_plus_tips",
+      ...[...finance.days].reverse().map(r => [formatDay(r.day), r.drinks, cents(r.costs), r.costPerDrink !== null && r.costs ? cents(r.costPerDrink) : "", cents(r.income), cents(r.appCents), cents(r.profit), +(r.tipsMicro / 1e6).toFixed(2), cents(r.tipsCents), cents(r.profitWithTips)].map(q).join(";"))];
     const entries = ["day;time;type;category;description;amount",
       ...finance.entries.map(e => [formatDay(e.day), formatTime(e.time), e.kind, finance.categories[e.kind][e.category] || e.category, e.description, (e.kind === "cost" ? "-" : "") + cents(e.cents)].map(q).join(";"))];
     const csv = "\ufeff" + ["Report by day", ...days, "", "Entries", ...entries, "", `1 USDC = R$ ${String(finance.rate).replace(".", ",")}`].join("\n");

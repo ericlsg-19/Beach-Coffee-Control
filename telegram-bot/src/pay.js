@@ -20,7 +20,10 @@ const TIP_MIN = 1, TIP_MAX = 500;
 export const PRODUCTS = {
   tip: { title: "Tip the barista", short: "Tip" },
   bag: { title: "Island DAO Limited Edition coffee bag", short: "Coffee bag", detail: "250 g arabica · special edition" },
+  boost: { title: "Coffee race boost: +1 cup", short: "Race boost" },
 };
+// A race boost adds one cup to the guest's place in the coffee lovers ranking, once a day, shown as ⚡.
+export const RACE_BOOST_USDC = 1;
 
 const B58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 export function base58(bytes) {
@@ -52,6 +55,7 @@ export function priceFor(env, kind, amount) {
     if (!micro || micro < TIP_MIN * 1e6 || micro > TIP_MAX * 1e6) return { error: `Pick a tip between ${TIP_MIN} and ${TIP_MAX} USDC.` };
     return { kind, micro };
   }
+  if (kind === "boost") return { kind, micro: RACE_BOOST_USDC * 1e6 };
   return { error: "Pick a tip or the coffee bag." };
 }
 

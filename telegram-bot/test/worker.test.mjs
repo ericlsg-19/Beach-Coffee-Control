@@ -637,8 +637,8 @@ test("ranking counts Telegram orders per customer, skips bar and cancelled order
 
   const initData = signedInitData("t", { id: BEN, first_name: "Ben", username: "ben" });
   const s = await (await apiCall(env, "/api/session", { initData })).json();
-  assert.deepEqual(s.ranking.top, [{ rank: 1, name: "Ana S.", drinks: 2, me: false }, { rank: 2, name: "Ben", drinks: 2, me: true }]);
-  assert.deepEqual(s.ranking.me, { rank: 2, drinks: 2 });
+  assert.deepEqual(s.ranking.top, [{ rank: 1, name: "Ana S.", drinks: 2, boosts: 0, me: false }, { rank: 2, name: "Ben", drinks: 2, boosts: 0, me: true }]);
+  assert.deepEqual(s.ranking.me, { rank: 2, drinks: 2, boosts: 0 });
 
   calls.length = 0;
   await post(msg(BARISTA, "/ranking"));
@@ -1213,6 +1213,39 @@ test("/checkins setup: the bot makes its own fee wallet; /checkins on once it ha
   assert.equal(await on(), false);
 });
 
+test("coffee race: a 1 USDC race boost adds one ⚡ cup (once a day); tips make a separate Top patrons board", async () => {
+  const { env, calls, post, chain } = setupPay();
+  await post(msg(BARISTA, "/barista beach123"));
+  const ana = signedInitData("t", { id: ANA, first_name: "Ana" }), ben = signedInitData("t", { id: 3, first_name: "Ben" });
+  const order = initData => apiCall(env, "/api/order", { initData, drink: "espresso" });
+  assert.match((await pay(env, { kind: "boost", initData: ana })).error, /first coffee/);
+  await order(ana); await order(ben); await order(ben);
+  assert.match((await pay(env, { kind: "boost" })).error, /from the bot's menu/, "only from Telegram");
+  const boost = (await pay(env, { kind: "boost", amount: "50", initData: ana })).payment;
+  assert.deepEqual([boost.kind, boost.amount], ["boost", "1"], "always 1 USDC");
+  assert.match((await pay(env, { kind: "boost", initData: ana })).error, /already boosted today/);
+  chain[boost.ref] = [{ signature: "boostsig", received: 1 }];
+  calls.length = 0;
+  await runMinuteCron(env);
+  assert.match(calls.find(c => String(c.body.chat_id) === String(ANA)).body.text, /\+1 cup in the coffee race![\s\S]*You're <b>#1<\/b> with 1 ☕ \+1⚡/);
+  assert.match(calls.find(c => String(c.body.chat_id) === String(BARISTA)).body.text, /⚡ <b>Race boost · 1 USDC<\/b>/);
+  // Ana 1 + 1⚡ = 2 ties Ben's 2 cups: Ana ordered first, so she leads.
+  let s = await (await apiCall(env, "/api/session", { initData: ana })).json();
+  assert.deepEqual(s.ranking.top.map(r => [r.name, r.drinks, r.boosts]), [["Ana", 1, 1], ["Ben", 2, 0]]);
+  assert.equal(s.ranking.boostedToday, true);
+
+  const tip = (await pay(env, { kind: "tip", amount: "5", initData: ben })).payment;
+  chain[tip.ref] = [{ signature: "tipsig", received: 5 }];
+  await runMinuteCron(env);
+  s = await (await apiCall(env, "/api/session", { initData: ana })).json();
+  assert.deepEqual(s.ranking.patrons, [{ rank: 1, name: "Ben", usdc: 5, me: false }]);
+  assert.deepEqual(s.ranking.top.map(r => r.name), ["Ana", "Ben"], "tips don't move the race");
+  await post(msg(BARISTA, "/ranking"));
+  assert.match(calls.at(-1).body.text, /🥇 Ana \(?.*· <b>1<\/b> \+1⚡[\s\S]*Top patrons<\/b>\n1\. Ben.* · 5 USDC/);
+  await post(msg(BARISTA, "/today"));
+  assert.match(calls.at(-1).body.text, /⚡ Race boosts: 1 · 1 USDC/);
+});
+
 // ---------- Finance ----------
 
 test("finance: costs and income by day in the panel, tips and app bags from USDC, /finance and the nightly report", async () => {
@@ -1236,6 +1269,7 @@ test("finance: costs and income by day in the panel, tips and app bags from USDC
   ).bind(ref, kind, micro, day, new Date().toISOString(), "sig" + ref).run();
   await pay("a", "tip", 2_000_000);
   await pay("b", "bag", 10_000_000);
+  await pay("c", "boost", 1_000_000);       // race boost: income, not a tip
   await env.DB.prepare("INSERT INTO direct_transfers (signature, amount_micro, day, at) VALUES ('d1', 1000000, ?, ?)").bind(day, new Date().toISOString()).run();
   assert.equal((await panel(env, "POST", "/api/panel/finance/rate", { rate: "5,00" })).status, 200);
   assert.equal((await panel(env, "POST", "/api/panel/finance/rate", { rate: "0" })).status, 400);
@@ -1249,7 +1283,8 @@ test("finance: costs and income by day in the panel, tips and app bags from USDC
   assert.equal(row.costPerDrink, 31013);    // ÷ 4 drinks
   assert.equal(row.income, 150000);
   assert.equal(row.bagsCents, 5000);        // 10 USDC × 5
-  assert.equal(row.profit, 150000 + 5000 - 124050);
+  assert.equal(row.boostsCents, 500);
+  assert.equal(row.profit, 150000 + 5000 + 500 - 124050);
   assert.equal(row.tips, 2);
   assert.equal(row.tipsCents, 1500);        // 3 USDC × 5, not in profit
   assert.equal(row.profitWithTips, row.profit + 1500);
@@ -1258,8 +1293,9 @@ test("finance: costs and income by day in the panel, tips and app bags from USDC
   const text = calls.at(-1).body.text;
   assert.match(text, /Costs: <b>R\$ 1\.240,50<\/b>/);
   assert.match(text, /Coffee beans: R\$ 240,00/);
-  assert.match(text, /Profit: <b>R\$ 309,50<\/b>/);
+  assert.match(text, /Profit: <b>R\$ 314,50<\/b>/);
   assert.match(text, /Tips: 2 · 3 USDC ≈ R\$ 15,00/);
+  assert.match(text, /Race boosts: 1 · 1 USDC ≈ R\$ 5,00/);
   assert.match(text, /Event so far/);
   await post(msg(ANA, "/finance"));            // customers don't see it
   assert.doesNotMatch(calls.at(-1).body.text || "", /Costs/);
@@ -1269,7 +1305,7 @@ test("finance: costs and income by day in the panel, tips and app bags from USDC
   await worker.scheduled({ cron: "0 2 * * *" }, env, { waitUntil: p => jobs.push(p) });
   await Promise.all(jobs);
   const nightly = calls.find(c => c.body.chat_id === String(BARISTA) && /End of day/.test(c.body.text));
-  assert.match(nightly.body.text, /Finance[\s\S]*Profit \+ tips: <b>R\$ 324,50<\/b>/);
+  assert.match(nightly.body.text, /Finance[\s\S]*Profit \+ tips: <b>R\$ 329,50<\/b>/);
 
   const id = f.entries.find(e => e.category === "transport").id;
   assert.equal((await panel(env, "DELETE", `/api/panel/finance/${id}`)).status, 200);

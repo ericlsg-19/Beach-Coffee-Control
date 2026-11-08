@@ -3,7 +3,7 @@
 //
 // Costs and income are typed in BRL (finance_entries). Tips and coffee bags sold in the app are
 // paid in USDC (payments, direct_transfers) and converted at the rate in the setting usdc_brl.
-// Drinks are free, so they bring no income: profit = income + app bags − costs. Tips are kept
+// Drinks are free, so they bring no income: profit = income + app bags + race boosts − costs. Tips are kept
 // apart (they're the barista's), and "profit + tips" shows both together.
 
 export const COST_CATEGORIES = {
@@ -79,7 +79,7 @@ export async function financeDays(env) {
   const rate = await usdcRate(env);
   const days = new Map();
   const day = d => {
-    if (!days.has(d)) days.set(d, { day: d, drinks: 0, costs: 0, income: 0, byCategory: {}, tipsMicro: 0, tips: 0, bagsMicro: 0, bagsCount: 0 });
+    if (!days.has(d)) days.set(d, { day: d, drinks: 0, costs: 0, income: 0, byCategory: {}, tipsMicro: 0, tips: 0, bagsMicro: 0, bagsCount: 0, boostsMicro: 0, boostsCount: 0 });
     return days.get(d);
   };
   const { results: drinks } = await env.DB.prepare("SELECT day, COUNT(*) AS n FROM orders WHERE status != 'cancelled' GROUP BY day").all();
@@ -100,7 +100,9 @@ export async function financeDays(env) {
   ).all();
   for (const r of paid) {
     const d = day(r.day);
-    if (r.kind === "bag") { d.bagsMicro += r.micro; d.bagsCount += r.n; } else { d.tipsMicro += r.micro; d.tips += r.n; }
+    if (r.kind === "bag") { d.bagsMicro += r.micro; d.bagsCount += r.n; }
+    else if (r.kind === "boost") { d.boostsMicro += r.micro; d.boostsCount += r.n; }
+    else { d.tipsMicro += r.micro; d.tips += r.n; }
   }
   // USDC sent outside the app (no checkout) is almost always a tip.
   for (const r of direct) { const d = day(r.day); d.tipsMicro += r.micro; d.tips += r.n; }
@@ -110,16 +112,19 @@ export async function financeDays(env) {
 }
 
 function withTotals(d, toCents) {
-  const tipsCents = toCents(d.tipsMicro), bagsCents = toCents(d.bagsMicro);
-  const profit = d.income + bagsCents - d.costs;
-  return { ...d, tipsCents, bagsCents, profit, profitWithTips: profit + tipsCents, costPerDrink: d.drinks ? Math.round(d.costs / d.drinks) : null };
+  // App sales paid in USDC (coffee bags and race boosts) count as income; tips stay apart.
+  const tipsCents = toCents(d.tipsMicro), bagsCents = toCents(d.bagsMicro), boostsCents = toCents(d.boostsMicro);
+  const appCents = bagsCents + boostsCents;
+  const profit = d.income + appCents - d.costs;
+  return { ...d, tipsCents, bagsCents, boostsCents, appCents, profit, profitWithTips: profit + tipsCents, costPerDrink: d.drinks ? Math.round(d.costs / d.drinks) : null };
 }
 
 // Every day together.
 export function eventTotals(rows) {
-  const t = { day: "total", drinks: 0, costs: 0, income: 0, byCategory: {}, tipsMicro: 0, tips: 0, bagsMicro: 0, bagsCount: 0, tipsCents: 0, bagsCents: 0, profit: 0, profitWithTips: 0 };
+  const t = { day: "total", drinks: 0, costs: 0, income: 0, byCategory: {}, tipsMicro: 0, tips: 0, bagsMicro: 0, bagsCount: 0, boostsMicro: 0, boostsCount: 0, tipsCents: 0, bagsCents: 0, boostsCents: 0, appCents: 0, profit: 0, profitWithTips: 0 };
+  const keys = Object.keys(t).filter(k => typeof t[k] === "number");
   for (const r of rows) {
-    for (const k of ["drinks", "costs", "income", "tipsMicro", "tips", "bagsMicro", "bagsCount", "tipsCents", "bagsCents", "profit", "profitWithTips"]) t[k] += r[k];
+    for (const k of keys) t[k] += r[k];
     for (const [k, v] of Object.entries(r.byCategory)) t.byCategory[k] = (t.byCategory[k] || 0) + v;
   }
   return { ...t, days: rows.length, costPerDrink: t.drinks ? Math.round(t.costs / t.drinks) : null };
@@ -140,13 +145,14 @@ export function financeLines(row, rate) {
     `☕ Drinks: <b>${row.drinks}</b>${row.costPerDrink !== null && row.costs ? ` · cost per drink ${brl(row.costPerDrink)}` : ""}`,
     `🧾 Costs: <b>${brl(row.costs)}</b>`,
     ...categoryLines(row.byCategory, "cost", COST_CATEGORIES),
-    `💵 Income: <b>${brl(row.income + row.bagsCents)}</b>`,
+    `💵 Income: <b>${brl(row.income + row.appCents)}</b>`,
     ...categoryLines(row.byCategory, "income", INCOME_CATEGORIES),
     ...(row.bagsMicro ? [`   Coffee bags in the app: ${row.bagsCount} · ${usdcText(row.bagsMicro)} ≈ ${brl(row.bagsCents)}`] : []),
+    ...(row.boostsMicro ? [`   Race boosts: ${row.boostsCount} · ${usdcText(row.boostsMicro)} ≈ ${brl(row.boostsCents)}`] : []),
     `${row.profit >= 0 ? "📈" : "📉"} Profit: <b>${brl(row.profit)}</b>`,
     `💛 Tips: ${row.tips} · ${usdcText(row.tipsMicro)} ≈ ${brl(row.tipsCents)}`,
     `🏝️ Profit + tips: <b>${brl(row.profitWithTips)}</b>`,
-    ...(row.tipsMicro || row.bagsMicro ? [`<i>1 USDC = ${brl(Math.round(rate * 100))}</i>`] : []),
+    ...(row.tipsMicro || row.bagsMicro || row.boostsMicro ? [`<i>1 USDC = ${brl(Math.round(rate * 100))}</i>`] : []),
   ];
 }
 
