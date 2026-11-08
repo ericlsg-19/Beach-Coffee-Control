@@ -166,6 +166,12 @@ export function miniAppHtml(drinks, pay = null) {
     background: radial-gradient(120% 120% at 100% 0%, rgba(232,184,106,.16), transparent 60%), var(--card); display: grid; gap: 14px; animation: rise .25s ease-out; }
   .sheet-card h3 { margin: 0; font: 900 1.5rem/1.1 var(--display); font-stretch: 125%; text-transform: uppercase; }
   .sheet-card h3 b { color: var(--gold); }
+  .news { display: grid; gap: 10px; margin: 14px 0 16px; }
+  .news div { display: flex; gap: 12px; align-items: flex-start; border: 1px solid var(--line); border-radius: 16px; padding: 10px 12px; background: var(--card-2); }
+  .news span { font-size: 1.5rem; line-height: 1.2; }
+  .news p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.35; }
+  .news b { display: block; color: var(--text); font-size: .98rem; }
+  #newsSheet .btn + .btn { margin-top: 8px; }
   @keyframes fade { from { opacity: 0; } }
   @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
   .field { display: grid; gap: 6px; }
@@ -290,6 +296,21 @@ export function miniAppHtml(drinks, pay = null) {
   <p class="note staff"><a href="/guide" target="_blank" rel="noopener">How it works</a><span id="staffLink" hidden> · <a href="/panel">Staff · Âncora panel</a></span></p>
 </div>
 <div class="fallback" id="fallback" hidden><button class="btn" id="fallbackBtn">Order</button></div>
+<!-- What's new: shown once per NEWS_ID to guests coming back after an update. -->
+<div class="sheet" id="newsSheet" hidden role="dialog" aria-modal="true" aria-labelledby="newsTitle">
+  <div class="sheet-card">
+    <p class="eyebrow">What's new at the bar ☕</p>
+    <h3 id="newsTitle">The coffee <b>race</b></h3>
+    <div class="news">
+      <div><span>🏆</span><p><b>Ranking</b>Every coffee you order counts. Climb to the top of Island DAO.</p></div>
+      <div><span>⚡</span><p><b>Race boost</b>+1 cup in the race for 1 USDC, once a day. It shows as ⚡ on the board.</p></div>
+      <div><span>💛</span><p><b>Top patrons</b>Tips to the barista get their own board.</p></div>
+      <div><span>📖</span><p><b>How it works</b>Everything in one guide, at the bottom of the app.</p></div>
+    </div>
+    <button class="btn wide" id="newsGo">See the ranking</button>
+    <button class="btn ghost wide" id="newsLater">Got it</button>
+  </div>
+</div>
 <div class="sheet" id="tipSheet" hidden role="dialog" aria-modal="true" aria-labelledby="tipSheetTitle">
   <div class="sheet-card">
     <p class="eyebrow">Drinks are on the house ☕</p>
@@ -412,6 +433,21 @@ export function miniAppHtml(drinks, pay = null) {
     $("boardPatrons").hidden = b.dataset.board !== "patrons";
     popIn($(b.dataset.board === "race" ? "boardRace" : "boardPatrons"));
   });
+  // What's new: once per update, for Telegram guests (not the first time ever: they get the menu first).
+  const NEWS_ID = "2026-11-race";
+  // Only for guests who already ordered before (they're in the ranking); new guests start with the menu.
+  function showNews(returning) {
+    if (!initData) return;
+    let seen = null;
+    try { seen = localStorage.getItem("bc-news"); } catch (e) { return; }
+    if (seen === NEWS_ID) return;
+    const done = () => { $("newsSheet").hidden = true; try { localStorage.setItem("bc-news", NEWS_ID); } catch (e) {} };
+    $("newsLater").onclick = done;
+    $("newsGo").onclick = () => { done(); showTab("rank"); };
+    $("newsSheet").onclick = e => { if (e.target === $("newsSheet")) done(); };
+    if (!returning) { done(); return; }
+    setTimeout(() => { $("newsSheet").hidden = false; }, 600);
+  }
   async function refreshRanking() {
     const s = await api("/api/session", {});
     if (s.ok) renderRanking(s.ranking);
@@ -506,6 +542,7 @@ export function miniAppHtml(drinks, pay = null) {
     renderOrders(s.orders);
     renderRanking(s.ranking);
     updateButton();
+    showNews(!!(s.ranking && s.ranking.me));
   }
 
   // Telegram's own pop-up when there is one, the browser's otherwise.
