@@ -1313,3 +1313,26 @@ test("finance: costs and income by day in the panel, tips and app bags from USDC
   f = await (await panel(env, "GET", "/api/panel/finance")).json();
   assert.equal(f.days.find(r => r.day === day).costs, 24000);
 });
+
+// ---------- Guide ----------
+
+test("/guide explains every barista command, and /help links to it", async () => {
+  const { env, calls, post } = setup();
+  const res = await worker.fetch(new Request("https://bot/guide"), env);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /For guests/);
+  assert.match(html, /For the bar team/);
+  const source = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  const help = source.match(/const BARISTA_HELP =\s*"([^"]+)"/)[1];
+  const commands = [...new Set(help.match(/\/[a-z]+/g))];
+  assert.ok(commands.length > 10);
+  for (const cmd of commands) assert.ok(html.includes(`>${cmd}<`) || html.includes(`${cmd} `), `the guide should explain ${cmd}`);
+
+  env.WEBHOOK_URL = "https://drinkbeachcoffee.com";
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(msg(BARISTA, "/help"));
+  assert.match(calls.at(-1).body.text, /Full guide: https:\/\/drinkbeachcoffee\.com\/guide/);
+  const app = await (await worker.fetch(new Request("https://drinkbeachcoffee.com/app"), env)).text();
+  assert.match(app, /href="\/guide"/);
+});

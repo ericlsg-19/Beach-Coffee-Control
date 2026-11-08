@@ -287,7 +287,7 @@ export function miniAppHtml(drinks, pay = null) {
     <p class="note" id="payMsg"></p>
   </section>
   <!-- Only in the installed app / browser: the team opens Âncora (orders, finance) with the barista code. -->
-  <p class="note staff" id="staffLink" hidden><a href="/panel">Staff · Âncora panel</a></p>
+  <p class="note staff"><a href="/guide" target="_blank" rel="noopener">How it works</a><span id="staffLink" hidden> · <a href="/panel">Staff · Âncora panel</a></span></p>
 </div>
 <div class="fallback" id="fallback" hidden><button class="btn" id="fallbackBtn">Order</button></div>
 <div class="sheet" id="tipSheet" hidden role="dialog" aria-modal="true" aria-labelledby="tipSheetTitle">

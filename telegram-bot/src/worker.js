@@ -23,6 +23,7 @@ import { WEB3_IIFE } from "./vendor/web3-iife.js";
 import { payPageHtml } from "./paypage.js";
 import { eventsHtml } from "./eventspage.js";
 import { web3Html } from "./web3page.js";
+import { guideHtml } from "./guidepage.js";
 import { WEB3_BAG_WEBP } from "./web3bag.js";
 import { MWA_IIFE } from "./vendor/mwa-iife.js";
 import { ICON_192, ICON_512, MASKABLE_512 } from "./appicons.js";
@@ -51,7 +52,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.14.0";
+const VERSION = "1.15.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -515,6 +516,9 @@ async function queue(env, chatId) {
 const BARISTA_HELP =
   "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/finance: today's costs, income, profit and tips, and the event so far (/finance YYYY-MM-DD for another day; enter costs in /panel → Finance)\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain and the wallet that pays their fees (/checkins setup, /checkins on, /checkins off)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
+// The command list plus the full guide (every feature, for guests and the team) at /guide.
+const baristaHelp = env => env.WEBHOOK_URL ? `${BARISTA_HELP}\n\n📖 Full guide: ${env.WEBHOOK_URL}/guide` : BARISTA_HELP;
+
 // ---------- Update routing ----------
 
 async function onMessage(env, message) {
@@ -526,7 +530,7 @@ async function onMessage(env, message) {
   if (cmd === "/barista") {
     if (env.BARISTA_CODE && args[0] === env.BARISTA_CODE) {
       await setSetting(env, "barista_chat", chatId);
-      return send(env, chatId, `✅ Orders will arrive in this chat.\n\n${BARISTA_HELP}`);
+      return send(env, chatId, `✅ Orders will arrive in this chat.\n\n${baristaHelp(env)}`);
     }
     return send(env, chatId, "That code doesn't match.");
   }
@@ -565,7 +569,7 @@ async function onMessage(env, message) {
       return send(env, chatId, isWeekend() ? "☀️ Open today (weekend). Taking orders." : "☀️ Open. Taking orders.");
     }
     if (message.chat.type !== "private") return; // stay quiet in a group
-    if (cmd === "/help") return send(env, chatId, BARISTA_HELP);
+    if (cmd === "/help") return send(env, chatId, baristaHelp(env));
   }
 
   // Anything else from a customer shows the menu.
@@ -1419,7 +1423,7 @@ export default {
     // Pages opened on the old workers.dev address (printed cards, old links) move to our own domain, where
     // wallets don't flag the site. The fragment (Telegram's initData, the panel key) survives the redirect.
     if (request.method === "GET" && url.hostname.endsWith(".workers.dev") && base !== url.origin
-      && (path === "/app" || path === "/panel" || path === "/eventos" || path === "/web3" || path === "/pay" || path.startsWith("/pay/"))) {
+      && (path === "/app" || path === "/panel" || path === "/eventos" || path === "/web3" || path === "/guide" || path === "/pay" || path.startsWith("/pay/"))) {
       return Response.redirect(base + path + url.search, 301);
     }
     if (path === "/web3" || path === "/web3/") {
@@ -1428,6 +1432,9 @@ export default {
     if (path === "/web3/bag.webp") {
       const bytes = Uint8Array.from(atob(WEB3_BAG_WEBP), c => c.charCodeAt(0));
       return new Response(bytes, { headers: { "content-type": "image/webp", "cache-control": "public, max-age=86400" } });
+    }
+    if (path === "/guide" || path === "/guide/") {
+      return new Response(guideHtml(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
     }
     if (path === "/eventos" || path === "/eventos/") {
       return new Response(eventsHtml(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
