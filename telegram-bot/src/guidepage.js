@@ -172,7 +172,7 @@ const PAGE = String.raw`<!doctype html>
         <h3>The coffee race</h3>
         <p>Every drink you order in Telegram counts. The <b>Ranking</b> tab shows the top 10 and your place (last names are hidden).</p>
         <p><b>Race boost ⚡</b>: 1 USDC adds one cup to your score, once a day, once you're in the race.</p>
-        <p><b>Top patrons</b>: a separate board for the biggest tippers. Tips never move the race.</p>
+        <p><b>Top patrons</b>: a separate board for the biggest tippers. Tips never move the race. Tipped by copying the wallet address? Tell the barista and it counts too.</p>
       </div>
       <div class="card">
         <span class="ico">💛</span>
@@ -222,7 +222,7 @@ const PAGE = String.raw`<!doctype html>
         <ul>
           <li><b>Every order</b> with the guest's name, drink and milk, and <b>Ready</b> / <b>Cancel</b> buttons. Ready messages the guest; Cancel tells them too.</li>
           <li><b>Tips, bags and boosts</b> as they're paid, with a Solscan link. Bags have a <b>Hand over</b> button.</li>
-          <li><b>USDC sent outside the app</b> (an exchange, a plain transfer) is flagged so nothing gets lost.</li>
+          <li><b>USDC sent outside the app</b> (an exchange, a plain transfer) is flagged so nothing gets lost. Credit it to whoever sent it in Âncora → Top patrons.</li>
           <li><b>End of day at 23:00</b>: the day's report, with the finance block when there are costs or income.</li>
         </ul>
       </div>
@@ -241,6 +241,7 @@ const PAGE = String.raw`<!doctype html>
           <li><b>Order</b>: tap a drink to log a walk-up order at the bar, with an optional name.</li>
           <li><b>Queue</b>: Telegram and bar orders together. Ready, Undo or remove; hide what's done.</li>
           <li><b>Ranking</b>: the coffee race for the whole event.</li>
+          <li><b>Top patrons</b>: credit tips sent straight to the wallet to the person who sent them (their wallet is remembered), or add a tip the bot never saw by hand.</li>
           <li><b>Tips & bags</b>: every USDC payment of the day, Solscan links, bag hand-over.</li>
           <li><b>Finance</b>: costs, income, profit and tips (see next).</li>
           <li><b>Summary</b>: drinks per day and per drink, with a CSV download.</li>
