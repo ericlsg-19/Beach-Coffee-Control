@@ -1212,3 +1212,68 @@ test("/checkins setup: the bot makes its own fee wallet; /checkins on once it ha
   await post(msg(BARISTA, "/checkins off"));
   assert.equal(await on(), false);
 });
+
+// ---------- Finance ----------
+
+test("finance: costs and income by day in the panel, tips and app bags from USDC, /finance and the nightly report", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  const day = localDayForTest();
+  assert.equal((await panel(env, "GET", "/api/panel/finance", null, "wrong")).status, 401);
+
+  for (let i = 0; i < 4; i++) await panel(env, "POST", "/api/panel/orders", { drink: "latte", day });
+  const add = body => panel(env, "POST", "/api/panel/finance", { day, ...body });
+  assert.equal((await add({ kind: "cost", category: "coffee", description: "2 kg beans", amount: "240,00" })).status, 200);
+  assert.equal((await add({ kind: "cost", category: "transport", amount: "1.000,50" })).status, 200);
+  assert.equal((await add({ kind: "income", category: "event", description: "Island DAO", amount: "1500" })).status, 200);
+  assert.equal((await add({ kind: "cost", category: "nope", amount: "10" })).status, 400);
+  assert.equal((await add({ kind: "cost", category: "milk", amount: "abc" })).status, 400);
+  assert.equal((await add({ kind: "cost", category: "milk", amount: "-5" })).status, 400);
+
+  // A 2 USDC tip, a 10 USDC bag and 1 USDC sent outside the app (counts as a tip).
+  const pay = (ref, kind, micro) => env.DB.prepare(
+    "INSERT INTO payments (reference, kind, amount_micro, day, created_at, status, signature) VALUES (?, ?, ?, ?, ?, 'paid', ?)"
+  ).bind(ref, kind, micro, day, new Date().toISOString(), "sig" + ref).run();
+  await pay("a", "tip", 2_000_000);
+  await pay("b", "bag", 10_000_000);
+  await env.DB.prepare("INSERT INTO direct_transfers (signature, amount_micro, day, at) VALUES ('d1', 1000000, ?, ?)").bind(day, new Date().toISOString()).run();
+  assert.equal((await panel(env, "POST", "/api/panel/finance/rate", { rate: "5,00" })).status, 200);
+  assert.equal((await panel(env, "POST", "/api/panel/finance/rate", { rate: "0" })).status, 400);
+
+  let f = await (await panel(env, "GET", "/api/panel/finance")).json();
+  assert.equal(f.rate, 5);
+  assert.equal(f.entries.length, 3);
+  const row = f.days.find(r => r.day === day);
+  assert.equal(row.drinks, 4);
+  assert.equal(row.costs, 124050);          // 240,00 + 1.000,50
+  assert.equal(row.costPerDrink, 31013);    // ÷ 4 drinks
+  assert.equal(row.income, 150000);
+  assert.equal(row.bagsCents, 5000);        // 10 USDC × 5
+  assert.equal(row.profit, 150000 + 5000 - 124050);
+  assert.equal(row.tips, 2);
+  assert.equal(row.tipsCents, 1500);        // 3 USDC × 5, not in profit
+  assert.equal(row.profitWithTips, row.profit + 1500);
+
+  await post(msg(BARISTA, "/finance"));
+  const text = calls.at(-1).body.text;
+  assert.match(text, /Costs: <b>R\$ 1\.240,50<\/b>/);
+  assert.match(text, /Coffee beans: R\$ 240,00/);
+  assert.match(text, /Profit: <b>R\$ 309,50<\/b>/);
+  assert.match(text, /Tips: 2 · 3 USDC ≈ R\$ 15,00/);
+  assert.match(text, /Event so far/);
+  await post(msg(ANA, "/finance"));            // customers don't see it
+  assert.doesNotMatch(calls.at(-1).body.text || "", /Costs/);
+
+  calls.length = 0;
+  const jobs = [];
+  await worker.scheduled({ cron: "0 2 * * *" }, env, { waitUntil: p => jobs.push(p) });
+  await Promise.all(jobs);
+  const nightly = calls.find(c => c.body.chat_id === String(BARISTA) && /End of day/.test(c.body.text));
+  assert.match(nightly.body.text, /Finance[\s\S]*Profit \+ tips: <b>R\$ 324,50<\/b>/);
+
+  const id = f.entries.find(e => e.category === "transport").id;
+  assert.equal((await panel(env, "DELETE", `/api/panel/finance/${id}`)).status, 200);
+  assert.equal((await panel(env, "DELETE", `/api/panel/finance/${id}`)).status, 404);
+  f = await (await panel(env, "GET", "/api/panel/finance")).json();
+  assert.equal(f.days.find(r => r.day === day).costs, 24000);
+});

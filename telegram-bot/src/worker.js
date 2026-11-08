@@ -30,6 +30,7 @@ import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML, TERMS_HTML } from "
 import { checkinSigner, newCheckinKey, memoMessage, memoText, transactionBytes, parseTransaction, verifySignature, base58Decode, b64, unb64,
   latestFinalizedBlockhash, sendRaw, signatureStatus, solBalance } from "./checkin.js";
 import { checkinPageHtml } from "./checkinpage.js";
+import { COST_CATEGORIES, INCOME_CATEGORIES, usdcRate, setUsdcRate, addEntry, deleteEntry, publicEntry, financeDays, eventTotals, financeLines, hasFinance } from "./finance.js";
 import { PRODUCTS, priceFor, newReference, isAddress, fromMicro, base58, solanaPayUrl, walletLinks, qrSvg, findPayment, latestBlockhash, rpcStatus, shopUsdcAccounts, newestSignature, transfersSince } from "./pay.js";
 
 const DRINKS = [
@@ -50,7 +51,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.11.2";
+const VERSION = "1.12.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -474,11 +475,31 @@ async function eventReport(env) {
   ].join("\n");
 }
 
+// /finance: one day's costs, income, profit and tips (entered in Âncora → Finance), then the event so far.
+async function financeReport(env, day) {
+  const rows = await financeDays(env), rate = await usdcRate(env);
+  const row = rows.find(r => r.day === day);
+  const label = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" })
+    .format(new Date(`${day}T12:00:00Z`));
+  const total = eventTotals(rows);
+  return [
+    `💰 <b>Finance · ${label}</b>`,
+    ...(row ? financeLines(row, rate) : ["Nothing yet this day."]),
+    ...(hasFinance(row) ? [] : ["", "Add costs and income in /panel → Finance."]),
+    "",
+    `📈 <b>Event so far</b> (${total.days} day${total.days === 1 ? "" : "s"})`,
+    `Costs ${brlShort(total.costs)} · Income ${brlShort(total.income + total.bagsCents)} · Profit <b>${brlShort(total.profit)}</b> · Tips ${brlShort(total.tipsCents)}`,
+  ].join("\n");
+}
+const brlShort = cents => (cents < 0 ? "−" : "") + "R$ " + Math.round(Math.abs(cents) / 100).toLocaleString("pt-BR");
+
 async function sendDailyReport(env) {
   const chat = await getSetting(env, "barista_chat");
   if (!chat) return;
   const text = await dayReport(env, localDay());
-  await send(env, chat, `🌙 <b>End of day</b>\n\n${text}`);
+  const money = (await financeDays(env)).find(r => r.day === localDay());
+  const finance = hasFinance(money) ? `\n\n💰 <b>Finance</b>\n${financeLines(money, await usdcRate(env)).join("\n")}` : "";
+  await send(env, chat, `🌙 <b>End of day</b>\n\n${text}${finance}`);
   console.log("daily report sent", JSON.stringify({ day: localDay() }));
 }
 
@@ -492,7 +513,7 @@ async function queue(env, chatId) {
 }
 
 const BARISTA_HELP =
-  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain and the wallet that pays their fees (/checkins setup, /checkins on, /checkins off)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
+  "Barista commands:\n/today: today's report\n/report YYYY-MM-DD: report for another day\n/total: the whole event so far\n/finance: today's costs, income, profit and tips, and the event so far (/finance YYYY-MM-DD for another day; enter costs in /panel → Finance)\n/demoday: today only, Iced Coffee 10 + Iced Latte 10, max 1 per guest (/demoday off to stop)\n/out matcha lactosefree: mark drinks or milks as not available (/back matcha, /back all)\n/limit: drinks per guest per day (3 by default; /limit 5, /limit off)\n/lunch: the daily lunch break, 13:00–14:00 (/lunch 12:30-13:30 to move it, /lunch off)\n/queue: drinks waiting\n/ranking: who ordered the most\n/panel: open Âncora, the barista panel\n/bags: Island DAO coffee bags sold and left (/bags 17 sets how many are left)\n/payments: tips and bags of the last 7 days, and where checkouts get stuck\n/checkins: coffees checked in onchain and the wallet that pays their fees (/checkins setup, /checkins on, /checkins off)\n/close: stop taking orders\n/open: start taking orders (on Saturday or Sunday, just that day: weekends are closed by default)\n\nTips and coffee bags paid in USDC arrive here too, and show up in /today.";
 
 // ---------- Update routing ----------
 
@@ -517,6 +538,10 @@ async function onMessage(env, message) {
     if (cmd === "/limit") return send(env, chatId, await limitCommand(env, args));
     if (cmd === "/out" || cmd === "/back") return send(env, chatId, await outCommand(env, cmd, args));
     if (cmd === "/total") return send(env, chatId, await eventReport(env));
+    if (cmd === "/finance") {
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
+      return send(env, chatId, await financeReport(env, day));
+    }
     if (cmd === "/report") {
       const day = /^\d{4}-\d{2}-\d{2}$/.test(args[0] || "") ? args[0] : localDay();
       return send(env, chatId, await dayReport(env, day));
@@ -707,6 +732,23 @@ async function handlePanelApi(request, env, path) {
     ).bind(day, new Date().toISOString(), drink.id, String(body.customer || "").slice(0, 80)).first();
     console.log("order created", JSON.stringify({ num: order.num, drink: drink.id, source: "bar" }));
     return json({ ok: true, order: panelOrder(order) });
+  }
+
+  if (path === "/api/panel/finance" && request.method === "GET") {
+    const { results } = await env.DB.prepare("SELECT * FROM finance_entries ORDER BY id").all();
+    return json({ ok: true, entries: results.map(publicEntry), days: await financeDays(env), rate: await usdcRate(env),
+      categories: { cost: COST_CATEGORIES, income: INCOME_CATEGORIES } });
+  }
+  if (path === "/api/panel/finance" && request.method === "POST") {
+    const { entry, error } = await addEntry(env, await request.json().catch(() => ({})), localDay());
+    return error ? json({ ok: false, error }, 400) : json({ ok: true, entry });
+  }
+  if (path === "/api/panel/finance/rate" && request.method === "POST") {
+    const rate = await setUsdcRate(env, (await request.json().catch(() => ({}))).rate);
+    return rate ? json({ ok: true, rate }) : json({ ok: false, error: "Type the rate in reais, like 5,50." }, 400);
+  }
+  if (path.startsWith("/api/panel/finance/") && request.method === "DELETE") {
+    return (await deleteEntry(env, id)) ? json({ ok: true }) : json({ ok: false, error: "Entry not found." }, 404);
   }
 
   if (path === "/api/panel/payments" && request.method === "GET") {
