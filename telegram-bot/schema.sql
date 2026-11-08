@@ -106,3 +106,17 @@ CREATE TABLE IF NOT EXISTS finance_entries (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS finance_day ON finance_entries (day);
+
+-- Top patrons edited by the bar team in Âncora: a tip that arrived outside the app (a row of
+-- direct_transfers, by signature) credited to a person, or a tip typed by hand that the bot never saw
+-- (source 'manual', signature NULL or a Solscan signature). customer_chat links a Telegram guest when known.
+CREATE TABLE IF NOT EXISTS patron_tips (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  signature TEXT UNIQUE,
+  customer_chat INTEGER NOT NULL DEFAULT 0,
+  name TEXT NOT NULL,
+  amount_micro INTEGER NOT NULL,
+  day TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

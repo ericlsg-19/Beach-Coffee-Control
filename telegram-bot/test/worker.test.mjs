@@ -1336,3 +1336,51 @@ test("/guide explains every barista command, and /help links to it", async () =>
   const app = await (await worker.fetch(new Request("https://drinkbeachcoffee.com/app"), env)).text();
   assert.match(app, /href="\/guide"/);
 });
+
+// ---------- Top patrons, edited in Âncora ----------
+
+test("Top patrons: credit tips from outside the app (wallet remembered), add tips by hand, undo; finance counts them", async () => {
+  const { env, calls, post } = setup();
+  await post(msg(BARISTA, "/barista beach123"));
+  await post(tap(ANA, "c:latte"));
+  const day = localDayForTest(), at = new Date().toISOString();
+  await env.DB.prepare("INSERT INTO payments (reference, kind, amount_micro, day, created_at, status, signature, payer, customer_chat, customer_name) VALUES ('r1', 'tip', 2000000, ?, ?, 'paid', 'appsig', 'WalletAna', ?, 'Ana (@ana)')")
+    .bind(day, at, ANA).run();
+  const sigBob = "4".repeat(88), sigBob2 = "5".repeat(88), sigAna = "6".repeat(88);
+  for (const [sig, payer, micro] of [[sigBob, "WalletBob", 3e6], [sigBob2, "WalletBob", 1e6], [sigAna, "WalletAna", 4e6]])
+    await env.DB.prepare("INSERT INTO direct_transfers (signature, payer, amount_micro, day, at) VALUES (?, ?, ?, ?, ?)").bind(sig, payer, micro, day, at).run();
+  assert.equal((await panel(env, "GET", "/api/panel/patrons", null, "wrong")).status, 401);
+
+  let d = await (await panel(env, "GET", "/api/panel/patrons")).json();
+  assert.deepEqual(d.patrons.map(p => [p.name, p.usdc]), [["Ana (@ana)", 6]], "Ana's wallet from the app also counts her plain transfer");
+  assert.deepEqual(d.transfers.find(t => t.signature === sigAna).credit, { name: "Ana (@ana)", wallet: true });
+  assert.equal(d.transfers.find(t => t.signature === sigBob).credit, null);
+  assert.deepEqual(d.guests, [{ chat: ANA, name: "Ana (@ana)" }]);
+
+  assert.equal((await panel(env, "POST", "/api/panel/patrons", { signature: sigBob, name: "" })).status, 400);
+  assert.equal((await panel(env, "POST", "/api/panel/patrons", { signature: sigBob, name: "Bob Lima" })).status, 200);
+  assert.equal((await panel(env, "POST", "/api/panel/patrons", { name: "Carla", amount: "2,5", day })).status, 200);
+  assert.equal((await panel(env, "POST", "/api/panel/patrons", { name: "Carla", amount: "abc" })).status, 400);
+  assert.equal((await panel(env, "POST", "/api/panel/patrons", { name: "Carla", amount: "1", link: "not a link" })).status, 400);
+  const dup = await panel(env, "POST", "/api/panel/patrons", { name: "Carla", amount: "1", link: `https://solscan.io/tx/${sigBob}` });
+  assert.match((await dup.json()).error, /already has that transaction/);
+
+  d = await (await panel(env, "GET", "/api/panel/patrons")).json();
+  assert.deepEqual(d.patrons.map(p => [p.name, p.usdc, p.n]), [["Ana (@ana)", 6, 2], ["Bob Lima", 4, 2], ["Carla", 2.5, 1]], "Bob's second transfer: same wallet");
+  assert.equal(d.manual.length, 1);
+
+  // Guests see first name + initial; the barista's /ranking shows the board too.
+  const s = await (await apiCall(env, "/api/session", { initData: signedInitData("t", { id: ANA, first_name: "Ana" }) })).json();
+  assert.deepEqual(s.ranking.patrons.map(p => [p.name, p.usdc, p.me]), [["Ana", 6, true], ["Bob L.", 4, false], ["Carla", 2.5, false]]);
+  await post(msg(BARISTA, "/ranking"));
+  assert.match(calls.at(-1).body.text, /Top patrons[\s\S]*Bob Lima · 4 USDC[\s\S]*Carla · 2\.5 USDC/);
+
+  // Finance: the hand-typed tip counts; credited transfers were already in.
+  const f = await (await panel(env, "GET", "/api/panel/finance")).json();
+  assert.equal(f.days.find(r => r.day === day).tipsMicro, 2e6 + 8e6 + 2.5e6);
+
+  const credited = d.transfers.find(t => t.signature === sigBob).credit.id;
+  assert.equal((await panel(env, "DELETE", `/api/panel/patrons/${credited}`)).status, 200);
+  d = await (await panel(env, "GET", "/api/panel/patrons")).json();
+  assert.deepEqual(d.patrons.map(p => p.name), ["Ana (@ana)", "Carla"]);
+});

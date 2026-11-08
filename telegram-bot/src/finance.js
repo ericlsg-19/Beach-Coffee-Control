@@ -106,6 +106,11 @@ export async function financeDays(env) {
   }
   // USDC sent outside the app (no checkout) is almost always a tip.
   for (const r of direct) { const d = day(r.day); d.tipsMicro += r.micro; d.tips += r.n; }
+  // Tips the bot never saw, typed by hand in Âncora (Top patrons).
+  const { results: manual } = await env.DB.prepare(
+    "SELECT day, COUNT(*) AS n, SUM(amount_micro) AS micro FROM patron_tips WHERE source = 'manual' GROUP BY day"
+  ).all();
+  for (const r of manual) { const d = day(r.day); d.tipsMicro += r.micro; d.tips += r.n; }
 
   const toCents = micro => Math.round(micro / 1e6 * rate * 100);
   return [...days.values()].sort((a, b) => b.day.localeCompare(a.day)).map(d => withTotals(d, toCents));

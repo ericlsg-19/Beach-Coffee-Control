@@ -24,6 +24,7 @@ import { payPageHtml } from "./paypage.js";
 import { eventsHtml } from "./eventspage.js";
 import { web3Html } from "./web3page.js";
 import { guideHtml } from "./guidepage.js";
+import { patrons, patronsPanel, savePatronTip, deletePatronTip } from "./patrons.js";
 import { WEB3_BAG_WEBP } from "./web3bag.js";
 import { MWA_IIFE } from "./vendor/mwa-iife.js";
 import { ICON_192, ICON_512, MASKABLE_512 } from "./appicons.js";
@@ -52,7 +53,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.15.1";
+const VERSION = "1.16.0";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -651,14 +652,7 @@ async function ranking(env, day) {
   return results.map((r, i) => ({ rank: i + 1, ...r, score: r.drinks + r.boosts }));
 }
 
-// Top patrons: Telegram guests by USDC tipped (a separate board; tips never move the coffee race).
-async function patrons(env) {
-  const { results } = await env.DB.prepare(
-    `SELECT customer_chat AS chat, MAX(customer_name) AS name, SUM(amount_micro) AS micro, COUNT(*) AS n FROM payments
-     WHERE kind = 'tip' AND status = 'paid' AND customer_chat != 0 GROUP BY customer_chat ORDER BY micro DESC LIMIT 10`
-  ).all();
-  return results.map((r, i) => ({ rank: i + 1, ...r }));
-}
+// Top patrons (tips in the app, tips from outside credited in Âncora, tips typed by hand): patrons.js.
 const boostedToday = async (env, chat) => (await env.DB.prepare(
   "SELECT COUNT(*) AS n FROM payments WHERE kind = 'boost' AND customer_chat = ? AND day = ? AND (status = 'paid' OR (status = 'pending' AND created_at > ?))"
 ).bind(chat, localDay(), new Date(Date.now() - 15 * 60000).toISOString()).first()).n > 0;
@@ -775,6 +769,17 @@ async function handlePanelApi(request, env, path) {
   }
   if (path.startsWith("/api/panel/finance/") && request.method === "DELETE") {
     return (await deleteEntry(env, id)) ? json({ ok: true }) : json({ ok: false, error: "Entry not found." }, 404);
+  }
+
+  if (path === "/api/panel/patrons" && request.method === "GET") {
+    return json({ ok: true, ...(await patronsPanel(env)) });
+  }
+  if (path === "/api/panel/patrons" && request.method === "POST") {
+    const r = await savePatronTip(env, await request.json().catch(() => ({})), localDay());
+    return r.error ? json({ ok: false, error: r.error }, 400) : json({ ok: true });
+  }
+  if (path.startsWith("/api/panel/patrons/") && request.method === "DELETE") {
+    return (await deletePatronTip(env, id)) ? json({ ok: true }) : json({ ok: false, error: "Not found." }, 404);
   }
 
   if (path === "/api/panel/payments" && request.method === "GET") {
@@ -1073,7 +1078,7 @@ async function settleDirect(env, t) {
   console.log("usdc outside the app", JSON.stringify({ amount: fromMicro(micro), signature: t.signature }));
   const baristaChat = await getSetting(env, "barista_chat");
   if (baristaChat) {
-    await send(env, baristaChat, `💸 <b>${usdc(micro)} arrived outside the app</b>\nFrom ${shortKey(t.payer)}, with no checkout (an exchange or a plain transfer). If someone tipped this way, thank them at the bar.\n<a href="https://solscan.io/tx/${t.signature}">View on Solscan</a>`);
+    await send(env, baristaChat, `💸 <b>${usdc(micro)} arrived outside the app</b>\nFrom ${shortKey(t.payer)}, with no checkout (an exchange or a plain transfer). If someone tipped this way, thank them at the bar, and credit it to them in /panel → Top patrons.\n<a href="https://solscan.io/tx/${t.signature}">View on Solscan</a>`);
   }
 }
 
