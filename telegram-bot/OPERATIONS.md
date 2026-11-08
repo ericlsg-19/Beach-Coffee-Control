@@ -160,3 +160,10 @@ Como o check-in da Island DAO: depois do pedido, o cliente toca **"Check in with
 - **Segurança:** o servidor monta a transação e assina como pagador; só envia se a carteira devolver exatamente a mesma transação (mesmo memo, mesmas contas) com uma assinatura válida do cliente. Um check-in por pedido, só pedidos de hoje, no máximo 500 por dia.
 - **Sem SOL na carteira de check-in:** o cliente vê "The bar's check-in wallet is out of SOL" e a barista recebe um aviso (uma vez por dia) com o endereço para recarregar.
 - Tabela `checkins`. Logs: `checkin sent`, `checkin done`, `checkin send failed`, `checkin rejected`.
+
+## Corrida do café: boost no ranking e Top patrons (v1.13.0)
+
+- **Ranking = cafés + boosts.** Um "race boost" custa 1 USDC (pago como gorjeta, `kind = 'boost'`), soma +1 no ranking, no máximo 1 por dia por pessoa, e aparece como "+1⚡" ao lado do nome. Só pelo mini app no Telegram e para quem já pediu um café. Empate: quem chegou primeiro.
+- **Top patrons:** segundo placar, por USDC em gorjetas (só clientes do Telegram). Gorjeta nunca mexe na corrida.
+- Barista: `/ranking` mostra os dois; `/today` mostra "⚡ Race boosts".
+- O jogo completo (fila paga, pontos, loja) foi revertido na branch e não está no ar; está no histórico (commits 6d38f3d e 2f6954d).
