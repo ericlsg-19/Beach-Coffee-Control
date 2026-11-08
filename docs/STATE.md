@@ -57,7 +57,7 @@ Atualizado em 06/11/2026, bot e Âncora na **v1.13.0**, no domínio próprio **d
 - 06/11: v1.11.0: **check-in do café onchain**, como o check-in da Island DAO: a carteira do cliente assina um memo por pedido e a carteira de check-in do bar paga a taxa. Liga com o segredo `CHECKIN_KEY` no Cloudflare (ver OPERATIONS.md). `/checkins` para a barista. Telas em `design/app/checkin-*.png`.
 - 06/11: v1.11.1: **`/checkins setup`**: o bot cria a própria carteira que paga as taxas do check-in; mandar SOL para o endereço e `/checkins on`. `/checkins off` desliga.
 - 06/11: v1.11.2: "Solana is busy" no check-in: o blockhash agora tenta 3 vezes e fica em cache por 20 s (gorjetas e check-in). A solução de vez é o segredo `SOLANA_RPC_URL` (Helius grátis) no Cloudflare.
-- 07/11: v1.13.0 (na branch, esperando o OK): **race boost** (1 USDC = +1 café no ranking, 1 por dia, visível como ⚡) e placar **Top patrons** (gorjetas). O jogo completo do protótipo Giants (fila paga, pontos, loja) foi revertido: o ranking já empolga sozinho. Ver OPERATIONS.md.
+- 08/11: v1.13.0 no ar: **race boost** (1 USDC = +1 café no ranking, 1 por dia, visível como ⚡) e placar **Top patrons** (gorjetas). O jogo completo do protótipo Giants (fila paga, pontos, loja) foi revertido: o ranking já empolga sozinho. Ver OPERATIONS.md.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
