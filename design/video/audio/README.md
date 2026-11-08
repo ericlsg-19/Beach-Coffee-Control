@@ -15,3 +15,11 @@
 Mix (ffmpeg): each line cut at its pauses and placed on its scene (0.8, 10.3, 13.2, 15.6, 20.8, 24.0,
 28.3, 33.2, 39.4 s); music at 32 % ducked under the voice (sidechain), fade in/out, loudness −16 LUFS;
 the last frame is held 1.6 s.
+
+# Audio for beach-coffee-race-voice.mp4 (the coffee race, v1.13.0)
+
+- `race-voiceover.mp3`: same voice ("Isla"), 8 lines: "This is the coffee race at Island DAO. Every coffee you order counts." ·
+  "Right now, I'm number five. One cup off the podium." · "So I boost: one extra cup, for one dollar in USDC. Once a day." ·
+  "I pay with my wallet, just like a tip." · "Confirmed onchain, in seconds." · "And I'm up to number three. Everyone sees the boost." ·
+  "Tips get their own board: the top patrons." · "The coffee race. Beach Coffee, built on Solana."
+- Music: `game-music.mp3`, first 34.7 s. Lines placed at 0.3, 5.25, 9.35 (×1.1 speed), 14.85, 17.5, 21.8, 25.9, 29.4 s.
