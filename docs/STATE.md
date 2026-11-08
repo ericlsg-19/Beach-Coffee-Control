@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 06/11/2026, bot e Âncora na **v1.13.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 08/11/2026, bot e Âncora na **v1.14.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -58,6 +58,7 @@ Atualizado em 06/11/2026, bot e Âncora na **v1.13.0**, no domínio próprio **d
 - 06/11: v1.11.1: **`/checkins setup`**: o bot cria a própria carteira que paga as taxas do check-in; mandar SOL para o endereço e `/checkins on`. `/checkins off` desliga.
 - 06/11: v1.11.2: "Solana is busy" no check-in: o blockhash agora tenta 3 vezes e fica em cache por 20 s (gorjetas e check-in). A solução de vez é o segredo `SOLANA_RPC_URL` (Helius grátis) no Cloudflare.
 - 08/11: v1.13.0 no ar: **race boost** (1 USDC = +1 café no ranking, 1 por dia, visível como ⚡) e placar **Top patrons** (gorjetas). O jogo completo do protótipo Giants (fila paga, pontos, loja) foi revertido: o ranking já empolga sozinho. Ver OPERATIONS.md.
+- 08/11: v1.14.0 no ar: **Financeiro no Âncora** (`/panel` → Finance). Custos e entradas em R$ por dia, com categoria (grãos, leite, outros insumos, copos, equipe, transporte, espaço/taxas, equipamento; entradas: cachê do evento, patrocínio, pacotes em dinheiro). Tips, pacotes e race boosts vendidos no app entram sozinhos (boosts e pacotes como entrada, tips à parte) (USDC convertido pela taxa "1 USDC = R$ X", padrão 5,50). Cartões do dia (custos, custo por bebida, entradas, lucro, tips, lucro + tips), relatório por dia com total e CSV. Lucro = entradas + pacotes do app − custos; tips ficam à parte. `/finance` no bot (hoje e o evento todo; `/finance AAAA-MM-DD`), e o resumo das 23h ganha o bloco financeiro quando há lançamentos. No app (Seeker/navegador) há um link discreto "Staff · Âncora panel" no fim da página. Código em `telegram-bot/src/finance.js`, tabela `finance_entries` (rodar `schema.sql`, o deploy já roda).
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

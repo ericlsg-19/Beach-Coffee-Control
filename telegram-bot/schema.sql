@@ -92,3 +92,17 @@ CREATE TABLE IF NOT EXISTS checkins (
   done_at TEXT
 );
 CREATE INDEX IF NOT EXISTS checkins_day ON checkins (day, status);
+
+-- Finance: what the operation costs and earns, entered in Âncora (Finance) by day.
+-- kind: cost or income. amount_cents is BRL × 100. Tips and app bag sales come from payments
+-- (USDC, converted with the settings key usdc_brl), so they're not entered here.
+CREATE TABLE IF NOT EXISTS finance_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  day TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  category TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  amount_cents INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS finance_day ON finance_entries (day);

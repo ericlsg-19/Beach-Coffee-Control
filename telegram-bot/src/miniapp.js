@@ -106,6 +106,8 @@ export function miniAppHtml(drinks, pay = null) {
   .drink .left { display: block; margin-top: 3px; font: 500 .78rem/1 var(--mono); color: var(--gold); }
   .drink.soldout { opacity: .45; cursor: default; }
   .note { color: var(--muted); font-size: .9rem; margin: 0; }
+  .note.staff { margin-top: 28px; text-align: center; font-size: .78rem; }
+  .note.staff a { color: var(--faint, var(--muted)); }
   .closed-note { margin-top: 18px; padding: 16px 18px; border-color: var(--gold); }
   .closed-note p { margin: 0; color: var(--text); font-size: .95rem; line-height: 1.45; }
   .center { text-align: center; padding: 40px 10px; display: grid; gap: 10px; justify-items: center; }
@@ -284,6 +286,8 @@ export function miniAppHtml(drinks, pay = null) {
     <section id="payDone" class="center" hidden></section>
     <p class="note" id="payMsg"></p>
   </section>
+  <!-- Only in the installed app / browser: the team opens Âncora (orders, finance) with the barista code. -->
+  <p class="note staff" id="staffLink" hidden><a href="/panel">Staff · Âncora panel</a></p>
 </div>
 <div class="fallback" id="fallback" hidden><button class="btn" id="fallbackBtn">Order</button></div>
 <div class="sheet" id="tipSheet" hidden role="dialog" aria-modal="true" aria-labelledby="tipSheetTitle">
@@ -449,6 +453,7 @@ export function miniAppHtml(drinks, pay = null) {
     document.querySelector('[data-tab="rank"]').hidden = true; // the ranking is per Telegram customer
     document.querySelector(".tabs").style.setProperty("--tabs", PAY ? 2 : 1);
     $("orderTg").hidden = false;
+    $("staffLink").hidden = false;
     $("pickTitle").textContent = "Our menu";
     const s = await fetch("/api/menu").then(r => r.json()).catch(() => null);
     if (!s || !s.ok) { $("msg").textContent = "Couldn't load the menu. Check your connection and try again."; return; }

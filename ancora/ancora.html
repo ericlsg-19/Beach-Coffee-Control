@@ -192,6 +192,42 @@
     opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 6;
   }
   .toast.show { opacity: 1; }
+  nav.dock.five { grid-template-columns: repeat(5, 1fr); }
+  nav.dock.five a { font-size: .74rem; padding-inline: 2px; }
+
+  /* Finance: costs and income typed in BRL by day; tips and app bags come in from USDC. */
+  .money { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 18px 22px 4px; }
+  @media (min-width: 720px) { .money { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .money div { border: 1px solid var(--line); border-radius: 18px; background: var(--card-2); padding: 14px; display: grid; gap: 6px; min-width: 0; }
+  .money dt { font: 600 .66rem/1 var(--body); letter-spacing: .2em; text-transform: uppercase; color: var(--faint); }
+  .money dd { margin: 0; font: 800 1.15rem/1.1 var(--display); font-stretch: 125%; overflow-wrap: anywhere; }
+  .money dd.pos { color: var(--mint); }
+  .money dd.neg { color: var(--danger); }
+  .money dd.tip { color: var(--gold); }
+  .money small { font: 500 .78rem/1.2 var(--mono); color: var(--muted); }
+  .fin-note { margin: 0; padding: 10px 22px 0; color: var(--muted); font-size: .9rem; }
+  .fin-note b { color: var(--text); font-weight: 600; }
+  .fin-form { display: grid; gap: 10px; padding: 18px 22px; border-bottom: 1px solid var(--line); }
+  .fin-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .fin-row > * { flex: 1 1 160px; min-width: 0; }
+  .seg { display: inline-grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; flex: 0 0 auto; }
+  .seg button { height: 38px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: 600 .9rem/1 var(--body); cursor: pointer; }
+  .seg button.on { background: var(--card-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .seg button.on[data-kind="cost"] { color: var(--danger); }
+  .seg button.on[data-kind="income"] { color: var(--mint); }
+  select, input.amount {
+    height: 46px; padding: 0 16px; border-radius: 16px; border: 1px solid var(--line);
+    background: rgba(7, 17, 16, .6); color: var(--text); font: 500 1rem/1 var(--body); width: 100%;
+  }
+  select option { background: var(--card); }
+  input.amount { font-family: var(--mono); }
+  ul.ranks .n.cost { color: var(--danger); font-size: 1.05rem; }
+  ul.ranks .n.income { color: var(--mint); font-size: 1.05rem; }
+  ul.ranks .n.tip { color: var(--gold); font-size: 1.05rem; }
+  .rate { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 22px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+  .rate input { width: 96px; height: 38px; border-radius: 12px; padding: 0 12px; }
+  td.neg { color: var(--danger); }
+  tfoot td.neg { color: var(--danger); }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -267,6 +303,47 @@
     </div>
   </section>
 
+  <section id="finance" hidden>
+    <div class="card">
+      <div class="card-head">
+        <h2><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/><path d="M16 3l-3 3"/></svg><span id="finTitle">FINANCE</span></h2>
+        <span class="meta" id="finMeta">Costs, income and tips in R$</span>
+      </div>
+      <dl class="money">
+        <div><dt>Costs</dt><dd id="mCosts">R$ 0,00</dd><small id="mPer">—</small></div>
+        <div><dt>Income</dt><dd id="mIncome">R$ 0,00</dd><small id="mIncomeNote">event fee, bags</small></div>
+        <div><dt>Profit</dt><dd id="mProfit">R$ 0,00</dd><small>income − costs</small></div>
+        <div><dt>Tips</dt><dd class="tip" id="mTips">R$ 0,00</dd><small id="mTipsNote">0 USDC</small></div>
+      </dl>
+      <p class="fin-note" id="finNote"></p>
+      <form class="fin-form" id="finForm" autocomplete="off">
+        <div class="fin-row">
+          <div class="seg" role="group" aria-label="Type"><button type="button" data-kind="cost" class="on">Cost</button><button type="button" data-kind="income">Income</button></div>
+          <select id="finCategory" aria-label="Category"></select>
+        </div>
+        <div class="fin-row">
+          <input type="text" id="finDesc" placeholder="What was it? (e.g. 2 kg beans, Uber)" maxlength="120">
+          <input type="text" class="amount" id="finAmount" placeholder="R$ 0,00" inputmode="decimal" aria-label="Amount in reais">
+          <button class="pill" type="submit" style="flex:0 0 auto;justify-content:center">Add</button>
+        </div>
+      </form>
+      <ul class="ranks" id="finList"></ul>
+      <div class="rate">
+        <label for="finRate">1 USDC =</label>
+        <input type="text" id="finRate" class="amount" inputmode="decimal" aria-label="Reais per USDC">
+        <button class="chip" id="finRateSave" type="button">Save rate</button>
+        <span>converts tips, app coffee bags and race boosts to R$</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>REPORT BY DAY</h2>
+        <div class="actions"><button class="chip" id="finCsv">Download CSV</button></div>
+      </div>
+      <div class="table-wrap" id="finTable"></div>
+    </div>
+  </section>
+
   <section id="resumo">
     <div class="card">
       <div class="card-head">
@@ -280,13 +357,14 @@
     </div>
   </section>
 
-  <p class="version">Âncora v1.13.0 · same menu as @BeachCoffeeIslandBot</p>
+  <p class="version">Âncora v1.14.0 · same menu as @BeachCoffeeIslandBot</p>
 </div>
 
 <nav class="dock" aria-label="Sections">
   <a href="#pedido" class="active" data-nav="pedido"><svg viewBox="0 0 24 24"><path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v3M11 3v3"/></svg>Order</a>
   <a href="#fila" data-nav="fila"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>Queue</a>
   <a href="#ranking" data-nav="ranking" hidden><svg viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4"/></svg>Ranking</a>
+  <a href="#finance" data-nav="finance" hidden><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/></svg>Finance</a>
   <a href="#resumo" data-nav="resumo"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Summary</a>
 </nav>
 
@@ -356,7 +434,111 @@
     render();
     serverCall("GET", "/api/panel/ranking").then(r => renderRanking(r.ranking)).catch(() => {});
     serverCall("GET", "/api/panel/payments").then(r => { payments = r.payments; bagsLeft = r.bags_left; renderSales(); }).catch(() => {});
+    serverCall("GET", "/api/panel/finance").then(r => { finance = r; renderFinance(); }).catch(() => {});
   }
+
+  // Finance (only in the bot's /panel): costs and income typed in R$ for the selected day, plus
+  // tips and app coffee bags converted from USDC. Profit = income − costs; tips are shown apart.
+  let finance = null, finKind = "cost";
+  const brl = cents => (cents < 0 ? "−" : "") + "R$ " + (Math.abs(cents) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const usdcOf = micro => `${+(micro / 1e6).toFixed(2)} USDC`;
+  const EMPTY_DAY = { drinks: 0, costs: 0, income: 0, tipsMicro: 0, tips: 0, tipsCents: 0, bagsMicro: 0, bagsCount: 0, bagsCents: 0, boostsMicro: 0, boostsCount: 0, boostsCents: 0, appCents: 0, profit: 0, profitWithTips: 0, costPerDrink: null };
+  function fillCategories() {
+    if (!finance) return;
+    const cats = finance.categories[finKind];
+    const sel = $("finCategory"), keep = sel.value;
+    sel.innerHTML = Object.entries(cats).map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`).join("");
+    if (cats[keep]) sel.value = keep;
+  }
+  function renderFinance() {
+    if (!SERVER || !finance) return;
+    const day = dayInput.value || localDay();
+    const isToday = day === localDay();
+    const row = finance.days.find(r => r.day === day) || { day, ...EMPTY_DAY };
+    const income = row.income + row.appCents;
+    $("finTitle").textContent = isToday ? "FINANCE · TODAY" : "FINANCE · " + formatDay(day);
+    $("finMeta").textContent = `${longDay(day)} · R$`;
+    $("mCosts").textContent = brl(row.costs);
+    $("mPer").textContent = row.drinks ? `${row.drinks} drinks · ${row.costs ? brl(row.costPerDrink) + " each" : "no costs yet"}` : "no drinks yet";
+    $("mIncome").textContent = brl(income);
+    $("mIncomeNote").textContent = row.bagsCount || row.boostsCount ? "incl. app sales" : "event fee, bags";
+    $("mProfit").textContent = brl(row.profit);
+    $("mProfit").className = row.profit > 0 ? "pos" : row.profit < 0 ? "neg" : "";
+    $("mTips").textContent = brl(row.tipsCents);
+    $("mTipsNote").textContent = `${row.tips} tip${row.tips === 1 ? "" : "s"} · ${usdcOf(row.tipsMicro)}`;
+    $("finNote").innerHTML = `Profit + tips: <b>${brl(row.profitWithTips)}</b>`;
+    if (document.activeElement !== $("finRate")) $("finRate").value = finance.rate.toFixed(2).replace(".", ",");
+    fillCategories();
+
+    const names = finance.categories;
+    const list = finance.entries.filter(e => e.day === day).reverse();
+    const auto = [
+      ...(row.bagsMicro ? [`<li><span class="pos medal">🛍️</span><div class="who"><strong>Coffee bags in the app · ${row.bagsCount}</strong><span>${usdcOf(row.bagsMicro)} · automatic</span></div><span class="n income">${brl(row.bagsCents)}</span></li>`] : []),
+      ...(row.boostsMicro ? [`<li><span class="pos medal">⚡</span><div class="who"><strong>Race boosts · ${row.boostsCount}</strong><span>${usdcOf(row.boostsMicro)} · automatic</span></div><span class="n income">${brl(row.boostsCents)}</span></li>`] : []),
+      ...(row.tipsMicro ? [`<li><span class="pos medal">💛</span><div class="who"><strong>Tips · ${row.tips}</strong><span>${usdcOf(row.tipsMicro)} · automatic, not in profit</span></div><span class="n tip">${brl(row.tipsCents)}</span></li>`] : []),
+    ];
+    $("finList").innerHTML = list.length || auto.length
+      ? list.map(e => `
+          <li>
+            <span class="pos medal">${e.kind === "cost" ? "🧾" : "💵"}</span>
+            <div class="who"><strong>${escapeHtml(names[e.kind][e.category] || e.category)}${e.description ? " · " + escapeHtml(e.description) : ""}</strong><span>${formatTime(e.time)}</span></div>
+            <span class="n ${e.kind}">${e.kind === "cost" ? "−" : "+"}${brl(e.cents)}</span>
+            <button class="chip icon" data-fin-delete="${e.id}" aria-label="Remove entry">✕</button>
+          </li>`).join("") + auto.join("")
+      : '<li class="empty" style="padding-left:0">No costs or income this day yet. Add the first one above.</li>';
+
+    const days = finance.days;
+    if (!days.length) { $("finTable").innerHTML = '<p class="empty" style="margin:0;padding:12px 10px">Days show up here once there are drinks, costs or tips.</p>'; return; }
+    const sum = k => days.reduce((a, r) => a + r[k], 0);
+    const money = c => `<td class="${c < 0 ? "neg" : ""}">${brl(c)}</td>`;
+    const drinks = sum("drinks"), costs = sum("costs");
+    const line = (label, r) => `<tr><td>${label}</td><td>${r.drinks}</td>${money(r.costs)}<td>${r.costPerDrink !== null && r.costs ? brl(r.costPerDrink) : "—"}</td>${money(r.income + r.appCents)}${money(r.profit)}${money(r.tipsCents)}${money(r.profitWithTips)}</tr>`;
+    $("finTable").innerHTML = `
+      <table>
+        <thead><tr><th>Day</th><th>Drinks</th><th>Costs</th><th>Per drink</th><th>Income</th><th>Profit</th><th>Tips</th><th>Profit + tips</th></tr></thead>
+        <tbody>${days.map(r => line(formatDay(r.day), r)).join("")}</tbody>
+        <tfoot>${line("Total", { drinks, costs, costPerDrink: drinks ? Math.round(costs / drinks) : null, income: sum("income"), appCents: sum("appCents"), profit: sum("profit"), tipsCents: sum("tipsCents"), profitWithTips: sum("profitWithTips") })}</tfoot>
+      </table>`;
+  }
+  function financeCsv() {
+    if (!finance || !finance.days.length) return toast("Nothing to download yet");
+    const cents = c => (c / 100).toFixed(2).replace(".", ",");
+    const q = v => `"${String(v).replace(/"/g, '""')}"`;
+    const days = ["day;drinks;costs;cost_per_drink;income;app_sales;profit;tips_usdc;tips;profit_plus_tips",
+      ...[...finance.days].reverse().map(r => [formatDay(r.day), r.drinks, cents(r.costs), r.costPerDrink !== null && r.costs ? cents(r.costPerDrink) : "", cents(r.income), cents(r.appCents), cents(r.profit), +(r.tipsMicro / 1e6).toFixed(2), cents(r.tipsCents), cents(r.profitWithTips)].map(q).join(";"))];
+    const entries = ["day;time;type;category;description;amount",
+      ...finance.entries.map(e => [formatDay(e.day), formatTime(e.time), e.kind, finance.categories[e.kind][e.category] || e.category, e.description, (e.kind === "cost" ? "-" : "") + cents(e.cents)].map(q).join(";"))];
+    const csv = "\ufeff" + ["Report by day", ...days, "", "Entries", ...entries, "", `1 USDC = R$ ${String(finance.rate).replace(".", ",")}`].join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `beach-coffee-finance-${localDay()}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast("CSV saved");
+  }
+  document.querySelectorAll(".seg [data-kind]").forEach(b => b.addEventListener("click", () => {
+    finKind = b.dataset.kind;
+    document.querySelectorAll(".seg [data-kind]").forEach(x => x.classList.toggle("on", x === b));
+    fillCategories();
+  }));
+  $("finForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const amount = $("finAmount").value.trim();
+    if (!amount) return $("finAmount").focus();
+    try {
+      await serverCall("POST", "/api/panel/finance", { day: dayInput.value || localDay(), kind: finKind, category: $("finCategory").value, description: $("finDesc").value, amount });
+      $("finDesc").value = ""; $("finAmount").value = "";
+      toast(finKind === "cost" ? "Cost added" : "Income added");
+      refresh();
+    } catch (err) { toast(err.message === "unauthorized" ? "Log in again" : err.message); }
+  });
+  $("finList").addEventListener("click", e => {
+    const del = e.target.closest("[data-fin-delete]");
+    if (del) armOrRun(del, "Remove?", () => serverCall("DELETE", "/api/panel/finance/" + del.dataset.finDelete).then(refresh).catch(() => toast("Couldn't remove. Try again.")));
+  });
+  $("finRateSave").addEventListener("click", () =>
+    serverCall("POST", "/api/panel/finance/rate", { rate: $("finRate").value }).then(() => { toast("Rate saved"); $("finRate").blur(); refresh(); }).catch(err => toast(err.message)));
+  $("finCsv").addEventListener("click", financeCsv);
   // Tips and Island DAO coffee bags paid in USDC (through the bot), for the selected day.
   let payments = [], bagsLeft = null;
   function renderSales() {
@@ -531,6 +713,7 @@
 
     renderSummary();
     renderSales();
+    renderFinance();
   }
 
   function renderSummary() {
@@ -640,8 +823,10 @@
     render();
     $("ranking").hidden = false;
     $("sales").hidden = false;
+    $("finance").hidden = false;
     document.querySelector('[data-nav="ranking"]').hidden = false;
-    document.querySelector("nav.dock").classList.add("four");
+    document.querySelector('[data-nav="finance"]').hidden = false;
+    document.querySelector("nav.dock").classList.add("five");
     startServer();
   } else {
     orders = loadLocal();
