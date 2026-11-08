@@ -16,6 +16,8 @@ Atualizado em 08/11/2026, bot e Âncora na **v1.15.0**, no domínio próprio **d
 | Banner "Scan to order" (QR para o bot, para o notebook da barra) | `design/banner/` |
 | Deck do pitch (6 slides) | https://claude.ai/artifact/RUnS6FtZHQ3U3VDCtxgbKS (cópia em `design/deck/`) |
 | Arquivos de design (impressão, camiseta, adesivo, posts do X, prints) | `design/` (índice em `design/README.md`) |
+| App instalável / Solana dApp Store (Seeker) | `https://drinkbeachcoffee.com/app` como PWA, pacote Android `com.drinkbeachcoffee.app`; ficha da loja e imagens em `design/app/`; passo a passo em `docs/SEEKER.md` |
+| Vídeos com locução e música | `design/video/` (`beach-coffee-race-voice.mp4`, `beach-coffee-game-voice.mp4`, check-in); áudios e roteiro em `design/video/audio/` (ElevenLabs via Higgsfield; o host `d8j0ntlcm91z4.cloudfront.net` foi liberado no ambiente para baixar) |
 
 ## Como funciona o deploy
 
@@ -64,12 +66,18 @@ Atualizado em 08/11/2026, bot e Âncora na **v1.15.0**, no domínio próprio **d
 
 ## Pendências
 
-1. **Testar um pagamento real a partir de outra carteira** (1 USDC). Pagar da própria carteira `WTxV6…Hz2u` não muda o saldo e por isso não confirma (comportamento esperado).
-2. Opcional: `SOLANA_RPC_URL` com uma URL grátis da Helius (mais estável que o publicnode).
-3. Opcional: release `bot-v1.3.2` no GitHub (o proxy da sessão não deixa criar tag; fazer pela interface).
-4. Opcional: `/revoke` do token do bot (foi colado no chat em 27/10) e atualizar `BOT_TOKEN` no Cloudflare.
-5. Conferir se pedidos da barra de 27/10 duplicam pedidos do Telegram.
-6. Submissão ao hackathon da Island DAO: trilha **Payments + Commerce**. Ver `docs/PITCH.md`. Deck pronto (6 slides, demo ao vivo no slide 3), com os números do `/total` em 28/10 12:33: 356 bebidas em 5 dias, 47 pelo Telegram de 33 pessoas. Inscrição IslandHack v5 até 11/11 (rascunho no app da Island DAO; respostas em `design/hackathon/`). Faltam também os vídeos de pitch e de demo.
+1. **IslandHack v5, prazo 11/11** (trilha Payments + Commerce). Checklist em `docs/HACKATHON.md`. Falta, com o Eric: link do Solscan de um tip real (já houve tips), repositório público, vídeo de demo e vídeo do pitch, formulários no app da Island DAO, post no X. README, deck (slides 4 e 5), pitch e respostas do formulário já citam 2k+ cafés e a Solana dApp Store.
+2. **App na Solana dApp Store:** v1.0.0 em análise (publish.solanamobile.com, carteira de publisher `H9wg…Er5N`). Avisar o Takisoul no grupo para pedir o Seeker. Guardar os zips do PWABuilder (keystore + senhas). Ver `docs/SEEKER.md`.
+3. **Check-in onchain:** construído (v1.11.x) mas desligado até `/checkins setup` + SOL + `/checkins on`. O Eric achou que, depois do pedido, ele não faz sentido sozinho. Na Phantom aparece aviso de "malicioso" (transação já assinada pelo bar). Ideia pendente: botão único "Check in" com Solana Pay *transaction request* (abre a carteira do celular sozinho).
+4. **Corrida do café (ranking) é o que mais engaja.** Ideias combinadas e ainda não feitas: prêmio para o top 3 (medalha onchain), "você está a 1 café do #3", aviso de ultrapassagem, ranking do dia, card automático do top 5 para o X.
+5. Recomendado: segredo `SOLANA_RPC_URL` (Helius grátis) no Cloudflare. Os RPCs públicos às vezes recusam ("Solana is busy").
+6. Leitura de notas fiscais por foto no Financeiro (precisa de `ANTHROPIC_API_KEY` no Cloudflare).
+7. Opcional: `/revoke` do token do bot (foi colado no chat em 27/10) e atualizar `BOT_TOKEN` no Cloudflare.
+8. Guardado para depois: o jogo completo do protótipo Giants (fila com boost pago, pontos, sequência, loja, animações), nos commits `6d38f3d` e `2f6954d` (revertidos); protótipo em `design/giants/`. E a plataforma para outros bares/eventos (cada um com cardápio, carteira e ranking).
+
+### Como trabalhar (conversas separadas por assunto)
+
+Uma conversa por assunto, sempre começando por "lê `CLAUDE.md` e `docs/STATE.md`" e terminando com "atualiza o `docs/STATE.md`": bot e operação do bar; entrega do IslandHack; app da Solana/Seeker (`docs/SEEKER.md`); marketing e redes (`design/social/`, `design/video/`); vendas e eventos (`/eventos`, `/web3`).
 
 ## Preferências do usuário
 
