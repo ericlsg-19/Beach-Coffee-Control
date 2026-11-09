@@ -61,7 +61,7 @@ export function checkinPageHtml(c) {
     <div class="card">
       <span class="free">Free · the bar pays the fee</span>
       <ul class="steps">
-        <li><b>1</b><span>Your wallet signs a check-in for this coffee on Solana, like the event check-in.</span></li>
+        <li><b>1</b><span>Your wallet signs a check-in for this coffee on Solana. It's just like the event check-in.</span></li>
         <li><b>2</b><span>No tokens move. Your wallet may say <i>"no balance changes"</i>: that's right.</span></li>
         <li><b>3</b><span>It's yours onchain: proof you had a coffee here.</span></li>
       </ul>

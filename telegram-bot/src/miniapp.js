@@ -574,7 +574,7 @@ export function miniAppHtml(drinks, pay = null) {
       '<h2>' + esc(drinkName(r.order.drink)) + '<br><b>on the way</b></h2>' +
       '<p class="note">' + (r.order.lunch ? '🍽️ Ready from ' + esc(r.order.lunch) + ', after the barista\\'s lunch. We\\'ll message you in the chat ☕' : 'We\\'ll message you in the chat when it\\'s ready ☕') + '</p>' +
       '<div style="display:flex;gap:10px;margin-top:8px"><button class="btn" id="close">Back to chat</button><button class="btn ghost" id="again">Order another</button></div>' +
-      (checkinOn ? '<div class="pay-card checkin-card"><h3>☕ Check in your coffee onchain</h3><p class="note">Like the event check-in: your wallet signs, the bar pays the fee. Free.</p>' +
+      (checkinOn ? '<div class="pay-card checkin-card"><h3>☕ Check in your coffee onchain</h3><p class="note">It’s just like the event check-in: your wallet signs, and the bar pays the network fee. Free for you.</p>' +
         '<button class="btn solflare wide" data-checkin="solflare" data-num="' + r.order.num + '">Check in with Solflare</button>' +
         '<button class="btn phantom wide" data-checkin="phantom" data-num="' + r.order.num + '">Check in with Phantom</button></div>' : '') +
       (PAY ? '<div class="pay-card tip-after"><h3>💛 Tip the barista?</h3><p class="note">Optional, in USDC on Solana. Drinks stay on the house.</p>' +

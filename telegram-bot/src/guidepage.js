@@ -188,7 +188,7 @@ const PAGE = String.raw`<!doctype html>
       <div class="card">
         <span class="ico">⛓️</span>
         <h3>Check in your coffee onchain</h3>
-        <p>Like the event check-in: after an order, tap <b>☕ Check in</b>, your wallet signs a small memo and the bar pays the network fee. Free for you. The order then shows <b>✓ Onchain</b>.</p>
+        <p>It's just like the event check-in: after an order, tap <b>☕ Check in</b>, your wallet signs a small memo and the bar pays the network fee. Free for you. The order then shows <b>✓ Onchain</b>.</p>
       </div>
       <div class="card">
         <span class="ico">📱</span>

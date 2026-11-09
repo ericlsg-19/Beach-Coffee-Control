@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 08/11/2026, bot e Âncora na **v1.16.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 08/11/2026, bot e Âncora na **v1.16.1**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -68,6 +68,7 @@ Atualizado em 08/11/2026, bot e Âncora na **v1.16.0**, no domínio próprio **d
 - 08/11: v1.15.0 no ar: **guia completo** em https://drinkbeachcoffee.com/guide (inglês), em duas partes: para clientes (pedido, leite, regras do bar, corrida e race boost, Top patrons, tip e pacote em USDC, check-in onchain, app e QR) e para a equipe (configurar com `/barista`, o que chega no chat, todos os comandos, Âncora, Finance, o que fazer se algo der errado). Links: `/help` do bot ("Full guide"), "How it works" no app, "Guide" no rodapé do Âncora. Fonte em `telegram-bot/src/guidepage.js`; o teste falha se um comando do `/help` não estiver no guia. Próximo passo combinado: leitura de notas fiscais por foto (precisa de `ANTHROPIC_API_KEY` no Cloudflare).
 - 08/11: v1.15.1 no ar: pop-up **"What's new at the bar"** no mini app, uma vez por novidade (`NEWS_ID` em `miniapp.js`), só para quem já pediu antes: ranking, race boost, Top patrons e o guia. Para uma próxima novidade, trocar o texto e o `NEWS_ID`.
 - 08/11: v1.16.0 no ar: **Top patrons editável no Âncora** (card abaixo do Ranking). Tips que chegaram fora do app (alguém copiou a carteira, corretora) aparecem em "Tips from outside the app" com o botão **Credit** para dizer quem mandou; a carteira fica lembrada e os próximos envios dela contam para a mesma pessoa (e a carteira de quem já deu tip pelo app é reconhecida sozinha). **Add a tip by hand** para tips que o bot nunca viu (antes de vigiar a carteira), com link do Solscan opcional; entram também nas tips do Financeiro. Undo/✕ desfaz. Tabela `patron_tips`, código em `telegram-bot/src/patrons.js`. O aviso "arrived outside the app" no chat agora diz para creditar em /panel → Top patrons.
+- 09/11: v1.16.1 no ar: texto do check-in mais claro, "It's just like the event check-in: your wallet signs, and the bar pays the network fee. Free for you." (cartão no app, página de check-in e guia). O vídeo `design/video/checkin-video.mjs` ainda diz "like the event check-in" na legenda (já renderizado; trocar se for refazer).
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
