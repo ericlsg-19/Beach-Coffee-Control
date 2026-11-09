@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 08/11/2026, bot e Âncora na **v1.17.0** (em branch, aguardando deploy), no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 08/11/2026, bot e Âncora na **v1.17.0**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -69,7 +69,7 @@ Atualizado em 08/11/2026, bot e Âncora na **v1.17.0** (em branch, aguardando de
 - 08/11: v1.15.1 no ar: pop-up **"What's new at the bar"** no mini app, uma vez por novidade (`NEWS_ID` em `miniapp.js`), só para quem já pediu antes: ranking, race boost, Top patrons e o guia. Para uma próxima novidade, trocar o texto e o `NEWS_ID`.
 - 08/11: v1.16.0 no ar: **Top patrons editável no Âncora** (card abaixo do Ranking). Tips que chegaram fora do app (alguém copiou a carteira, corretora) aparecem em "Tips from outside the app" com o botão **Credit** para dizer quem mandou; a carteira fica lembrada e os próximos envios dela contam para a mesma pessoa (e a carteira de quem já deu tip pelo app é reconhecida sozinha). **Add a tip by hand** para tips que o bot nunca viu (antes de vigiar a carteira), com link do Solscan opcional; entram também nas tips do Financeiro. Undo/✕ desfaz. Tabela `patron_tips`, código em `telegram-bot/src/patrons.js`. O aviso "arrived outside the app" no chat agora diz para creditar em /panel → Top patrons.
 - 09/11: v1.16.1 no ar: texto do check-in mais claro, "It's just like the event check-in: your wallet signs, and the bar pays the network fee. Free for you." (cartão no app, página de check-in e guia). O vídeo `design/video/checkin-video.mjs` ainda diz "like the event check-in" na legenda (já renderizado; trocar se for refazer).
-- 09/11: v1.17.0 (**branch, aguardando deploy**): (1) check-in onchain escondido: saiu do guia (cartão dos clientes e o grupo Onchain dos comandos) e da lista do `/help`; continua desligado, o código e o `/checkins` ficam. (2) **"What's new at the bar" para todos**: no Telegram, quem já pediu vê ao abrir e os **novos logo depois do primeiro pedido** (quando fecham o pop-up de gorjeta); no **app do Seeker e no navegador** abre ao entrar, com uma lista própria ("Coffee, onchain": pedir pelo Telegram, corrida do café, Tip & Bag com a carteira do celular, guia; botão "Order on Telegram"). Uma vez por aparelho por `NEWS_ID` (`miniapp.js`); para uma novidade nova, trocar os textos (`NEWS_TELEGRAM`, `NEWS_WEB`) e o `NEWS_ID`.
+- 09/11: v1.17.0 no ar: (1) check-in onchain escondido: saiu do guia (cartão dos clientes e o grupo Onchain dos comandos) e da lista do `/help`; continua desligado, o código e o `/checkins` ficam. (2) **"What's new at the bar" para todos**: no Telegram, quem já pediu vê ao abrir e os **novos logo depois do primeiro pedido** (quando fecham o pop-up de gorjeta); no **app do Seeker e no navegador** abre ao entrar, com uma lista própria ("Coffee, onchain": pedir pelo Telegram, corrida do café, Tip & Bag com a carteira do celular, guia; botão "Order on Telegram"). Uma vez por aparelho por `NEWS_ID` (`miniapp.js`); para uma novidade nova, trocar os textos (`NEWS_TELEGRAM`, `NEWS_WEB`) e o `NEWS_ID`.
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
