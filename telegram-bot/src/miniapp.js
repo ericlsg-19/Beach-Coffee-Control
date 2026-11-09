@@ -296,17 +296,13 @@ export function miniAppHtml(drinks, pay = null) {
   <p class="note staff"><a href="/guide" target="_blank" rel="noopener">How it works</a><span id="staffLink" hidden> · <a href="/panel">Staff · Âncora panel</a></span></p>
 </div>
 <div class="fallback" id="fallback" hidden><button class="btn" id="fallbackBtn">Order</button></div>
-<!-- What's new: shown once per NEWS_ID to guests coming back after an update. -->
+<!-- What's new: shown once per NEWS_ID: Telegram guests (returning ones on open, new ones after their first
+     order) and the installed app / browser, each with its own list (filled by showNews). -->
 <div class="sheet" id="newsSheet" hidden role="dialog" aria-modal="true" aria-labelledby="newsTitle">
   <div class="sheet-card">
     <p class="eyebrow">What's new at the bar ☕</p>
     <h3 id="newsTitle">The coffee <b>race</b></h3>
-    <div class="news">
-      <div><span>🏆</span><p><b>Ranking</b>Every coffee you order counts. Climb to the top of Island DAO.</p></div>
-      <div><span>⚡</span><p><b>Race boost</b>+1 cup in the race for 1 USDC, once a day. It shows as ⚡ on the board.</p></div>
-      <div><span>💛</span><p><b>Top patrons</b>Tips to the barista get their own board.</p></div>
-      <div><span>📖</span><p><b>How it works</b>Everything in one guide, at the bottom of the app.</p></div>
-    </div>
+    <div class="news" id="newsItems"></div>
     <button class="btn wide" id="newsGo">See the ranking</button>
     <button class="btn ghost wide" id="newsLater">Got it</button>
   </div>
@@ -433,20 +429,48 @@ export function miniAppHtml(drinks, pay = null) {
     $("boardPatrons").hidden = b.dataset.board !== "patrons";
     popIn($(b.dataset.board === "race" ? "boardRace" : "boardPatrons"));
   });
-  // What's new: once per update, for Telegram guests (not the first time ever: they get the menu first).
+  // What's new: once per update (NEWS_ID) on each device. In Telegram: guests who already ordered see it
+  // when they open the app; new guests right after their first order (once the tip pop-up is closed).
+  // In the installed app (Seeker) and the browser: on open, with what works there.
   const NEWS_ID = "2026-11-race";
-  // Only for guests who already ordered before (they're in the ranking); new guests start with the menu.
-  function showNews(returning) {
-    if (!initData) return;
-    let seen = null;
-    try { seen = localStorage.getItem("bc-news"); } catch (e) { return; }
-    if (seen === NEWS_ID) return;
+  const NEWS_TELEGRAM = [
+    ["🏆", "Ranking", "Every coffee you order counts. Climb to the top of Island DAO."],
+    ["⚡", "Race boost", "+1 cup in the race for 1 USDC, once a day. It shows as ⚡ on the board."],
+    ["💛", "Top patrons", "Tips to the barista get their own board."],
+    ["📖", "How it works", "Everything in one guide, at the bottom of the app."],
+  ];
+  const NEWS_WEB = [
+    ["☕", "Order from your seat", "Tap Order on Telegram, pick your drink and get a ping when it's ready."],
+    ["🏆", "The coffee race", "Every coffee you order in Telegram counts. Climb the ranking, or boost +1 cup ⚡."],
+    ["💛", "Tip & Bag from your phone", "Tip the barista or get the Island DAO coffee bag in USDC, with your phone's wallet."],
+    ["📖", "How it works", "Everything in one guide, at the bottom of the app."],
+  ];
+  let newsAfterOrder = false;
+  const newsSeen = () => { try { return localStorage.getItem("bc-news") === NEWS_ID; } catch (e) { return true; } };
+  function openNews() {
+    const web = !initData, items = web ? NEWS_WEB : NEWS_TELEGRAM;
+    $("newsTitle").innerHTML = web ? "Coffee, <b>onchain</b>" : "The coffee <b>race</b>";
+    $("newsItems").innerHTML = items.map(([icon, title, text]) => '<div><span>' + icon + '</span><p><b>' + title + '</b>' + esc(text) + '</p></div>').join("");
+    $("newsGo").textContent = web ? "Order on Telegram" : "See the ranking";
     const done = () => { $("newsSheet").hidden = true; try { localStorage.setItem("bc-news", NEWS_ID); } catch (e) {} };
     $("newsLater").onclick = done;
-    $("newsGo").onclick = () => { done(); showTab("rank"); };
+    $("newsGo").onclick = () => { done(); if (web) window.open("https://t.me/BeachCoffeeIslandBot", "_blank"); else showTab("rank"); };
     $("newsSheet").onclick = e => { if (e.target === $("newsSheet")) done(); };
-    if (!returning) { done(); return; }
-    setTimeout(() => { $("newsSheet").hidden = false; }, 600);
+    $("newsSheet").hidden = false;
+  }
+  // returning: a Telegram guest already in the ranking. New ones wait for their first order.
+  function showNews(returning) {
+    if (newsSeen()) return;
+    if (initData && !returning) { newsAfterOrder = true; return; }
+    newsAfterOrder = false;
+    setTimeout(openNews, 600);
+  }
+  // Right after an order: a new guest sees What's new once the tip pop-up is out of the way.
+  function newsAfterFirstOrder() {
+    if (!newsAfterOrder || newsSeen()) return;
+    newsAfterOrder = false;
+    if (!$("tipSheet").hidden || (PAY && !$("tipSheet").dataset.closed)) { $("tipSheet").dataset.newsNext = "1"; return; }
+    setTimeout(openNews, 1200);
   }
   async function refreshRanking() {
     const s = await api("/api/session", {});
@@ -498,6 +522,7 @@ export function miniAppHtml(drinks, pay = null) {
     $("closedNote").hidden = open;
     $("closedText").textContent = s.closed || "The bar is closed right now 🌙 Come back soon!";
     renderDrinks();
+    showNews(true);
   }
 
   async function load() {
@@ -587,6 +612,7 @@ export function miniAppHtml(drinks, pay = null) {
     refreshRanking();
     // Once per visit, a moment after the confirmation: the optional tip pop-up.
     if (PAY && !tipAsked) { tipAsked = true; setTimeout(() => { $("tipSheet").hidden = false; }, 700); }
+    newsAfterFirstOrder();
   }
 
   $("drinks").addEventListener("click", e => {
@@ -727,7 +753,10 @@ export function miniAppHtml(drinks, pay = null) {
     $("payGo").addEventListener("click", startPay);
     // Right after an order (pop-up or card): a tip chip opens Tip & Bag on that amount and goes straight to checkout.
     $("sheetChips").innerHTML = PAY.presets.map(v => '<button class="chip" data-tip="' + v + '">' + v + '</button>').join("") + '<button class="chip" data-tip="other">Other</button>';
-    const closeSheet = () => { $("tipSheet").hidden = true; };
+    const closeSheet = () => {
+      $("tipSheet").hidden = true; $("tipSheet").dataset.closed = "1";
+      if ($("tipSheet").dataset.newsNext) { delete $("tipSheet").dataset.newsNext; if (!newsSeen()) setTimeout(openNews, 400); }
+    };
     $("sheetLater").addEventListener("click", closeSheet);
     $("tipSheet").addEventListener("click", e => { if (e.target === $("tipSheet")) closeSheet(); });
     $("sheetBag").innerHTML = bagOffer();
