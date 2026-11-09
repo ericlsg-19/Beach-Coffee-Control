@@ -1384,3 +1384,12 @@ test("Top patrons: credit tips from outside the app (wallet remembered), add tip
   d = await (await panel(env, "GET", "/api/panel/patrons")).json();
   assert.deepEqual(d.patrons.map(p => p.name), ["Ana (@ana)", "Carla"]);
 });
+
+test("What's new: the app has a Telegram list and one for the installed app / browser, shown to new guests after their first order", async () => {
+  const { env } = setup();
+  const html = await (await worker.fetch(new Request("https://bot/app"), env)).text();
+  assert.match(html, /const NEWS_TELEGRAM = \[/);
+  assert.match(html, /const NEWS_WEB = \[/);
+  assert.match(html, /function newsAfterFirstOrder\(\)/);
+  assert.match(html, /showNews\(true\);\n  \}/, "browse mode (Seeker, browser) shows it on open");
+});

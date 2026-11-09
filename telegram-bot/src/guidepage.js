@@ -1,5 +1,5 @@
 // /guide: everything the bar does, in English, for guests (ordering, the coffee race, tips, the bag,
-// the onchain check-in, the app) and for the bar team (setup, every barista command, Âncora,
+// the app) and for the bar team (setup, every barista command, Âncora,
 // finance). Linked from the bot's /help, the app and Âncora. Keep it in step with BARISTA_HELP.
 import { WORDMARK_SVG } from "./wordmark.js";
 
@@ -32,9 +32,6 @@ const COMMANDS = [
     ["/payments", "Tips, bags and boosts of the last 7 days, and where checkouts get stuck.", ""],
     ["/bags", "Coffee bags sold and left. Bags sold in cash at the bar come off the stock.", "/bags 17"],
   ]],
-  ["Onchain", [
-    ["/checkins", "Coffees checked in onchain and the wallet that pays their fees.", "/checkins setup · /checkins on · /checkins off"],
-  ]],
 ];
 
 const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
@@ -50,7 +47,7 @@ const PAGE = String.raw`<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Beach Coffee Co. · Guide</title>
-<meta name="description" content="Everything the Beach Coffee bar does: ordering from Telegram, the coffee race, tips and the coffee bag in USDC, the onchain check-in, the app, and the tools for the bar team.">
+<meta name="description" content="Everything the Beach Coffee bar does: ordering from Telegram, the coffee race, tips and the coffee bag in USDC, the app, and the tools for the bar team.">
 <meta name="theme-color" content="#0c1c18">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800;125,900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
@@ -133,7 +130,7 @@ const PAGE = String.raw`<!doctype html>
       <a class="btn ghost" href="/panel">Barista panel</a>
     </div>
     <div class="toc">
-      <a href="#guests"><b>For guests →</b><span>Order, milk choices, the coffee race, tips and the bag in USDC, the onchain check-in, the app.</span></a>
+      <a href="#guests"><b>For guests →</b><span>Order, milk choices, the coffee race, tips and the bag in USDC, the app.</span></a>
       <a href="#team"><b>For the bar team →</b><span>Set up in a minute, every command, the Âncora panel, reports and finance.</span></a>
     </div>
   </div>
@@ -185,12 +182,7 @@ const PAGE = String.raw`<!doctype html>
         </ul>
         <p>The <b>Island DAO Edition coffee bag</b> is a limited run; the app shows how many are left. Pick it up at the bar.</p>
       </div>
-      <div class="card">
-        <span class="ico">⛓️</span>
-        <h3>Check in your coffee onchain</h3>
-        <p>It's just like the event check-in: after an order, tap <b>☕ Check in</b>, your wallet signs a small memo and the bar pays the network fee. Free for you. The order then shows <b>✓ Onchain</b>.</p>
-      </div>
-      <div class="card">
+      <div class="card wide">
         <span class="ico">📱</span>
         <h3>The app and the QR at the bar</h3>
         <p><b>Beach Coffee on the Solana dApp Store</b> (Seeker) and on Android, or add <a href="/app">drinkbeachcoffee.com/app</a> to your home screen: live menu, what's sold out, ordering through Telegram, and Tip & Bag with your phone's wallet.</p>
