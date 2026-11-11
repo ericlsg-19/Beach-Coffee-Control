@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 11/11/2026, bot e Âncora na **v1.17.1**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 11/11/2026, bot e Âncora na **v1.17.2**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -71,6 +71,7 @@ Atualizado em 11/11/2026, bot e Âncora na **v1.17.1**, no domínio próprio **d
 - 09/11: v1.16.1 no ar: texto do check-in mais claro, "It's just like the event check-in: your wallet signs, and the bar pays the network fee. Free for you." (cartão no app, página de check-in e guia). O vídeo `design/video/checkin-video.mjs` ainda diz "like the event check-in" na legenda (já renderizado; trocar se for refazer).
 - 09/11: v1.17.0 no ar: (1) check-in onchain escondido: saiu do guia (cartão dos clientes e o grupo Onchain dos comandos) e da lista do `/help`; continua desligado, o código e o `/checkins` ficam. (2) **"What's new at the bar" para todos**: no Telegram, quem já pediu vê ao abrir e os **novos logo depois do primeiro pedido** (quando fecham o pop-up de gorjeta); no **app do Seeker e no navegador** abre ao entrar, com uma lista própria ("Coffee, onchain": pedir pelo Telegram, corrida do café, Tip & Bag com a carteira do celular, guia; botão "Order on Telegram"). Uma vez por aparelho por `NEWS_ID` (`miniapp.js`); para uma novidade nova, trocar os textos (`NEWS_TELEGRAM`, `NEWS_WEB`) e o `NEWS_ID`.
 - 11/11: v1.17.1 no ar: na aba Ranking do Mini App, **Top patrons vem primeiro e abre por padrão**; Coffee race é a segunda aba.
+- 11/11: v1.17.2 no ar: **pacotes numerados pela ordem de venda** (#1, #2…) nas mensagens do bot e no Âncora; antes aparecia o id do pagamento (contava todos os checkouts, ex. #154). Estoque: 9 pacotes (ajustar com `/bags 9`).
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências
