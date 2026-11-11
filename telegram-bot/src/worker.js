@@ -53,7 +53,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.17.1";
+const VERSION = "1.17.2";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -784,13 +784,14 @@ async function handlePanelApi(request, env, path) {
 
   if (path === "/api/panel/payments" && request.method === "GET") {
     const { results } = await env.DB.prepare("SELECT * FROM payments WHERE status = 'paid' ORDER BY id").all();
-    return json({ ok: true, payments: results.map(panelPayment), bags_left: await bagsLeft(env) });
+    let bags = 0;
+    return json({ ok: true, payments: results.map(p => panelPayment(p, p.kind === "bag" ? ++bags : null)), bags_left: await bagsLeft(env) });
   }
   if (path.startsWith("/api/panel/payments/") && request.method === "POST") {
     const body = await request.json().catch(() => ({}));
     const p = await env.DB.prepare("UPDATE payments SET handed_over = ? WHERE id = ? AND kind = 'bag' AND status = 'paid' RETURNING *")
       .bind(body.handed ? 1 : 0, id).first();
-    return p ? json({ ok: true, payment: panelPayment(p) }) : json({ ok: false, error: "Payment not found." }, 404);
+    return p ? json({ ok: true, payment: panelPayment(p, await bagNumber(env, p)) }) : json({ ok: false, error: "Payment not found." }, 404);
   }
 
   const order = id ? await env.DB.prepare("SELECT * FROM orders WHERE id = ?").bind(id).first() : null;
@@ -870,6 +871,10 @@ const BAG_HOLD_MS = 15 * 60 * 1000; // an unpaid bag checkout holds one bag for 
 // Limited edition: BAG_STOCK bags in total. null when no stock is set (no limit).
 const bagStock = env => (/^\d+$/.test(String(env.BAG_STOCK ?? "")) ? Number(env.BAG_STOCK) : null);
 // Bags sold outside the app (cash, at the bar) count too: /bags 17 says how many are left right now.
+// The bag's place among the bags sold in the app (1, 2, 3…). p.id counts every checkout (tips, boosts,
+// abandoned ones), so it is not shown to people.
+const bagNumber = (env, p) => env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'paid' AND id <= ?")
+  .bind(p.id).first().then(r => r.n);
 const bagsSoldInApp = env => env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE kind = 'bag' AND status = 'paid'").first().then(r => r.n);
 const bagsSoldOffline = async env => Number(await getSetting(env, "bags_sold_offline")) || 0;
 async function bagsLeft(env) {
@@ -985,10 +990,11 @@ async function announcePayment(env, p) {
       (me ? `\nYou're <b>#${me.rank}</b> with ${me.drinks} ☕ +${me.boosts}⚡.` : "") + `\nSee you at the bar ☕`);
   }
   const baristaChat = await getSetting(env, "barista_chat");
+  const bagNo = p.kind === "bag" ? await bagNumber(env, p) : null;
   if (baristaChat && p.kind === "bag") {
     const left = await bagsLeft(env);
     await send(env, baristaChat,
-      `🛍️ <b>Coffee bag #${p.id} paid · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\nHand them an Island DAO Limited Edition bag.` +
+      `🛍️ <b>Coffee bag #${bagNo} sold · ${usdc(p.amount_micro)}</b>\n👤 ${escapeHtml(payerName(p))}\nHand them an Island DAO Limited Edition bag.` +
       (left === null ? "" : `\n📦 ${left} left`) + `\n${link}`,
       { inline_keyboard: [[{ text: "✅ Handed over", callback_data: `h:${p.id}` }]] });
   } else if (baristaChat) {
@@ -996,7 +1002,7 @@ async function announcePayment(env, p) {
   }
   if (!p.customer_chat) return;
   await send(env, p.customer_chat, p.kind === "bag"
-    ? `🛍️ <b>Paid! Coffee bag #${p.id} is yours.</b>\nShow this message at the bar to pick up your Island DAO Limited Edition bag.`
+    ? `🛍️ <b>Paid! Coffee bag #${bagNo} is yours.</b>\nShow this message at the bar to pick up your Island DAO Limited Edition bag.`
     : `💛 <b>Thank you for the ${usdc(p.amount_micro)} tip!</b>\nIt went straight to the barista. See you at the bar ☕`);
 }
 
@@ -1004,7 +1010,7 @@ async function handOverBag(env, chatId, messageId, id) {
   const p = await env.DB.prepare("UPDATE payments SET handed_over = 1 WHERE id = ? AND kind = 'bag' AND status = 'paid' RETURNING *")
     .bind(id).first();
   if (!p) return;
-  return edit(env, chatId, messageId, `✅ <b>Coffee bag #${p.id} handed over</b> · ${usdc(p.amount_micro)}\n👤 ${escapeHtml(payerName(p))}`);
+  return edit(env, chatId, messageId, `✅ <b>Coffee bag #${await bagNumber(env, p)} handed over</b> · ${usdc(p.amount_micro)}\n👤 ${escapeHtml(payerName(p))}`);
 }
 
 // Every minute: look for the recent unpaid checkouts on Solana, and drop the old ones.
@@ -1363,9 +1369,9 @@ async function salesLines(env, day) {
   ];
 }
 
-function panelPayment(p) {
+function panelPayment(p, bagNo = null) {
   return {
-    id: String(p.id), kind: p.kind, amount: fromMicro(p.amount_micro), day: p.day, time: p.paid_at,
+    id: String(p.id), kind: p.kind, bag_no: bagNo, amount: fromMicro(p.amount_micro), day: p.day, time: p.paid_at,
     customer: payerName(p) + (p.customer_chat ? " · Telegram" : ""), handed: !!p.handed_over, signature: p.signature,
   };
 }

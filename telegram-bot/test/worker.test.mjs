@@ -826,6 +826,7 @@ test("coffee bag from the Mini App: customer and barista told, hand-over, /today
   assert.match(app, /data-tab="pay"/);
   assert.ok(app.includes(`"recipient":"${SHOP}"`));
 
+  assert.ok((await pay(env, { initData, kind: "tip", amount: "2" })).ok); // a checkout left unpaid takes payment id 1
   const { payment } = await pay(env, { initData, kind: "bag" });
   chain[payment.ref] = [{ signature: "bagsig", received: 10 }];
   calls.length = 0;
@@ -833,10 +834,10 @@ test("coffee bag from the Mini App: customer and barista told, hand-over, /today
 
   const toAna = calls.find(c => c.method === "sendMessage" && c.body.chat_id === ANA);
   assert.match(toAna.body.text, /Coffee bag #1 is yours/);
-  const toBarista = calls.find(c => c.method === "sendMessage" && /Coffee bag #1 paid · 10 USDC/.test(c.body.text));
+  const toBarista = calls.find(c => c.method === "sendMessage" && /Coffee bag #1 sold · 10 USDC/.test(c.body.text));
   assert.match(toBarista.body.text, /Ana Souza \(@ana\)/);
   const handOver = toBarista.body.reply_markup.inline_keyboard[0][0].callback_data;
-  assert.equal(handOver, "h:1");
+  assert.equal(handOver, "h:2"); // payment id 2, but the first bag sold: shown as #1
 
   calls.length = 0;
   await post(tap(ANA, handOver)); // customers can't mark it handed over
@@ -848,7 +849,7 @@ test("coffee bag from the Mini App: customer and barista told, hand-over, /today
   assert.match(calls.at(-1).body.text, /🛍️ Coffee bags: 1 · 10 USDC/);
 
   const list = (await (await panel(env, "GET", "/api/panel/payments")).json()).payments;
-  assert.deepEqual(list.map(p => [p.kind, p.amount, p.customer, p.handed]), [["bag", "10", "Ana Souza (@ana) · Telegram", true]]);
+  assert.deepEqual(list.map(p => [p.kind, p.bag_no, p.amount, p.customer, p.handed]), [["bag", 1, "10", "Ana Souza (@ana) · Telegram", true]]);
   await panel(env, "POST", `/api/panel/payments/${list[0].id}`, { handed: false });
   assert.equal((await (await panel(env, "GET", "/api/panel/payments")).json()).payments[0].handed, false);
   assert.equal((await panel(env, "GET", "/api/panel/payments", null, "wrong")).status, 401);
@@ -912,7 +913,7 @@ test("limited edition: bags stop selling at BAG_STOCK, unpaid checkouts hold one
   chain[a.ref] = [{ signature: "a1", received: 10 }];
   calls.length = 0;
   await runMinuteCron(env);
-  assert.match(calls.find(c => /Coffee bag #1 paid/.test(c.body.text || "")).body.text, /📦 1 left/);
+  assert.match(calls.find(c => /Coffee bag #1 sold/.test(c.body.text || "")).body.text, /📦 1 left/);
 
   // An abandoned checkout stops holding its bag after 15 minutes.
   await env.DB.prepare("UPDATE payments SET created_at = ? WHERE id = ?").bind(new Date(Date.now() - 16 * 60 * 1000).toISOString(), 2).run();
