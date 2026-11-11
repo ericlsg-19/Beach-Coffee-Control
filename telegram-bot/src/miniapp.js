@@ -238,8 +238,8 @@ export function miniAppHtml(drinks, pay = null) {
   <p class="note" id="msg"></p>
   </div>
   <section id="tab-rank" hidden>
-    <div class="seg" id="rankSeg"><button class="on" data-board="race">☕ Coffee race</button><button data-board="patrons">💛 Top patrons</button></div>
-    <div id="boardRace">
+    <div class="seg" id="rankSeg"><button class="on" data-board="patrons">💛 Top patrons</button><button data-board="race">☕ Coffee race</button></div>
+    <div id="boardRace" hidden>
       <div class="me-card" id="meRank"></div>
       <div class="race-boost" id="raceBoost" hidden>
         <div><b>⚡ +1 cup in the race</b><small>1 USDC, one a day. It shows as ⚡ on the board.</small></div>
@@ -248,7 +248,7 @@ export function miniAppHtml(drinks, pay = null) {
       <div class="card" id="rankList"></div>
       <p class="note" style="margin-top:12px">Every drink you order here in Telegram counts. Keep ordering to climb 🏝️</p>
     </div>
-    <div id="boardPatrons" hidden>
+    <div id="boardPatrons">
       <div class="card" id="patronList"></div>
       <p class="note" style="margin-top:12px">USDC tips to the barista, on Solana. A board of its own: tips never move the coffee race 💛</p>
     </div>
