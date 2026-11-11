@@ -389,7 +389,7 @@
     </div>
   </section>
 
-  <p class="version">Âncora v1.17.1 · same menu as @BeachCoffeeIslandBot · <a href="https://drinkbeachcoffee.com/guide" target="_blank" rel="noopener" style="color:var(--muted)">Guide</a></p>
+  <p class="version">Âncora v1.17.2 · same menu as @BeachCoffeeIslandBot · <a href="https://drinkbeachcoffee.com/guide" target="_blank" rel="noopener" style="color:var(--muted)">Guide</a></p>
 </div>
 
 <nav class="dock" aria-label="Sections">
@@ -585,7 +585,7 @@
       ? list.map(p => `
           <li>
             <span class="pos medal">${p.kind === "bag" ? "🛍️" : "💛"}</span>
-            <div class="who"><strong>${p.kind === "bag" ? `Coffee bag #${p.id}` : "Tip"} · ${escapeHtml(p.customer)}</strong>
+            <div class="who"><strong>${p.kind === "bag" ? `Coffee bag #${p.bag_no || p.id}` : "Tip"} · ${escapeHtml(p.customer)}</strong>
               <span>${formatTime(p.time)} · <a href="https://solscan.io/tx/${encodeURIComponent(p.signature)}" target="_blank" rel="noopener">Solscan</a></span></div>
             ${p.kind === "bag" ? `<button class="chip ${p.handed ? "" : "go"}" data-handed="${p.id}" data-on="${p.handed ? 0 : 1}">${p.handed ? "Handed ✓" : "Hand over"}</button>` : ""}
             <span class="n">${p.amount}</span>
