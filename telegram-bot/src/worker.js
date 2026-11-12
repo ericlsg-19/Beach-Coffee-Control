@@ -54,7 +54,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.17.3";
+const VERSION = "1.17.4";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -1441,7 +1441,7 @@ export default {
     if (path === "/web3" || path === "/web3/") {
       return new Response(web3Html(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
     }
-    const shot = path.match(/^\/web3\/(app|panel|tip)\.webp$/);
+    const shot = path.match(/^\/web3\/(app|panel|tip|race)\.webp$/);
     if (shot) {
       const bytes = Uint8Array.from(atob(WEB3_SHOTS[shot[1]]), c => c.charCodeAt(0));
       return new Response(bytes, { headers: { "content-type": "image/webp", "cache-control": "public, max-age=86400" } });

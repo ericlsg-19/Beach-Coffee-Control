@@ -414,7 +414,7 @@ test("/web3: the page for web3 organizers in English, its bag image, and a ready
   const html = await res.text();
   assert.match(html, /<html lang="en">/);
   assert.match(html, /One month\.<br><span class="on">1,500\+ coffees\.<\/span>/);
-  for (const name of ["app", "panel", "tip"]) {
+  for (const name of ["app", "panel", "tip", "race"]) {
     assert.ok(html.includes(`/web3/${name}.webp`));
     const shot = await worker.fetch(new Request(`https://bot/web3/${name}.webp`), env);
     assert.equal(shot.headers.get("content-type"), "image/webp");
