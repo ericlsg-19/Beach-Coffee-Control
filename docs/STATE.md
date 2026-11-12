@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 11/11/2026, bot e Âncora na **v1.17.5**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 11/11/2026, bot e Âncora na **v1.17.6**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
