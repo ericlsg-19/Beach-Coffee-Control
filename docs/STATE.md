@@ -1,6 +1,6 @@
 # Estado do projeto (para retomar numa conversa nova)
 
-Atualizado em 11/11/2026, bot e Âncora na **v1.17.3**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
+Atualizado em 11/11/2026, bot e Âncora na **v1.17.5**, no domínio próprio **drinkbeachcoffee.com** (Solflare como carteira principal).
 
 ## O que existe e onde
 
@@ -73,6 +73,7 @@ Atualizado em 11/11/2026, bot e Âncora na **v1.17.3**, no domínio próprio **d
 - 11/11: v1.17.1 no ar: na aba Ranking do Mini App, **Top patrons vem primeiro e abre por padrão**; Coffee race é a segunda aba.
 - 11/11: v1.17.2 no ar: **pacotes numerados pela ordem de venda** (#1, #2…) nas mensagens do bot e no Âncora; antes aparecia o id do pagamento (contava todos os checkouts, ex. #154). Estoque: 9 pacotes (ajustar com `/bags 9`).
 - 12/11: v1.17.3 no ar: **/web3 virou o case de sucesso da Island DAO** (1.5k+ cafés, linha do tempo do mês, o que construímos com prints reais em `/web3/app|panel|tip.webp`, a edição, "Now imagine it at yours" e o formulário de reserva). Prints em `telegram-bot/src/web3shots.js`.
+- 12/11: v1.17.5 no ar: /web3 com 4º print (top 10 final da coffee race com o boost de 1 USDC) e agradecimento à Superteam Argentina. Corrigido o nome público no ranking quando o sobrenome começa com emoji (aparecia "Tony �."; agora "Tony").
 - Números de 27/10 (terça): 97 bebidas, Telegram 17, barra 80, 13 clientes no Telegram, pico 14–15h, Latte 19.
 
 ## Pendências

@@ -54,7 +54,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.17.4";
+const VERSION = "1.17.5";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -662,7 +662,9 @@ const boostedToday = async (env, chat) => (await env.DB.prepare(
 function publicName(name) {
   const words = String(name || "").replace(/\s*\(@[^)]*\)\s*$/, "").trim().split(/\s+/).filter(Boolean);
   if (!words.length) return "Coffee lover";
-  return words.length > 1 ? `${words[0]} ${words[words.length - 1][0].toUpperCase()}.` : words[0];
+  // The initial of the last word that starts with a letter: "Tony 🌴" stays "Tony", not "Tony \ud83c."
+  const last = words.slice(1).reverse().find(w => /^\p{L}/u.test(w));
+  return last ? `${words[0]} ${[...last][0].toUpperCase()}.` : words[0];
 }
 
 async function rankingForCustomer(env, chatId) {

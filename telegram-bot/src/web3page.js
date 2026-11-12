@@ -173,7 +173,7 @@ const PAGE = String.raw`<!doctype html>
       <figure><img src="/web3/app.webp" alt="The guest app: menu and today's orders in the Telegram Mini App" width="480" height="923" loading="lazy"><figcaption><b>Guest app</b>Order from your seat in Telegram</figcaption></figure>
       <figure><img src="/web3/panel.webp" alt="The barista panel: quick-order tiles for every drink and today's queue" width="480" height="923" loading="lazy"><figcaption><b>Barista panel</b>Every order in one queue, live</figcaption></figure>
       <figure><img src="/web3/tip.webp" alt="Tip and Bag: tip the barista in USDC and buy the Island DAO Edition bag" width="480" height="861" loading="lazy"><figcaption><b>Tip &amp; Bag</b>USDC on Solana, no custody</figcaption></figure>
-      <figure><img src="/web3/race.webp" alt="The coffee race: your place, the 1 USDC race boost and the leaderboard with boosts" width="480" height="923" loading="lazy"><figcaption><b>Coffee race</b>+1 cup for 1 USDC, paid onchain</figcaption></figure>
+      <figure><img src="/web3/race.webp" alt="The coffee race: the 1 USDC race boost and the final top 10, with boosts shown as lightning" width="480" height="923" loading="lazy"><figcaption><b>Coffee race</b>+1 cup for 1 USDC on Solana</figcaption></figure>
     </div>
     <div class="grid three" style="margin-top:28px">
       <div class="card"><span class="num">BAR</span><h3>Specialty coffee bar</h3><p>Barista, espresso machine, specialty Arabica, hot and iced drinks, open every day of the event.</p></div>
