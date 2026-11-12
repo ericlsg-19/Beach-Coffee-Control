@@ -414,7 +414,7 @@ test("/web3: the page for web3 organizers in English, its bag image, and a ready
   const html = await res.text();
   assert.match(html, /<html lang="en">/);
   assert.match(html, /One month\.<br><span class="on">1,500\+ coffees\.<\/span>/);
-  for (const name of ["app", "panel", "tip"]) {
+  for (const name of ["app", "panel", "tip", "race"]) {
     assert.ok(html.includes(`/web3/${name}.webp`));
     const shot = await worker.fetch(new Request(`https://bot/web3/${name}.webp`), env);
     assert.equal(shot.headers.get("content-type"), "image/webp");
@@ -629,16 +629,16 @@ test("ranking counts Telegram orders per customer, skips bar and cancelled order
     from: { id: chat, first_name: first, last_name: last, username }, message: { chat: { id: chat, type: "private" }, message_id: 50 } } });
   await tapAs(ANA, "Ana", "Souza", "ana", "c:latte");
   await tapAs(ANA, "Ana", "Souza", "ana", "c:mocha");
-  await tapAs(BEN, "Ben", undefined, "ben", "c:espresso");
-  await tapAs(BEN, "Ben", undefined, "ben", "c:espresso");
-  await tapAs(BEN, "Ben", undefined, "ben", "c:espresso");
+  await tapAs(BEN, "Ben", "🌴", "ben", "c:espresso");
+  await tapAs(BEN, "Ben", "🌴", "ben", "c:espresso");
+  await tapAs(BEN, "Ben", "🌴", "ben", "c:espresso");
   await panel(env, "POST", "/api/panel/orders", { drink: "latte", customer: "Walk-in", day: localDayForTest() });
   // Cancel one of Ben's: he drops to 2 and Ana (who got to 2 first) stays ahead.
   const benOrders = (await (await panel(env, "GET", "/api/panel/orders")).json()).orders.filter(o => o.customer.startsWith("Ben"));
   await panel(env, "DELETE", `/api/panel/orders/${benOrders[0].id}`);
 
   const full = (await (await panel(env, "GET", "/api/panel/ranking")).json()).ranking;
-  assert.deepEqual(full.map(r => [r.rank, r.name, r.drinks]), [[1, "Ana Souza (@ana)", 2], [2, "Ben (@ben)", 2]]);
+  assert.deepEqual(full.map(r => [r.rank, r.name, r.drinks]), [[1, "Ana Souza (@ana)", 2], [2, "Ben 🌴 (@ben)", 2]]);
 
   const initData = signedInitData("t", { id: BEN, first_name: "Ben", username: "ben" });
   const s = await (await apiCall(env, "/api/session", { initData })).json();
@@ -647,7 +647,7 @@ test("ranking counts Telegram orders per customer, skips bar and cancelled order
 
   calls.length = 0;
   await post(msg(BARISTA, "/ranking"));
-  assert.match(calls.at(-1).body.text, /🥇 Ana Souza \(@ana\) · <b>2<\/b>\n🥈 Ben \(@ben\) · <b>2<\/b>/);
+  assert.match(calls.at(-1).body.text, /🥇 Ana Souza \(@ana\) · <b>2<\/b>\n🥈 Ben 🌴 \(@ben\) · <b>2<\/b>/);
   await post(msg(BARISTA, "/today"));
   assert.match(calls.at(-1).body.text, /Top customer: Ana Souza \(@ana\) \(2\)/);
 });

@@ -84,7 +84,7 @@ const PAGE = String.raw`<!doctype html>
   .timeline li:last-child::before { background: var(--gold); border-color: var(--gold); }
   .timeline .when { font: 600 13px/1 "JetBrains Mono", monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); padding-top: 5px; }
   .timeline p { margin: 8px 0 0; color: var(--muted); max-width: 44em; }
-  .shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0; }
+  .shots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 12px; margin: 0; }
   .shots figure { margin: 0; }
   .shots img { width: 100%; height: auto; display: block; border-radius: 20px; border: 1px solid var(--line); box-shadow: 0 20px 50px rgba(0,0,0,.35); aspect-ratio: 480 / 900; object-fit: cover; object-position: top; }
   .shots figcaption { margin-top: 12px; font-size: 13px; color: var(--muted); line-height: 1.35; }
@@ -116,7 +116,7 @@ const PAGE = String.raw`<!doctype html>
     .grid.three { grid-template-columns: repeat(3, 1fr); }
     .grid.two { grid-template-columns: repeat(2, 1fr); }
     .timeline li { grid-template-columns: 120px 1fr; gap: 20px; }
-    .shots { gap: 28px; max-width: 900px; }
+    .shots { grid-template-columns: repeat(4, 1fr); gap: 24px; }
     .shots figcaption { font-size: 15px; }
     .bag { grid-template-columns: 1.1fr .9fr; }
     .contact { display: grid; grid-template-columns: .9fr 1.1fr; gap: 40px; align-items: start; }
@@ -173,6 +173,7 @@ const PAGE = String.raw`<!doctype html>
       <figure><img src="/web3/app.webp" alt="The guest app: menu and today's orders in the Telegram Mini App" width="480" height="923" loading="lazy"><figcaption><b>Guest app</b>Order from your seat in Telegram</figcaption></figure>
       <figure><img src="/web3/panel.webp" alt="The barista panel: quick-order tiles for every drink and today's queue" width="480" height="923" loading="lazy"><figcaption><b>Barista panel</b>Every order in one queue, live</figcaption></figure>
       <figure><img src="/web3/tip.webp" alt="Tip and Bag: tip the barista in USDC and buy the Island DAO Edition bag" width="480" height="861" loading="lazy"><figcaption><b>Tip &amp; Bag</b>USDC on Solana, no custody</figcaption></figure>
+      <figure><img src="/web3/race.webp" alt="The coffee race: the 1 USDC race boost and the final top 10, with boosts shown as lightning" width="480" height="923" loading="lazy"><figcaption><b>Coffee race</b>+1 cup for 1 USDC on Solana</figcaption></figure>
     </div>
     <div class="grid three" style="margin-top:28px">
       <div class="card"><span class="num">BAR</span><h3>Specialty coffee bar</h3><p>Barista, espresso machine, specialty Arabica, hot and iced drinks, open every day of the event.</p></div>
@@ -215,7 +216,7 @@ const PAGE = String.raw`<!doctype html>
   <div class="wrap">
     <p class="eyebrow">Proof of brew</p>
     <p class="story">Built from zero at the bar, by the barista, between shifts, with AI. Not by a dev team.<br><b>On the island, anyone can build.</b></p>
-    <p class="thanks">Thank you <b>Island DAO</b>, <b>Giants</b> and <b>Superteam Brasil</b>, and every islander who ordered a cup.</p>
+    <p class="thanks">Thank you <b>Island DAO</b>, <b>Giants</b>, <b>Superteam Brasil</b> and <b>Superteam Argentina</b>, and every islander who ordered a cup.</p>
   </div>
 </section>
 
