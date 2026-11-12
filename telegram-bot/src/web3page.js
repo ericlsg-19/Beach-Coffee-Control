@@ -1,6 +1,6 @@
 // /web3: the coffee bar pitched to web3 event organizers (hackathons, conferences, hacker houses), in
-// English. Proof from Island DAO, how ordering works, what organizers get, the edition bag,
-// and a quick inquiry that goes out as a ready WhatsApp message or is copied for an X DM.
+// English. Island DAO (Floripa, Oct–Nov 2026) as the case study, how ordering works, what organizers
+// get, the edition bag, and a quick inquiry that goes out as a ready WhatsApp message or is copied for an X DM.
 import { WORDMARK_SVG } from "./wordmark.js";
 
 export const WEB3_CONTACT = { whatsapp: "5548998300443", x: "BeachCoffeco", bot: "BeachCoffeeIslandBot" };
@@ -21,7 +21,7 @@ const PAGE = String.raw`<!doctype html>
 <title>Beach Coffee Co. · Coffee bar for web3 events</title>
 <meta name="description" content="A specialty coffee bar for hackathons, conferences and hacker houses. Builders order from Telegram, get pinged when it's ready, and tip in USDC on Solana.">
 <meta property="og:title" content="Coffee, onchain · Beach Coffee Co.">
-<meta property="og:description" content="The specialty coffee bar for builders' events. 0% to 94% of orders on Telegram in four days at Island DAO.">
+<meta property="og:description" content="The specialty coffee bar for builders' events. Case study: 1,500+ coffees at Island DAO, 94% ordered on Telegram, tips and merch in USDC on Solana.">
 <meta name="theme-color" content="#17322b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,800;125,900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
@@ -78,6 +78,12 @@ const PAGE = String.raw`<!doctype html>
   .bagcard { justify-self: center; width: 100%; max-width: 420px; aspect-ratio: 4 / 5; border-radius: 32px; display: grid; place-items: center; padding: 36px;
     background: radial-gradient(120% 90% at 50% 12%, #f8eedc 0%, #ead8ba 55%, #d4b98f 100%); box-shadow: 0 30px 80px rgba(0,0,0,.35); }
   .bagcard img { height: 100%; width: auto; max-width: 100%; object-fit: contain; filter: drop-shadow(0 26px 30px rgba(70,45,20,.45)); }
+  .case { display: grid; gap: 14px; }
+  .case .card h3 { font-size: 20px; }
+  .case .big { display: block; font: 900 clamp(34px, 6vw, 44px)/1 Archivo, sans-serif; font-stretch: 125%; color: var(--mint); margin-bottom: 12px; }
+  .case .big.gold { color: var(--gold); }
+  .thanks { margin-top: 22px; color: var(--muted); font-size: 15px; }
+  .thanks b { color: var(--text); font-weight: 600; }
   .story { border-left: 4px solid var(--gold); padding: 6px 0 6px 22px; font-size: clamp(18px, 2.6vw, 24px); color: #dbe6de; max-width: 46em; }
   .story b { color: var(--gold); }
   /* Inquiry */
@@ -102,6 +108,7 @@ const PAGE = String.raw`<!doctype html>
     .stats { grid-template-columns: repeat(4, 1fr); }
     .grid.three { grid-template-columns: repeat(3, 1fr); }
     .grid.two { grid-template-columns: repeat(2, 1fr); }
+    .case { grid-template-columns: repeat(3, 1fr); }
     .bag { grid-template-columns: 1.1fr .9fr; }
     .contact { display: grid; grid-template-columns: .9fr 1.1fr; gap: 40px; align-items: start; }
   }
@@ -111,32 +118,48 @@ const PAGE = String.raw`<!doctype html>
 <div class="wrap">
   <nav>
     <!--WORDMARK-->
-    <div class="links"><a href="#how">How it works</a><a href="#organizers">Organizers</a><a href="#edition">Edition</a></div>
+    <div class="links"><a href="#case">Island DAO case</a><a href="#how">How it works</a><a href="#organizers">Organizers</a></div>
     <a class="pill" href="#book">Book the bar</a>
   </nav>
 
   <div class="hero">
-    <p class="eyebrow"><span class="dot"></span>Live at Island DAO · Floripa · Oct 2026</p>
+    <p class="eyebrow"><span class="dot"></span>Now booking the next events · Case: Island DAO</p>
     <h1>Coffee,<br><span class="on">onchain.</span></h1>
-    <p class="lead">The specialty coffee bar for builders' events. No lines, no lost orders, no one leaving the hackathon floor.</p>
+    <p class="lead">The specialty coffee bar for builders' events. No lines, no lost orders, no one leaving the hackathon floor. Proven for a full month at Island DAO in Florianópolis; ready for your hackathon, conference or hacker house.</p>
     <div class="ctas">
       <a class="btn mint" href="#book">Bring the bar to your event</a>
-      <a class="btn ghost" href="https://t.me/BeachCoffeeIslandBot" target="_blank" rel="noopener">Try the bot</a>
+      <a class="btn ghost" href="#case">See the Island DAO case</a>
     </div>
     <div class="solbar"></div>
     <div class="stats">
-      <div><b>2k<span class="g">+</span></b><span>coffees served in one month, during Island DAO</span></div>
+      <div><b>1.5k<span class="g">+</span></b><span>coffees served at Island DAO</span></div>
       <div><b>0<span class="g">→</span>94%</b><span>of orders moved to Telegram in four days</span></div>
       <div><b>5<span class="g">→</span>0</b><span>minutes in line, timed at the bar</span></div>
-      <div><b>USDC</b><span>tips verified onchain with Solana Pay</span></div>
+      <div><b>USDC</b><span>tips and merch, verified onchain with Solana Pay</span></div>
     </div>
   </div>
 </div>
 
+<section id="case">
+  <div class="wrap">
+    <div class="head"><p class="eyebrow">Case study · Island DAO · Floripa · Oct–Nov 2026</p><h2>A month on the island</h2>
+      <p>We ran the coffee bar at Island DAO, a builders' residency in Florianópolis, every day of the event. This is what happened.</p></div>
+    <div class="case">
+      <div class="card"><span class="big">1.5k+</span><h3>Coffees served</h3><p>Hot and iced, specialty Arabica, plant and lactose-free milk, through the whole residency.</p></div>
+      <div class="card"><span class="big">94%</span><h3>Ordered on Telegram</h3><p>From 0% to 94% of orders in four days. Builders ordered from their seat and got a ping when it was ready.</p></div>
+      <div class="card"><span class="big gold">115</span><h3>In the coffee race</h3><p>A leaderboard nobody asked for went viral on X. Islanders could add a cup for 1 USDC a day, paid onchain.</p></div>
+      <div class="card"><span class="big gold">USDC</span><h3>Tips on Solana</h3><p>Guests tipped the barista in USDC from Solflare, Phantom or the Seeker, with a Top patrons board of their own.</p></div>
+      <div class="card"><span class="big">20</span><h3>Edition bags</h3><p>An Island DAO Edition coffee bag, 10 USDC, sold and verified onchain in the same app.</p></div>
+      <div class="card"><span class="big">dApp</span><h3>Solana dApp Store</h3><p>The bar became an installable app, submitted to the Solana dApp Store, paying with the phone's own wallet on Seeker.</p></div>
+    </div>
+    <p class="thanks">Thank you <b>Island DAO</b>, <b>Giants</b> and <b>Superteam Brasil</b>, and every islander who ordered a cup.</p>
+  </div>
+</section>
+
 <section id="how">
   <div class="wrap">
     <div class="head"><p class="eyebrow">How it works</p><h2>Tap. Sip. Tip.</h2>
-      <p>Built and battle-tested during a real event, with real builders, every day.</p></div>
+      <p>Battle-tested for a month at Island DAO, with real builders, every day. The same flow, set up for your event.</p></div>
     <div class="grid three">
       <div class="card"><span class="num">01</span><h3>Order from your seat</h3><p>A Telegram Mini App: pick the drink and the milk, confirm. The order lands on the barista's panel in real time.</p></div>
       <div class="card"><span class="num">02</span><h3>Keep building</h3><p>The barista taps Ready and the guest gets a Telegram ping. They only walk over to pick it up.</p></div>
@@ -154,7 +177,7 @@ const PAGE = String.raw`<!doctype html>
       <div class="card"><span class="num">BOT</span><h3>Your event's bot</h3><p>The ordering bot set up for your event: your name, your menu, your dates, opening hours and breaks.</p></div>
       <div class="card"><span class="num">DATA</span><h3>Live panel and report</h3><p>A live order panel during the event, and a final report: cups served, unique guests, peak hours, top drinks.</p></div>
       <div class="card"><span class="num">FLOW</span><h3>Built for crowds</h3><p>Per-guest limits, stock per drink and a demo-day mode keep the bar fair when everyone breaks at once.</p></div>
-      <div class="card"><span class="num">MERCH</span><h3>Limited edition bag</h3><p>A coffee bag with your event's label, sold onchain in the same app. A souvenir that funds the bar.</p></div>
+      <div class="card"><span class="num">RACE</span><h3>Coffee race</h3><p>An optional leaderboard for your attendees, with a 1 USDC daily boost and a Top patrons board. The game that went viral at Island DAO.</p></div>
       <div class="card"><span class="num">SHIP</span><h3>Content included</h3><p>Daily recap cards for X with the event's numbers, ready for you to share.</p></div>
     </div>
   </div>
@@ -162,8 +185,8 @@ const PAGE = String.raw`<!doctype html>
 
 <section id="edition">
   <div class="wrap bag">
-    <div class="head" style="margin:0"><p class="eyebrow">Limited edition</p><h2>Island DAO Edition</h2>
-      <p>20 bags of our specialty Arabica with the event's own label, 10 USDC each, sold and verified onchain inside the same Mini App. Every event can have its own edition.</p></div>
+    <div class="head" style="margin:0"><p class="eyebrow">Limited edition · your event's own</p><h2>Island DAO Edition</h2>
+      <p>At Island DAO: 20 bags of our specialty Arabica with the event's own label, 10 USDC each, sold and verified onchain inside the same Mini App. Your event can have its own edition: a souvenir for attendees that helps fund the bar.</p></div>
     <div class="bagcard"><img src="/web3/bag.webp" alt="Island DAO Edition coffee bag: a black 250 g pouch with the green Beach Coffee Co. label" width="600" height="960" loading="lazy"></div>
   </div>
 </section>
@@ -181,7 +204,7 @@ const PAGE = String.raw`<!doctype html>
       <p>Tell us about your event. The message goes out ready on WhatsApp, or copy it for an X DM, and we'll come back with a proposal.</p></div>
     <form class="card form" id="form" onsubmit="return false">
       <div class="field"><span class="label">Event</span><div class="kinds" id="kinds"></div></div>
-      <div class="field"><label for="name">Event name</label><input type="text" id="name" placeholder="IslandHack"></div>
+      <div class="field"><label for="name">Event name</label><input type="text" id="name" placeholder="Your event"></div>
       <div class="row2">
         <div class="field"><label for="city">City</label><input type="text" id="city" placeholder="Florianópolis"></div>
         <div class="field"><label for="dates">Dates</label><input type="text" id="dates" placeholder="Nov 20–24"></div>
@@ -198,7 +221,7 @@ const PAGE = String.raw`<!doctype html>
   <div class="wrap">
     <!--WORDMARK-->
     <p>The coffee bar for builders' events · Florianópolis, Brazil</p>
-    <p><a href="https://x.com/BeachCoffeco" target="_blank" rel="noopener">X @BeachCoffeco</a> · <a href="https://t.me/BeachCoffeeIslandBot" target="_blank" rel="noopener">Telegram bot</a> · <a href="/eventos">Weddings and private events</a></p>
+    <p><a href="https://x.com/BeachCoffeco" target="_blank" rel="noopener">X @BeachCoffeco</a> · <a href="https://t.me/BeachCoffeeIslandBot" target="_blank" rel="noopener">Try the Telegram bot</a> · <a href="/eventos">Weddings and private events</a></p>
   </div>
 </footer>
 <div class="toast" id="toast"></div>
