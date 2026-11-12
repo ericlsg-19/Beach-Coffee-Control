@@ -26,6 +26,7 @@ import { web3Html } from "./web3page.js";
 import { guideHtml } from "./guidepage.js";
 import { patrons, patronsPanel, savePatronTip, deletePatronTip } from "./patrons.js";
 import { WEB3_BAG_WEBP } from "./web3bag.js";
+import { WEB3_SHOTS } from "./web3shots.js";
 import { MWA_IIFE } from "./vendor/mwa-iife.js";
 import { ICON_192, ICON_512, MASKABLE_512 } from "./appicons.js";
 import { manifest, SERVICE_WORKER, assetLinks, PRIVACY_HTML, TERMS_HTML } from "./pwa.js";
@@ -53,7 +54,7 @@ const DRINKS = [
 ];
 
 // Keep in step with the Âncora page (ancora/ancora.html): same menu, same version.
-const VERSION = "1.17.2";
+const VERSION = "1.17.3";
 
 const TIME_ZONE = "America/Sao_Paulo";
 const MAX_PENDING_PER_CUSTOMER = 3;
@@ -1439,6 +1440,11 @@ export default {
     }
     if (path === "/web3" || path === "/web3/") {
       return new Response(web3Html(), { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "public, max-age=300" } });
+    }
+    const shot = path.match(/^\/web3\/(app|panel|tip)\.webp$/);
+    if (shot) {
+      const bytes = Uint8Array.from(atob(WEB3_SHOTS[shot[1]]), c => c.charCodeAt(0));
+      return new Response(bytes, { headers: { "content-type": "image/webp", "cache-control": "public, max-age=86400" } });
     }
     if (path === "/web3/bag.webp") {
       const bytes = Uint8Array.from(atob(WEB3_BAG_WEBP), c => c.charCodeAt(0));

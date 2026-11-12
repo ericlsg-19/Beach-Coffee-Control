@@ -413,7 +413,12 @@ test("/web3: the page for web3 organizers in English, its bag image, and a ready
   assert.equal(res.status, 200);
   const html = await res.text();
   assert.match(html, /<html lang="en">/);
-  assert.match(html, /Coffee,<br><span class="on">onchain/);
+  assert.match(html, /One month\.<br><span class="on">1,500\+ coffees\.<\/span>/);
+  for (const name of ["app", "panel", "tip"]) {
+    assert.ok(html.includes(`/web3/${name}.webp`));
+    const shot = await worker.fetch(new Request(`https://bot/web3/${name}.webp`), env);
+    assert.equal(shot.headers.get("content-type"), "image/webp");
+  }
   assert.match(html, /"x":"BeachCoffeco"/);
   assert.ok(!html.includes("/*CONFIG*/") && !html.includes("<!--WORDMARK-->"));
   const img = await worker.fetch(new Request("https://bot/web3/bag.webp"), env);
