@@ -216,7 +216,7 @@ const PAGE = String.raw`<!doctype html>
   <div class="wrap">
     <p class="eyebrow">Proof of brew</p>
     <p class="story">Built from zero at the bar, by the barista, between shifts, with AI. Not by a dev team.<br><b>On the island, anyone can build.</b></p>
-    <p class="thanks">Thank you <b>Island DAO</b>, <b>Giants</b> and <b>Superteam Brasil</b>, and every islander who ordered a cup.</p>
+    <p class="thanks">Thank you <b>Island DAO</b>, <b>Giants</b>, <b>Superteam Brasil</b> and <b>Superteam Argentina</b>, and every islander who ordered a cup.</p>
   </div>
 </section>
 
