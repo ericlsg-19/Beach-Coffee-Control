@@ -33,8 +33,21 @@ h1 i { color: var(--mint); font-style: italic; }
 .phones { position: relative; }
 .phones img { position: absolute; width: 100px; border-radius: 13px; border: 3px solid #0b1f19; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
 .phones .a { left: 4px; top: 22px; transform: rotate(-5deg); } .phones .b { right: 4px; top: 4px; transform: rotate(4deg); }
-.results { background: var(--cream); padding: 12px 44px 0; font: 700 9px/1.3 Figtree; letter-spacing: .2em; text-transform: uppercase; color: var(--brown); }
+.results { background: var(--cream); border-top: 1px solid var(--line); padding: 12px 44px 0; font: 700 9px/1.3 Figtree; letter-spacing: .2em; text-transform: uppercase; color: var(--brown); }
 .results span { font-weight: 500; letter-spacing: .04em; text-transform: none; font-size: 10.5px; color: var(--mid); margin-left: 6px; }
+.needs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.needs div { background: var(--cream); border-radius: 6px; padding: 10px 12px; }
+.needs b { display: block; font: 600 14px/1.1 "Cormorant Garamond", serif; color: var(--brown); margin-bottom: 3px; }
+.needs span { font-size: 10.1px; line-height: 1.38; color: var(--mid); display: block; }
+.ps { display: grid; grid-template-columns: 1fr 1fr; background: var(--paper); }
+.ps > div { padding: 14px 44px 14px; } .ps > div + div { border-left: 1px solid var(--line); padding-left: 22px; background: #fbfcf9; }
+.ps > div:first-child { padding-right: 22px; }
+.lbl { font: 700 9px/1 Figtree; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.ps ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.ps li { position: relative; padding-left: 14px; font-size: 10.6px; line-height: 1.38; color: var(--mid); }
+.ps li::before { content: ""; position: absolute; left: 0; top: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); }
+.ps > div + div li::before { background: var(--brown); }
+.ps li b { color: var(--ink); font-weight: 600; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--cream); border-bottom: 1px solid var(--line); }
 .stats div { padding: 8px 16px 14px 44px; } .stats div:last-child { padding-right: 40px; } .stats div + div { border-left: 1px solid var(--line); padding-left: 18px; }
 .stats b { display: block; font: 700 28px/1 "Cormorant Garamond", serif; color: var(--brown); font-variant-numeric: lining-nums; }
@@ -55,7 +68,7 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--line); transfor
 .mod:nth-child(3n+2), .mod:nth-child(3n) { padding-left: 14px; border-left: 1px solid var(--line); }
 .mod:nth-last-child(-n+3) { border-bottom: 0; }
 .mod .t { font: 600 14.5px/1.1 "Cormorant Garamond", serif; color: var(--brown); margin-bottom: 4px; }
-.mod p { margin: 0; color: var(--mid); font-size: 10.2px; line-height: 1.38; }
+.mod p { margin: 0; color: var(--mid); font-size: 10.2px; line-height: 1.4; }
 .two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 14px; }
 .box { background: #fbfcf9; border: 1px solid var(--line); border-radius: 6px; padding: 13px 16px; }
 .box.dark { background: var(--brown); border-color: var(--brown); color: var(--sand); }
@@ -82,66 +95,70 @@ h2::after { content: ""; flex: 1; height: 1px; background: var(--line); transfor
 <div class="band">
   <div>
     <div class="wm">${wm}</div>
-    <div class="kicker">For coffee shops · Orders, payments & loyalty</div>
+    <div class="kicker">Proposal for coffee shops · Ordering, payments & loyalty</div>
     <h1>Your coffee shop, <i>without the line.</i></h1>
-    <p>Customers order from their table on their phone and get a message when the coffee is ready. Your barista sees every order on one screen. Tips and products can be paid in <b>USDC, a digital dollar</b>, straight to you, and a <b>loyalty game with digital rewards</b> keeps customers coming back.</p>
+    <p>A complete ordering, payment and loyalty system for your shop. Customers order from their table, your team works from one screen, and every visit becomes data you can use to bring customers back. Proven in a month of real, high-volume service.</p>
   </div>
   <div class="phones"><img class="a" src="${shot("app")}" alt=""><img class="b" src="${shot("race")}" alt=""></div>
 </div>
 
-<div class="results">Real results<span>One month running the coffee bar at Island DAO, a tech event in Florianópolis, Brazil (Oct–Nov 2026)</span></div>
+<div class="ps">
+  <div><div class="lbl">The challenge</div><ul>
+    <li><b>Peak-hour lines</b> that make customers wait, or walk away.</li>
+    <li><b>Orders lost or mixed up</b> when everyone arrives at once.</li>
+    <li><b>No customer data</b>: you don't know who your regulars are, or how to bring them back.</li>
+  </ul></div>
+  <div><div class="lbl">Our solution</div><ul>
+    <li><b>Order from the table</b>: customers order on their phone and get a message when it's ready.</li>
+    <li><b>One screen for your team</b>: phone and counter orders in a single, live list.</li>
+    <li><b>Loyalty and payments built in</b>: rankings, rewards and payments in digital dollars.</li>
+  </ul></div>
+</div>
+
+<div class="results">Proven results<span>Case study: one month running the coffee bar at Island DAO, a tech event in Florianópolis, Brazil</span></div>
 <div class="stats">
   <div><b>1,500+</b><span>coffees served in one month</span></div>
-  <div><b>94%</b><span>of customers ordered from their phone</span><small>after only 4 days (it started at 0%)</small></div>
-  <div><b>0 min</b><span>waiting in line</span><small>it used to be about 5 minutes</small></div>
-  <div><b>115</b><span>customers joined the loyalty game</span></div>
+  <div><b>100%</b><span>of orders placed through the app by the end of the month</span></div>
+  <div><b>5 → 0 min</b><span>waiting time in line at peak hours</span></div>
+  <div><b>115</b><span>customers active in the loyalty program</span></div>
 </div>
-<div class="case">See the full case: drinkbeachcoffee.com/web3</div>
 
 <div class="body">
-  <h2><span class="n">01</span>How it works</h2>
-  <div class="flow">
-    <div class="step"><em>ORDER</em><b>From the table</b><span>On their phone, inside Telegram, a free messaging app like WhatsApp. Nothing to install.</span></div>
-    <div class="step"><em>MAKE</em><b>One screen for the barista</b><span>Phone orders and counter orders in one list, in real time.</span></div>
-    <div class="step"><em>NOTIFY</em><b>"Your coffee is ready"</b><span>The customer gets a message and comes to pick it up.</span></div>
-    <div class="step"><em>PAY</em><b>Tips in digital dollars</b><span>Customers tip or buy products in USDC. It reaches you in seconds.</span></div>
-  </div>
-
-  <h2><span class="n">02</span>What you get</h2>
+  <h2><span class="n">01</span>What we implement in your shop</h2>
   <div class="mods">
-    <div class="mod"><div class="t">Customer app</div><p>Your live menu with descriptions, milk options, sold-out items and opening hours. In Telegram, any browser, or as a phone app.</p></div>
-    <div class="mod"><div class="t">Barista screen</div><p>Order list, counter orders, stock, limits per customer and breaks. Open or close the shop with one tap.</p></div>
-    <div class="mod"><div class="t">Reports & finance</div><p>Cups per day, busiest hours, best-selling drinks, costs, income and profit. Ready-made posts for social media.</p></div>
-    <div class="mod"><div class="t">Digital-dollar payments</div><p>Payments arrive in seconds and cost cents. No bank or card machine in the middle: the money goes straight to you.</p></div>
-    <div class="mod"><div class="t">Your own coffee bag</div><p>Sell your coffee with your shop's label inside the same app, with stock and pick-up control.</p></div>
-    <div class="mod"><div class="t">Loyalty game</div><p>A live ranking of your most loyal customers. It made people come back every day, and they shared it on social media.</p></div>
+    <div class="mod"><div class="t">Customer ordering app</div><p>Your menu, with your brand, on the customer's phone: drinks, options, sold-out items and opening hours. Inside Telegram, a free messaging app like WhatsApp: nothing to install.</p></div>
+    <div class="mod"><div class="t">Staff order screen</div><p>Every order in one live list, from phones and from the counter. Stock, limits per customer and opening hours, managed with one tap.</p></div>
+    <div class="mod"><div class="t">Reports & finance</div><p>Sales per day, busiest hours, best-selling drinks, costs, income and profit, plus ready-made posts for your social media.</p></div>
+    <div class="mod"><div class="t">Loyalty program</div><p>A live ranking of your best customers, a board for your top supporters, collectible digital medals and reward points that bring customers back.</p></div>
+    <div class="mod"><div class="t">Digital-dollar payments</div><p>Tips and products paid in USDC, a digital dollar (1 USDC = US$1). It arrives in seconds, costs cents and goes straight to your account.</p></div>
+    <div class="mod"><div class="t">Your own product line</div><p>Sell your coffee beans with your shop's label inside the same app, with stock and pick-up control at the counter.</p></div>
   </div>
 
-  <h2><span class="n">03</span>Loyalty with digital rewards</h2>
-  <div class="two">
-    <div class="box"><h3>Customers who come back</h3><ul>
-      <li><span><b>Extra point</b>: customers pay 1 USDC to move up the ranking, once a day <span class="tag live">LIVE</span></span></li>
-      <li><span><b>Top supporters</b>: the biggest tippers get their own board <span class="tag live">LIVE</span></span></li>
-      <li><span><b>Collectible digital medals</b> (NFTs) for the top 3 of each season <span class="tag pilot">PILOT</span></span></li>
-      <li><span><b>Reward points</b> customers earn when they pay, with our partner Giants <span class="tag pilot">PILOT</span></span></li>
-    </ul></div>
-    <div class="box dark"><h3>What is USDC?</h3><ul>
-      <li><span><b>A digital dollar</b>: 1 USDC is always worth US$1</span></li>
-      <li><span><b>Fast and cheap</b>: arrives in seconds, costs cents</span></li>
-      <li><span><b>Direct</b>: from the customer's wallet app to yours</span></li>
-      <li><span>Runs on <b>Solana</b>, a fast, low-cost payment network</span></li>
-    </ul></div>
+  <h2><span class="n">02</span>How we roll it out</h2>
+  <div class="flow">
+    <div class="step"><em>STEP 1</em><b>Setup</b><span>We configure your menu, brand, opening hours and payments.</span></div>
+    <div class="step"><em>STEP 2</em><b>In-store launch</b><span>QR codes on tables and at the counter, and a walkthrough for your team.</span></div>
+    <div class="step"><em>STEP 3</em><b>First weeks</b><span>We follow every day of service with you and adjust what's needed.</span></div>
+    <div class="step"><em>STEP 4</em><b>Grow</b><span>Monthly reports and loyalty campaigns to bring customers back.</span></div>
+  </div>
+
+  <h2><span class="n">03</span>What you need</h2>
+  <div class="needs">
+    <div><b>A phone or tablet</b><span>at the counter, for the staff order screen. It runs in the browser.</span></div>
+    <div><b>Your menu</b><span>drinks, options and opening hours. We set it up for you.</span></div>
+    <div><b>A digital wallet</b><span>to receive payments in digital dollars. We help you create it.</span></div>
+    <div><b>Nothing for customers</b><span>they use the phone they already have. No app to download.</span></div>
   </div>
 </div>
 
 <div class="foot">
-  <div><h3>Bring it to <i>your coffee shop.</i></h3>
-    <p>We set up your menu, your ordering app and your payments, and stay with you through the first weeks.</p>
+  <div><h3>Let's bring it to <i>your shop.</i></h3>
+    <p>Book a 20-minute demo and see the system running with your own menu.</p>
     <div class="contacts"><div><span>WHATSAPP</span>+55 48 99830-0443</div><div><span>X</span>@BeachCoffeco</div><div><span>WEB</span>drinkbeachcoffee.com/web3</div></div>
   </div>
-  <div class="qr"><div class="q">${qr}</div><small>Scan for the full Island DAO case</small></div>
+  <div class="qr"><div class="q">${qr}</div><small>Scan to see the full case study</small></div>
 </div>
-<div class="sign"><span>Beach Coffee Co. · Florianópolis, Brazil · Built at the counter, by the barista, with AI</span><span>Thanks Island DAO, Giants, Superteam Brasil & Superteam Argentina</span></div>
+<div class="sign"><span>Beach Coffee Co. · Florianópolis, Brazil</span><span>drinkbeachcoffee.com</span></div>
 </div></body></html>`;
 writeFileSync(here + "onepager-business-en.html", html);
 const { chromium } = createRequire(import.meta.url)("playwright");
